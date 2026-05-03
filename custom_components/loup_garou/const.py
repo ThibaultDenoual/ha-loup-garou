@@ -1,238 +1,250 @@
 """Constants for the Loup Garou integration."""
 from __future__ import annotations
 
-DOMAIN = "loup_garou"
-VERSION = "0.1.0"
+from enum import StrEnum
 
-# ─── Config entry keys ────────────────────────────────────────────────────────
+DOMAIN = "loup_garou"
+STORAGE_KEY = f"{DOMAIN}_game_state"
+STORAGE_VERSION = 1
+
+# ──────────────────────────────────────────────
+# Configuration keys
+# ──────────────────────────────────────────────
 CONF_SPEAKER = "speaker_entity"
 CONF_LIGHTS = "light_entities"
 CONF_LANGUAGE = "language"
 
-# ─── Roles ────────────────────────────────────────────────────────────────────
-ROLE_VILLAGER = "villager"
-ROLE_WEREWOLF = "werewolf"
-ROLE_SEER = "seer"
+LANGUAGES = ["fr", "en"]
+DEFAULT_LANGUAGE = "fr"
 
-# Phase 1 roles only; Phase 2 will add witch, hunter, cupid, little_girl
-ROLES_PHASE1 = [ROLE_VILLAGER, ROLE_WEREWOLF, ROLE_SEER]
 
-ROLE_TEAMS = {
-    ROLE_VILLAGER: "village",
-    ROLE_WEREWOLF: "wolves",
-    ROLE_SEER: "village",
+# ──────────────────────────────────────────────
+# Roles
+# ──────────────────────────────────────────────
+class Role(StrEnum):
+    VILLAGER = "villager"
+    WEREWOLF = "werewolf"
+    SEER = "seer"
+
+
+# Team membership — used for win condition checks
+WOLF_TEAM: set[Role] = {Role.WEREWOLF}
+VILLAGE_TEAM: set[Role] = {Role.VILLAGER, Role.SEER}
+
+# Night wake order (roles that act at night, in order)
+# Only roles present in the current game are actually called
+NIGHT_WAKE_ORDER: list[Role] = [
+    Role.SEER,
+    Role.WEREWOLF,
+]
+
+# Role display metadata (used by frontend)
+ROLE_META: dict[str, dict] = {
+    Role.VILLAGER: {
+        "icon": "🏘️",
+        "team": "village",
+        "has_night_action": False,
+        "description_fr": "Vous êtes un simple villageois. Débattez le jour et votez wisément.",
+        "description_en": "You are a simple villager. Debate by day and vote wisely.",
+    },
+    Role.WEREWOLF: {
+        "icon": "🐺",
+        "team": "wolves",
+        "has_night_action": True,
+        "description_fr": "Vous êtes un loup-garou. La nuit, choisissez votre victime en silence.",
+        "description_en": "You are a werewolf. At night, silently choose your victim.",
+    },
+    Role.SEER: {
+        "icon": "🔮",
+        "team": "village",
+        "has_night_action": True,
+        "description_fr": "Vous êtes la voyante. Chaque nuit, découvrez la vraie nature d'un joueur.",
+        "description_en": "You are the seer. Each night, discover the true nature of one player.",
+    },
 }
 
-# Night wake order (Phase 1 subset).
-# Roles not in this list have no night action.
-NIGHT_WAKE_ORDER = [ROLE_SEER, ROLE_WEREWOLF]
 
-# ─── Game phases ──────────────────────────────────────────────────────────────
-PHASE_SETUP = "setup"
-PHASE_ROLE_REVEAL = "role_reveal"
-PHASE_NIGHT = "night"
-PHASE_DAY = "day"
-PHASE_VOTE = "vote"
-PHASE_GAME_OVER = "game_over"
+# ──────────────────────────────────────────────
+# Game phases
+# ──────────────────────────────────────────────
+class Phase(StrEnum):
+    SETUP = "setup"
+    ROLE_REVEAL = "role_reveal"
+    NIGHT = "night"
+    DAY = "day"
+    VOTE = "vote"
+    GAME_OVER = "game_over"
 
-# ─── Night action types ───────────────────────────────────────────────────────
-ACTION_WOLF_KILL = "wolf_kill"
-ACTION_SEER_INVESTIGATE = "seer_investigate"
 
-# ─── Elimination causes ───────────────────────────────────────────────────────
-CAUSE_WOLF = "wolf"
-CAUSE_VOTE = "vote"
+# ──────────────────────────────────────────────
+# Night action types
+# ──────────────────────────────────────────────
+class NightActionType(StrEnum):
+    WOLF_KILL = "wolf_kill"        # payload: {"target_id": str}
+    SEER_INVESTIGATE = "seer_investigate"  # payload: {"target_id": str}
 
-# ─── Win conditions ───────────────────────────────────────────────────────────
-WIN_WOLVES = "wolves"
-WIN_VILLAGERS = "villagers"
 
-# ─── HA events ────────────────────────────────────────────────────────────────
-EVENT_PHASE_CHANGED = f"{DOMAIN}_phase_changed"
-EVENT_PLAYER_ELIMINATED = f"{DOMAIN}_player_eliminated"
+# ──────────────────────────────────────────────
+# Elimination causes
+# ──────────────────────────────────────────────
+class EliminationCause(StrEnum):
+    WOLF_KILL = "wolf_kill"
+    VILLAGE_VOTE = "village_vote"
+
+
+# ──────────────────────────────────────────────
+# Win conditions
+# ──────────────────────────────────────────────
+class WinCondition(StrEnum):
+    WOLVES = "wolves"
+    VILLAGERS = "villagers"
+
+
+# ──────────────────────────────────────────────
+# HA WebSocket event names
+# ──────────────────────────────────────────────
+EVENT_GAME_STATE_CHANGED = f"{DOMAIN}_state_changed"
 EVENT_GAME_OVER = f"{DOMAIN}_game_over"
-EVENT_STATE_UPDATED = f"{DOMAIN}_state_updated"
 
-# ─── WebSocket commands ───────────────────────────────────────────────────────
-WS_START_GAME = f"{DOMAIN}/start_game"
-WS_CONFIRM_ROLE_SEEN = f"{DOMAIN}/confirm_role_seen"
-WS_NIGHT_ACTION = f"{DOMAIN}/night_action"
-WS_SUBMIT_VOTE = f"{DOMAIN}/submit_vote"
-WS_NEXT_PHASE = f"{DOMAIN}/next_phase"
-WS_GET_STATE = f"{DOMAIN}/get_state"
-WS_SUBSCRIBE = f"{DOMAIN}/subscribe"
 
-# ─── Light scene definitions ──────────────────────────────────────────────────
-# Each scene: {rgb_color, brightness_pct, transition_seconds}
+# ──────────────────────────────────────────────
+# Light scenes
+# ──────────────────────────────────────────────
+# Each scene: rgb tuple (0-255), brightness 0-255, transition seconds
 LIGHT_SCENES: dict[str, dict] = {
     "night": {
-        "rgb_color": (10, 22, 40),       # deep blue #0a1628
-        "brightness_pct": 8,
+        "rgb_color": (10, 22, 40),    # deep blue #0a1628
+        "brightness": 20,              # ~8%
         "transition": 3,
     },
     "wolf_wake": {
-        "rgb_color": (139, 0, 0),         # blood red #8b0000
-        "brightness_pct": 20,
+        "rgb_color": (139, 0, 0),      # blood red #8b0000
+        "brightness": 51,              # ~20%
         "transition": 1,
     },
     "seer_wake": {
-        "rgb_color": (106, 13, 173),      # violet #6a0dad — used in Phase 1 even though subtle
-        "brightness_pct": 15,
+        "rgb_color": (106, 13, 173),   # violet #6a0dad
+        "brightness": 51,
         "transition": 1,
     },
     "day": {
-        "rgb_color": (255, 245, 224),     # warm white #fff5e0
-        "brightness_pct": 75,
+        "rgb_color": (255, 245, 224),  # warm white #fff5e0
+        "brightness": 191,             # ~75%
         "transition": 4,
     },
     "death": {
         "rgb_color": (139, 0, 0),
-        "brightness_pct": 15,
-        "transition": 0,                  # instant flash
+        "brightness": 38,              # ~15%
+        "transition": 1,
+        "flash": True,                 # frontend/controller does 1 flash then holds
     },
     "wolves_win": {
-        "rgb_color": (180, 0, 0),
-        "brightness_pct": 60,
+        "rgb_color": (200, 0, 0),
+        "brightness": 153,             # ~60%
         "transition": 0,
+        "strobe": True,
     },
-    "villagers_win": {
-        "rgb_color": (255, 220, 120),
-        "brightness_pct": 100,
+    "village_win": {
+        "rgb_color": (255, 220, 100),
+        "brightness": 255,
         "transition": 1,
     },
 }
 
-# Scene to use per phase transition
-PHASE_LIGHT_SCENE: dict[str, str] = {
-    PHASE_NIGHT: "night",
-    PHASE_DAY: "day",
-    PHASE_VOTE: "day",          # keep day lighting during vote
-    PHASE_GAME_OVER: "day",     # overridden by win condition scene
+# Map each phase/event to a scene key
+PHASE_SCENE_MAP: dict[str, str] = {
+    Phase.NIGHT: "night",
+    Phase.DAY: "day",
+    Phase.VOTE: "day",
+    "wolf_wake": "wolf_wake",
+    "seer_wake": "seer_wake",
+    "death": "death",
+    WinCondition.WOLVES: "wolves_win",
+    WinCondition.VILLAGERS: "village_win",
 }
 
-# Scene to use per role wake during night
-ROLE_WAKE_SCENE: dict[str, str] = {
-    ROLE_SEER: "seer_wake",
-    ROLE_WEREWOLF: "wolf_wake",
-}
 
-# ─── TTS narration strings ────────────────────────────────────────────────────
-# Keyed by language, then by event key.
-# Placeholders: {name}, {role}, {count}
-TTS_STRINGS: dict[str, dict[str, str]] = {
-    "fr": {
-        "roles_distributed": (
-            "Les rôles ont été distribués. "
-            "Le village se prépare pour sa première nuit."
-        ),
-        "night_start": (
-            "Le village s'endort… Tout le monde ferme les yeux."
-        ),
-        "seer_wake": (
-            "Voyante, ouvre les yeux. Désigne un joueur à investiguer."
-        ),
-        "seer_sleep": (
-            "Voyante, ferme les yeux."
-        ),
-        "wolves_wake": (
-            "Loups-garous, ouvrez les yeux. "
-            "Désignez silencieusement votre victime."
-        ),
-        "wolves_sleep": (
-            "Loups-garous, fermez les yeux."
-        ),
-        "day_death": (
-            "Le village se réveille. {name} a été retrouvé mort. "
-            "Il était {role}."
-        ),
-        "day_no_death": (
-            "Le village se réveille. "
-            "Miraculeusement, personne n'est mort cette nuit."
-        ),
-        "vote_start": (
-            "Le village doit voter pour éliminer un suspect."
-        ),
-        "player_eliminated": (
-            "{name} est éliminé. Il était {role}."
-        ),
-        "wolves_win": (
-            "Les loups-garous ont gagné ! Le village a succombé."
-        ),
-        "villagers_win": (
-            "Le village a gagné ! Tous les loups-garous sont morts."
-        ),
-        "role_villager": "Villageois",
-        "role_werewolf": "Loup-Garou",
-        "role_seer": "Voyante",
+# ──────────────────────────────────────────────
+# TTS announcement strings
+# ──────────────────────────────────────────────
+TTS: dict[str, dict[str, str]] = {
+    # ── Setup / Role reveal ──────────────────
+    "roles_distributed": {
+        "fr": "Les rôles ont été distribués. Le village se prépare pour sa première nuit.",
+        "en": "The roles have been distributed. The village prepares for its first night.",
     },
-    "en": {
-        "roles_distributed": (
-            "The roles have been distributed. "
-            "The village prepares for its first night."
-        ),
-        "night_start": (
-            "The village falls asleep… Eyes closed, everyone."
-        ),
-        "seer_wake": (
-            "Seer, open your eyes. Choose a player to investigate."
-        ),
-        "seer_sleep": (
-            "Seer, close your eyes."
-        ),
-        "wolves_wake": (
-            "Werewolves, open your eyes. "
-            "Choose your victim silently."
-        ),
-        "wolves_sleep": (
-            "Werewolves, close your eyes."
-        ),
-        "day_death": (
-            "The village wakes up. {name} was found dead. "
-            "They were a {role}."
-        ),
-        "day_no_death": (
-            "The village wakes up. "
-            "Miraculously, no one died tonight."
-        ),
-        "vote_start": (
-            "The village must vote to eliminate a suspect."
-        ),
-        "player_eliminated": (
-            "{name} is eliminated. They were a {role}."
-        ),
-        "wolves_win": (
-            "The werewolves win! The village has fallen."
-        ),
-        "villagers_win": (
-            "The village wins! All werewolves are dead."
-        ),
-        "role_villager": "Villager",
-        "role_werewolf": "Werewolf",
-        "role_seer": "Seer",
+    # ── Night start ──────────────────────────
+    "night_start": {
+        "fr": "Le village s'endort… Fermez les yeux, tout le monde.",
+        "en": "The village falls asleep… Eyes closed, everyone.",
+    },
+    # ── Seer ─────────────────────────────────
+    "seer_wake": {
+        "fr": "Voyante, ouvre les yeux. Choisis un joueur à observer.",
+        "en": "Seer, open your eyes. Choose a player to investigate.",
+    },
+    "seer_sleep": {
+        "fr": "Voyante, ferme les yeux.",
+        "en": "Seer, close your eyes.",
+    },
+    # ── Wolves ───────────────────────────────
+    "wolf_wake": {
+        "fr": "Loups-garous, ouvrez les yeux. Choisissez votre victime en silence.",
+        "en": "Werewolves, open your eyes. Choose your victim silently.",
+    },
+    "wolf_sleep": {
+        "fr": "Loups-garous, fermez les yeux.",
+        "en": "Werewolves, close your eyes.",
+    },
+    # ── Day ──────────────────────────────────
+    "day_start_death": {
+        "fr": "Le village se réveille. {name} a été retrouvé mort. C'était {article} {role}.",
+        "en": "The village wakes up. {name} was found dead. They were a {role}.",
+    },
+    "day_start_no_death": {
+        "fr": "Le village se réveille. Miraculeusement, personne n'est mort cette nuit.",
+        "en": "The village wakes up. Miraculously, no one died last night.",
+    },
+    # ── Vote ─────────────────────────────────
+    "vote_start": {
+        "fr": "Le village doit voter pour éliminer un suspect.",
+        "en": "The village must vote to eliminate a suspect.",
+    },
+    "vote_tie": {
+        "fr": "Égalité ! Le village ne parvient pas à se décider.",
+        "en": "It's a tie! The village cannot reach a decision.",
+    },
+    # ── Elimination ──────────────────────────
+    "elimination": {
+        "fr": "{name} est éliminé. C'était {article} {role}.",
+        "en": "{name} is eliminated. They were a {role}.",
+    },
+    # ── Win ──────────────────────────────────
+    "wolves_win": {
+        "fr": "Les loups-garous ont gagné ! Le village est tombé.",
+        "en": "The werewolves win! The village has fallen.",
+    },
+    "villagers_win": {
+        "fr": "Le village a gagné ! Tous les loups-garous sont morts.",
+        "en": "The village wins! All werewolves are dead.",
     },
 }
 
-ROLE_DISPLAY_NAMES: dict[str, dict[str, str]] = {
-    "fr": {
-        ROLE_VILLAGER: "Villageois",
-        ROLE_WEREWOLF: "Loup-Garou",
-        ROLE_SEER: "Voyante",
-    },
-    "en": {
-        ROLE_VILLAGER: "Villager",
-        ROLE_WEREWOLF: "Werewolf",
-        ROLE_SEER: "Seer",
-    },
+# French articles for roles (used in TTS formatting)
+ROLE_ARTICLES_FR: dict[str, str] = {
+    Role.VILLAGER: "un",
+    Role.WEREWOLF: "un",
+    Role.SEER: "la",
 }
 
-# ─── Default role distribution suggestions ────────────────────────────────────
-# {player_count: {role: count}}
-DEFAULT_ROLE_DISTRIBUTION: dict[int, dict[str, int]] = {
-    4: {ROLE_VILLAGER: 2, ROLE_WEREWOLF: 1, ROLE_SEER: 1},
-    5: {ROLE_VILLAGER: 3, ROLE_WEREWOLF: 1, ROLE_SEER: 1},
-    6: {ROLE_VILLAGER: 4, ROLE_WEREWOLF: 1, ROLE_SEER: 1},
-    7: {ROLE_VILLAGER: 4, ROLE_WEREWOLF: 2, ROLE_SEER: 1},
-    8: {ROLE_VILLAGER: 5, ROLE_WEREWOLF: 2, ROLE_SEER: 1},
-    9: {ROLE_VILLAGER: 6, ROLE_WEREWOLF: 2, ROLE_SEER: 1},
-    10: {ROLE_VILLAGER: 6, ROLE_WEREWOLF: 3, ROLE_SEER: 1},
+ROLE_NAMES_FR: dict[str, str] = {
+    Role.VILLAGER: "Villageois",
+    Role.WEREWOLF: "Loup-Garou",
+    Role.SEER: "Voyante",
+}
+
+ROLE_NAMES_EN: dict[str, str] = {
+    Role.VILLAGER: "Villager",
+    Role.WEREWOLF: "Werewolf",
+    Role.SEER: "Seer",
 }

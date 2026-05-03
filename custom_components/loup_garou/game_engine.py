@@ -11,27 +11,18 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     DOMAIN,
-    PHASE_SETUP,
-    PHASE_ROLE_REVEAL,
-    PHASE_NIGHT,
-    PHASE_DAY,
-    PHASE_VOTE,
-    PHASE_GAME_OVER,
-    ROLE_WEREWOLF,
-    ROLE_TEAMS,
+    Phase,
+    Role,
+    WOLF_TEAM,
+    VILLAGE_TEAM,
     NIGHT_WAKE_ORDER,
-    ACTION_WOLF_KILL,
-    ACTION_SEER_INVESTIGATE,
-    CAUSE_WOLF,
-    CAUSE_VOTE,
-    WIN_WOLVES,
-    WIN_VILLAGERS,
-    EVENT_PHASE_CHANGED,
-    EVENT_PLAYER_ELIMINATED,
+    NightActionType,
+    EliminationCause,
+    WinCondition,
+    EVENT_GAME_STATE_CHANGED,
     EVENT_GAME_OVER,
-    EVENT_STATE_UPDATED,
 )
-from .role_manager import RoleManager
+from .role_manager import RoleManager, RoleConfig, RoleConfigError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +64,7 @@ class NightActions:
 
 @dataclass
 class GameState:
-    phase: str = PHASE_SETUP
+    phase: str = Phase.SETUP
     round: int = 0
     players: list[Player] = field(default_factory=list)
     night_actions: NightActions = field(default_factory=NightActions)
@@ -103,7 +94,7 @@ class GameState:
     @classmethod
     def from_dict(cls, data: dict) -> "GameState":
         state = cls()
-        state.phase = data.get("phase", PHASE_SETUP)
+        state.phase = data.get("phase", Phase.SETUP)
         state.round = data.get("round", 0)
         state.players = [Player.from_dict(p) for p in data.get("players", [])]
         na = data.get("night_actions", {})
@@ -162,12 +153,13 @@ class GameEngine:
         """
         import random
 
-        self._role_manager.validate_role_config(len(player_names), role_config)
+        role_cfg = RoleConfig.from_dict(role_config) if isinstance(role_config, dict) else role_config
+        self._role_manager.validate(role_cfg, len(player_names))
 
-        role_assignments = self._role_manager.assign_roles(player_names, role_config)
+        role_assignments = self._role_manager.assign_roles(player_names, role_cfg)
 
         players = [
-            Player(id=str(uuid.uuid4()), name=name, role=role)
+            Player(id=str(uuid.uuid4()), name=name, role=role.value)
             for name, role in role_assignments.items()
         ]
 
@@ -176,7 +168,7 @@ class GameEngine:
         random.shuffle(reveal_order)
 
         self._state = GameState(
-            phase=PHASE_ROLE_REVEAL,
+            phase=Phase.ROLE_REVEAL,
             round=0,
             players=players,
             reveal_order=reveal_order,
@@ -185,7 +177,7 @@ class GameEngine:
         )
 
         await self._async_save()
-        self._fire_event(EVENT_PHASE_CHANGED, {"phase": PHASE_ROLE_REVEAL})
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.ROLE_REVEAL})
         return self.get_public_state()
 
     async def async_confirm_role_seen(self, player_id: str) -> dict:
@@ -209,21 +201,21 @@ class GameEngine:
         self, role: str, action_type: str, target_id: str
     ) -> dict:
         """Record a night action from the device."""
-        if self._state.phase != PHASE_NIGHT:
+        if self._state.phase != Phase.NIGHT:
             raise ValueError("Not in night phase")
 
         target = self._get_player(target_id)
         if target is None or not target.alive:
             raise ValueError(f"Invalid target: {target_id}")
 
-        if action_type == ACTION_WOLF_KILL:
+        if action_type == NightActionType.WOLF_KILL:
             if self._state.night_actions.wolf_victim_id is not None:
                 raise ValueError("Wolf action already submitted")
-            if ROLE_TEAMS.get(target.role) == "wolves":
+            if target.role in WOLF_TEAM:
                 raise ValueError("Wolves cannot target each other")
             self._state.night_actions.wolf_victim_id = target_id
 
-        elif action_type == ACTION_SEER_INVESTIGATE:
+        elif action_type == NightActionType.SEER_INVESTIGATE:
             if self._state.night_actions.seer_target_id is not None:
                 raise ValueError("Seer action already submitted")
             self._state.night_actions.seer_target_id = target_id
@@ -238,7 +230,7 @@ class GameEngine:
 
     async def async_submit_vote(self, voter_id: str, target_id: str) -> dict:
         """Record a day vote."""
-        if self._state.phase != PHASE_VOTE:
+        if self._state.phase != Phase.VOTE:
             raise ValueError("Not in vote phase")
 
         voter = self._get_player(voter_id)
@@ -285,7 +277,7 @@ class GameEngine:
             self._state.eliminated_this_round = []
         else:
             eliminated_id = leaders[0]
-            await self.async_eliminate_player(eliminated_id, CAUSE_VOTE)
+            await self.async_eliminate_player(eliminated_id, EliminationCause.VILLAGE_VOTE)
 
         self._state.vote_tallies = {}
         await self._async_save()
@@ -300,7 +292,7 @@ class GameEngine:
         player.alive = False
         self._state.eliminated_this_round.append(player_id)
 
-        self._fire_event(EVENT_PLAYER_ELIMINATED, {
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {
             "player_id": player_id,
             "player_name": player.name,
             "role": player.role,
@@ -310,7 +302,7 @@ class GameEngine:
         winner = self.check_win_condition()
         if winner:
             self._state.winner = winner
-            self._state.phase = PHASE_GAME_OVER
+            self._state.phase = Phase.GAME_OVER
             self._fire_event(EVENT_GAME_OVER, {"winner": winner})
 
         await self._async_save()
@@ -320,13 +312,13 @@ class GameEngine:
         """Host override to advance phase."""
         current = self._state.phase
 
-        if current == PHASE_NIGHT:
+        if current == Phase.NIGHT:
             await self._async_advance_to_day()
-        elif current == PHASE_DAY:
-            self._state.phase = PHASE_VOTE
+        elif current == Phase.DAY:
+            self._state.phase = Phase.VOTE
             self._state.vote_tallies = {}
-            self._fire_event(EVENT_PHASE_CHANGED, {"phase": PHASE_VOTE})
-        elif current == PHASE_VOTE:
+            self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.VOTE})
+        elif current == Phase.VOTE:
             await self.async_resolve_vote()
         else:
             _LOGGER.warning("next_phase called in unexpected phase: %s", current)
@@ -337,13 +329,13 @@ class GameEngine:
     def check_win_condition(self) -> str | None:
         """Return winner string or None if game continues."""
         alive = [p for p in self._state.players if p.alive]
-        alive_wolves = [p for p in alive if p.role == ROLE_WEREWOLF]
-        alive_village = [p for p in alive if ROLE_TEAMS.get(p.role) == "village"]
+        alive_wolves = [p for p in alive if p.role == Role.WEREWOLF]
+        alive_village = [p for p in alive if p.role in VILLAGE_TEAM]
 
         if not alive_wolves:
-            return WIN_VILLAGERS
+            return WinCondition.VILLAGERS
         if len(alive_wolves) >= len(alive_village):
-            return WIN_WOLVES
+            return WinCondition.WOLVES
         return None
 
     def get_public_state(self) -> dict:
@@ -358,7 +350,7 @@ class GameEngine:
         # Build next-to-reveal player name (for the phone-passing prompt)
         next_reveal_player: str | None = None
         if (
-            self._state.phase == PHASE_ROLE_REVEAL
+            self._state.phase == Phase.ROLE_REVEAL
             and self._state.reveal_index < len(self._state.reveal_order)
         ):
             next_id = self._state.reveal_order[self._state.reveal_index]
@@ -404,7 +396,7 @@ class GameEngine:
         Return role data for a specific player (only when it's their turn to reveal).
         Raises if it's not their turn.
         """
-        if self._state.phase != PHASE_ROLE_REVEAL:
+        if self._state.phase != Phase.ROLE_REVEAL:
             raise ValueError("Not in role reveal phase")
 
         expected_id = (
@@ -441,7 +433,7 @@ class GameEngine:
 
     def get_full_state_for_end(self) -> dict:
         """Full state including all roles — only sent when game is over."""
-        if self._state.phase != PHASE_GAME_OVER:
+        if self._state.phase != Phase.GAME_OVER:
             raise ValueError("Game not over yet")
         return {
             **self.get_public_state(),
@@ -461,7 +453,7 @@ class GameEngine:
 
     def _current_night_role(self) -> str | None:
         """Return the role whose action is currently expected, or None."""
-        if self._state.phase != PHASE_NIGHT:
+        if self._state.phase != Phase.NIGHT:
             return None
         active_roles = self._active_night_roles()
         idx = self._state.current_night_role_index
@@ -476,11 +468,11 @@ class GameEngine:
 
     async def _async_start_night(self) -> None:
         self._state.round += 1
-        self._state.phase = PHASE_NIGHT
+        self._state.phase = Phase.NIGHT
         self._state.night_actions = NightActions()
         self._state.eliminated_this_round = []
         self._state.current_night_role_index = 0
-        self._fire_event(EVENT_PHASE_CHANGED, {"phase": PHASE_NIGHT, "round": self._state.round})
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT, "round": self._state.round})
         await self._async_save()
 
     async def _async_advance_to_day(self) -> None:
@@ -488,13 +480,13 @@ class GameEngine:
         # Apply wolf kill
         victim_id = self._state.night_actions.wolf_victim_id
         if victim_id:
-            await self.async_eliminate_player(victim_id, CAUSE_WOLF)
-            if self._state.phase == PHASE_GAME_OVER:
+            await self.async_eliminate_player(victim_id, EliminationCause.WOLF_KILL)
+            if self._state.phase == Phase.GAME_OVER:
                 return  # game ended mid-resolution
 
-        self._state.phase = PHASE_DAY
-        self._fire_event(EVENT_PHASE_CHANGED, {
-            "phase": PHASE_DAY,
+        self._state.phase = Phase.DAY
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {
+            "phase": Phase.DAY,
             "eliminated": self._state.eliminated_this_round,
         })
         await self._async_save()

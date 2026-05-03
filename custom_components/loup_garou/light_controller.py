@@ -1,4 +1,8 @@
-"""Light controller — drives HA light entities for each game scene."""
+"""Light controller for Loup Garou.
+
+Sets colour/brightness on the user-configured light entities
+according to the game phase. All scene definitions live in const.py.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -7,64 +11,106 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.components.light import (
     ATTR_RGB_COLOR,
-    ATTR_BRIGHTNESS_PCT,
+    ATTR_BRIGHTNESS,
     ATTR_TRANSITION,
-    DOMAIN as LIGHT_DOMAIN,
 )
 from homeassistant.const import SERVICE_TURN_ON
 
-from .const import LIGHT_SCENES
+from .const import LIGHT_SCENES, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+LIGHT_DOMAIN = "light"
+
 
 class LightController:
-    """Controls the list of configured light entities."""
+    """Controls the set of lights linked to the game."""
 
     def __init__(self, hass: HomeAssistant, light_entities: list[str]) -> None:
-        self.hass = hass
-        self._entities = light_entities
+        self._hass = hass
+        self._lights = light_entities
 
-    def update_entities(self, light_entities: list[str]) -> None:
-        self._entities = light_entities
+    async def async_set_scene(self, scene_key: str) -> None:
+        """Apply a named scene to all configured lights.
 
-    async def async_set_scene(self, scene_name: str) -> None:
-        """Apply a named scene to all configured lights."""
-        if not self._entities:
-            _LOGGER.debug("No lights configured, skipping scene: %s", scene_name)
-            return
-
-        scene = LIGHT_SCENES.get(scene_name)
+        Scene keys are defined in const.LIGHT_SCENES.
+        Unknown keys are logged and ignored.
+        """
+        scene = LIGHT_SCENES.get(scene_key)
         if scene is None:
-            _LOGGER.warning("Unknown light scene: %s", scene_name)
+            _LOGGER.warning("Unknown light scene: %s", scene_key)
             return
 
-        service_data: dict = {
-            "entity_id": self._entities,
+        if not self._lights:
+            _LOGGER.debug("No lights configured — skipping scene '%s'.", scene_key)
+            return
+
+        flash = scene.get("flash", False)
+        strobe = scene.get("strobe", False)
+
+        if flash:
+            await self._async_flash_then_hold(scene)
+        elif strobe:
+            await self._async_strobe_then_hold(scene)
+        else:
+            await self._async_apply(scene)
+
+    # ── Internal helpers ──────────────────────
+
+    async def _async_apply(self, scene: dict) -> None:
+        """Apply a scene directly to all lights."""
+        service_data = {
+            "entity_id": self._lights,
             ATTR_RGB_COLOR: scene["rgb_color"],
-            ATTR_BRIGHTNESS_PCT: scene["brightness_pct"],
-            ATTR_TRANSITION: scene["transition"],
+            ATTR_BRIGHTNESS: scene["brightness"],
+            ATTR_TRANSITION: scene.get("transition", 1),
         }
+        await self._hass.services.async_call(
+            LIGHT_DOMAIN, SERVICE_TURN_ON, service_data, blocking=False
+        )
+        _LOGGER.debug(
+            "Light scene applied: rgb=%s brightness=%s",
+            scene["rgb_color"],
+            scene["brightness"],
+        )
 
-        try:
-            await self.hass.services.async_call(
-                LIGHT_DOMAIN,
-                SERVICE_TURN_ON,
-                service_data,
-                blocking=True,
+    async def _async_flash_then_hold(self, scene: dict) -> None:
+        """Flash bright red once, then hold the scene colour at dim."""
+        flash_data = {
+            "entity_id": self._lights,
+            ATTR_RGB_COLOR: (220, 0, 0),
+            ATTR_BRIGHTNESS: 255,
+            ATTR_TRANSITION: 0,
+        }
+        await self._hass.services.async_call(
+            LIGHT_DOMAIN, SERVICE_TURN_ON, flash_data, blocking=False
+        )
+        await asyncio.sleep(0.6)
+        await self._async_apply(scene)
+
+    async def _async_strobe_then_hold(self, scene: dict, strobes: int = 3) -> None:
+        """Strobe the lights N times, then settle into the scene colour."""
+        for _ in range(strobes):
+            on_data = {
+                "entity_id": self._lights,
+                ATTR_RGB_COLOR: scene["rgb_color"],
+                ATTR_BRIGHTNESS: 255,
+                ATTR_TRANSITION: 0,
+            }
+            off_data = {
+                "entity_id": self._lights,
+                ATTR_RGB_COLOR: scene["rgb_color"],
+                ATTR_BRIGHTNESS: 10,
+                ATTR_TRANSITION: 0,
+            }
+            await self._hass.services.async_call(
+                LIGHT_DOMAIN, SERVICE_TURN_ON, on_data, blocking=False
             )
-            _LOGGER.debug("Applied light scene '%s' to %s", scene_name, self._entities)
-        except Exception as err:
-            _LOGGER.error("Failed to apply light scene '%s': %s", scene_name, err)
+            await asyncio.sleep(0.4)
+            await self._hass.services.async_call(
+                LIGHT_DOMAIN, SERVICE_TURN_ON, off_data, blocking=False
+            )
+            await asyncio.sleep(0.3)
 
-    async def async_flash_death(self) -> None:
-        """
-        Flash red for a death reveal:
-        instant red → 0.5s pause → dim red hold.
-        No audio — the drama comes from the light, TTS follows.
-        """
-        await self.async_set_scene("death")
-        await asyncio.sleep(0.5)
-        # Dim hold — reuse death scene (already at 15% dim red)
-        # A second call isn't strictly needed but makes intent explicit
-        await self.async_set_scene("death")
+        # Settle
+        await self._async_apply(scene)
