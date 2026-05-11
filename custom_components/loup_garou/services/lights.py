@@ -1,14 +1,9 @@
-"""Light controller for Loup Garou.
-
-Sets colour/brightness on the user-configured light entities
-according to the game phase. All scene definitions live in const.py.
-"""
+"""Light scene control for Loup Garou."""
 from __future__ import annotations
 
 import asyncio
 import logging
 
-from homeassistant.core import HomeAssistant
 from homeassistant.components.light import (
     ATTR_RGB_COLOR,
     ATTR_BRIGHTNESS,
@@ -16,26 +11,21 @@ from homeassistant.components.light import (
 )
 from homeassistant.const import SERVICE_TURN_ON
 
-from .const import LIGHT_SCENES, DOMAIN
+from ..const import LIGHT_SCENES, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
 LIGHT_DOMAIN = "light"
 
 
 class LightController:
     """Controls the set of lights linked to the game."""
 
-    def __init__(self, hass: HomeAssistant, light_entities: list[str]) -> None:
+    def __init__(self, hass, light_entities: list[str]) -> None:
         self._hass = hass
         self._lights = light_entities
 
     async def async_set_scene(self, scene_key: str) -> None:
-        """Apply a named scene to all configured lights.
-
-        Scene keys are defined in const.LIGHT_SCENES.
-        Unknown keys are logged and ignored.
-        """
+        """Apply a named scene to all configured lights."""
         scene = LIGHT_SCENES.get(scene_key)
         if scene is None:
             _LOGGER.warning("Unknown light scene: %s", scene_key)
@@ -55,10 +45,7 @@ class LightController:
         else:
             await self._async_apply(scene)
 
-    # ── Internal helpers ──────────────────────
-
     async def _async_apply(self, scene: dict) -> None:
-        """Apply a scene directly to all lights."""
         service_data = {
             "entity_id": self._lights,
             ATTR_RGB_COLOR: scene["rgb_color"],
@@ -75,7 +62,6 @@ class LightController:
         )
 
     async def _async_flash_then_hold(self, scene: dict) -> None:
-        """Flash bright red once, then hold the scene colour at dim."""
         flash_data = {
             "entity_id": self._lights,
             ATTR_RGB_COLOR: (220, 0, 0),
@@ -89,7 +75,6 @@ class LightController:
         await self._async_apply(scene)
 
     async def _async_strobe_then_hold(self, scene: dict, strobes: int = 3) -> None:
-        """Strobe the lights N times, then settle into the scene colour."""
         for _ in range(strobes):
             on_data = {
                 "entity_id": self._lights,
@@ -111,6 +96,7 @@ class LightController:
                 LIGHT_DOMAIN, SERVICE_TURN_ON, off_data, blocking=False
             )
             await asyncio.sleep(0.3)
-
-        # Settle
         await self._async_apply(scene)
+
+    def update_entities(self, light_entities: list[str]) -> None:
+        self._lights = light_entities

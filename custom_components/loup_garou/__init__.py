@@ -2,23 +2,18 @@
 from __future__ import annotations
 
 import logging
-import os
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 
-from .const import (
-    DOMAIN,
-    CONF_SPEAKER,
-    CONF_LIGHTS,
-    CONF_LANGUAGE,
-)
-from .game_engine import GameEngine
-from .light_controller import LightController
-from .speaker_controller import SpeakerController
-from .phase_manager import PhaseManager
-from .websocket_api import async_register_commands
+from .const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE
+from .core.engine import GameEngine
+from .services.lights import LightController
+from .services.tts import TTSController
+from .services.phase_manager import PhaseManager
+from .server import async_register_static_paths
+from .server.websocket import LoupGarouWebSocketView
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,28 +32,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     conf = entry.data
 
-    # ── Hardware controllers ──────────────────────────────────────────────────
     light_controller = LightController(
         hass=hass,
         light_entities=conf.get(CONF_LIGHTS, []),
     )
-    speaker_controller = SpeakerController(
+    speaker_controller = TTSController(
         hass=hass,
         media_player_entity=conf.get(CONF_SPEAKER, ""),
         language=conf.get(CONF_LANGUAGE, "fr"),
     )
 
-    # ── Phase manager (coordinates lights + TTS) ──────────────────────────────
-    phase_manager = PhaseManager(
-        hass=hass,
-        light_controller=light_controller,
-        speaker_controller=speaker_controller,
-        language=conf.get(CONF_LANGUAGE, "fr"),
-    )
-
-    # ── Game engine (state machine + persistence) ─────────────────────────────
     engine = GameEngine(hass=hass, config_entry_id=entry.entry_id)
     await engine.async_load()
+
+    phase_manager = PhaseManager(
+        hass=hass,
+        engine=engine,
+        lights=light_controller,
+        speaker=speaker_controller,
+        language=conf.get(CONF_LANGUAGE, "fr"),
+    )
 
     hass.data[DOMAIN] = {
         "engine": engine,
@@ -67,30 +60,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "phase_manager": phase_manager,
     }
 
-    # ── Serve the frontend ────────────────────────────────────────────────────
-    www_path = os.path.join(os.path.dirname(__file__), "www", "game")
-    await hass.http.async_register_static_paths([
-        StaticPathConfig(
-            url_path="/loup_garou",
-            path=www_path,
-            cache_headers=False,
-        )
-    ])
+    await async_register_static_paths(hass)
 
-    # ── Register sidebar panel ────────────────────────────────────────────────
-    hass.components.frontend.async_register_built_in_panel(
+    async_register_built_in_panel(
+        hass,
         component_name="iframe",
-        sidebar_title="🐺 Loup Garou",
+        sidebar_title="Loup Garou",
         sidebar_icon="mdi:wolf",
-        frontend_url_path="loup_garou_panel",
-        config={"url": "/loup_garou/index.html"},
+        frontend_url_path="loup_garou",
+        config={"url": "/loup_garou/launcher.html"},
         require_admin=False,
     )
 
-    # ── Register WebSocket commands ───────────────────────────────────────────
-    async_register_commands(hass)
+    hass.http.register_view(LoupGarouWebSocketView(hass))
 
-    # ── Listen for config entry option updates ────────────────────────────────
     entry.async_on_unload(entry.add_update_listener(_async_update_options))
 
     _LOGGER.info("Loup Garou integration loaded (entry: %s)", entry.entry_id)
@@ -99,6 +82,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    async_remove_panel(hass, "loup_garou")
     hass.data.pop(DOMAIN, None)
     _LOGGER.info("Loup Garou integration unloaded")
     return True
@@ -110,7 +94,7 @@ async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None
     domain_data = hass.data.get(DOMAIN, {})
 
     lc: LightController | None = domain_data.get("light_controller")
-    sc: SpeakerController | None = domain_data.get("speaker_controller")
+    sc: TTSController | None = domain_data.get("speaker_controller")
     pm: PhaseManager | None = domain_data.get("phase_manager")
 
     if lc:
