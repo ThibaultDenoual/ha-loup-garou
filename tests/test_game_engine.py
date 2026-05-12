@@ -339,7 +339,7 @@ class TestPersistence:
 
         mock_store.async_load = AsyncMock(return_value=saved)
         with patch(
-            "custom_components.loup_garou.core.game_engine.Store",
+            "custom_components.loup_garou.core.engine.Store",
             return_value=mock_store,
         ):
             engine2 = GameEngine(hass, "test_entry_id_2")
