@@ -152,7 +152,7 @@ class TestNightActions:
         await self._setup_night(engine)
         target = self._non_wolf_id(engine)
         await engine.async_submit_night_action(
-            Role.SEER, NightActionType.SEER_INVESTIGATE, target
+            NightActionType.SEER_INVESTIGATE, target
         )
         # Wolf tries to target another wolf — should fail
         wolf_id = self._wolf_id(engine)
