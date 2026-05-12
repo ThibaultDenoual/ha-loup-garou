@@ -113,7 +113,7 @@ class TestConfirmRoleSeen:
         await _start(engine)
         for pid in engine._state.reveal_order:
             await engine.async_confirm_role_seen(pid)
-        assert engine._state.phase == Phase.NIGHT
+        assert engine._state.phase == Phase.NIGHT_START
 
     @pytest.mark.asyncio
     async def test_night_round_becomes_1(self, engine):

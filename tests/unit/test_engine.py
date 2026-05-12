@@ -90,7 +90,7 @@ class TestConfirmRoleSeen:
         for player_id in engine.state.reveal_order:
             run_async(engine.async_confirm_role_seen(player_id))
 
-        assert engine.state.phase == Phase.NIGHT
+        assert engine.state.phase == Phase.NIGHT_START
         assert engine.state.round == 1
 
 
