@@ -178,10 +178,10 @@ class TestNightActions:
         await self._setup_night(engine)
         target = self._non_wolf_id(engine)
         await engine.async_submit_night_action(
-            Role.SEER, NightActionType.SEER_INVESTIGATE, target
+             NightActionType.SEER_INVESTIGATE, target
         )
         await engine.async_submit_night_action(
-            Role.WEREWOLF, NightActionType.WOLF_KILL, target
+            NightActionType.WOLF_KILL, target
         )
         # Both roles have completed their actions
         assert Role.SEER in engine._state.night_actions.completed_roles
