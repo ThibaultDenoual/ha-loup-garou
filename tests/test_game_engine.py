@@ -145,7 +145,7 @@ class TestNightActions:
     @pytest.mark.asyncio
     async def test_seer_is_first_acting_role(self, engine):
         await self._setup_night(engine)
-        assert engine.current_night_role() == Role.SEER
+        assert engine.current_night_role == Role.SEER
 
     @pytest.mark.asyncio
     async def test_wolf_cannot_target_wolf(self, engine):
