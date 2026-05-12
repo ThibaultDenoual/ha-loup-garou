@@ -59,34 +59,30 @@ class PhaseManager:
     async def on_night_started(self) -> None:
         await self._lights.async_set_scene("night")
         await self._speaker.async_speak(_format_tts("night_start", self._lang))
-        await self._on_night_role_advanced()
 
-    async def on_role_wake(self, role: str) -> None:
-        scene_map = {
-            Role.SEER: "seer_wake",
-            Role.WEREWOLF: "wolf_wake",
-        }
-        tts_wake_map = {
-            Role.SEER: "seer_wake",
-            Role.WEREWOLF: "wolf_wake",
-        }
-
-        scene = scene_map.get(role, "night")
-        await self._lights.async_set_scene(scene)
-
-        wake_key = tts_wake_map.get(role)
-        if wake_key:
-            await self._speaker.async_speak(_format_tts(wake_key, self._lang))
+    async def on_phase_changed(self, phase: str) -> None:
+        """Handle phase change events from the engine."""
+        if phase == Phase.NIGHT_START:
+            await self.on_night_started()
+        elif phase == Phase.NIGHT_SEER_WAKE:
+            await self._lights.async_set_scene("seer_wake")
+            await self._speaker.async_speak(_format_tts("seer_wake", self._lang))
+        elif phase == Phase.NIGHT_SEER_SLEEP:
+            await self._speaker.async_speak(_format_tts("seer_sleep", self._lang))
+            await self._lights.async_set_scene("night")
+        elif phase == Phase.NIGHT_WOLF_WAKE:
+            await self._lights.async_set_scene("wolf_wake")
+            await self._speaker.async_speak(_format_tts("wolf_wake", self._lang))
+        elif phase == Phase.NIGHT_WOLF_SLEEP:
+            await self._speaker.async_speak(_format_tts("wolf_sleep", self._lang))
+            await self._lights.async_set_scene("night")
+        elif phase == Phase.DAY:
+            pass  # Handled by _handle_state_changed
+        elif phase == Phase.VOTE:
+            pass  # Handled by _handle_state_changed
 
     async def on_night_action_submitted(self, role: str) -> None:
-        tts_sleep_map = {
-            Role.SEER: "seer_sleep",
-            Role.WEREWOLF: "wolf_sleep",
-        }
-        sleep_key = tts_sleep_map.get(role)
-        if sleep_key:
-            await self._speaker.async_speak(_format_tts(sleep_key, self._lang))
-        await self._lights.async_set_scene("night")
+        pass  # No longer needed - handled by phase events
 
     async def on_day_started(self, eliminated_player_id: str | None) -> None:
         await self._lights.async_set_scene("day")
@@ -151,19 +147,14 @@ class PhaseManager:
         phase = event.data.get("phase", "")
         _LOGGER.debug("PhaseManager received event phase: %s", phase)
 
-        if phase == Phase.NIGHT:
-            await self.on_night_started()
+        if Phase.is_night_subphase(phase):
+            await self.on_phase_changed(phase)
         elif phase == Phase.DAY:
             eliminated = event.data.get("eliminated", [])
             killed_id = eliminated[-1] if eliminated else None
             await self.on_day_started(killed_id)
         elif phase == Phase.VOTE:
             await self.on_vote_started()
-
-    async def _on_night_role_advanced(self) -> None:
-        acting_role = self._engine.current_night_role
-        if acting_role:
-            await self.on_role_wake(acting_role)
 
     def set_language(self, lang: str) -> None:
         self._lang = lang
