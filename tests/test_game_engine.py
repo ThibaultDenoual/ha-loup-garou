@@ -26,7 +26,7 @@ def hass(mock_hass):
 @pytest.fixture
 def engine(hass, mock_store):
     with patch(
-        "custom_components.loup_garou.game_engine.Store",
+        "custom_components.loup_garou.core.engine.Store",
         return_value=mock_store,
     ):
         eng = GameEngine(hass, "test_entry_id")
