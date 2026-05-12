@@ -142,6 +142,7 @@ class GameEngine:
             if target.role in WOLF_TEAM:
                 raise ValueError("Wolves cannot target each other")
             self._state.night_actions.wolf_victim_id = target_id
+            await self._async_advance_night_role()
 
         elif action_type == NightActionType.SEER_INVESTIGATE:
             if self._state.night_actions.seer_target_id is not None:
@@ -150,6 +151,7 @@ class GameEngine:
                 raise ValueError(f"Seer investigate action but wrong acting role: {acting_role}")
             self._state.night_actions.seer_target_id = target_id
             self._state.night_actions.seer_result = target.role
+            await self._async_advance_night_role()
 
         if acting_role not in self._state.night_actions.completed_roles:
             self._state.night_actions.completed_roles.append(acting_role)
