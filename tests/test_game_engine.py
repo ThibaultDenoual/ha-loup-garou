@@ -187,7 +187,8 @@ class TestNightActions:
         assert Role.SEER in engine._state.night_actions.completed_roles
         assert Role.WEREWOLF in engine._state.night_actions.completed_roles
         # Host advances to day manually
-        await engine.async_next_phase()
+        # await engine.async_next_phase()
+        # Advances automatically ??
         assert engine._state.phase in (Phase.DAY, Phase.GAME_OVER)
 
 
