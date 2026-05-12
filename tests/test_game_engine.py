@@ -158,7 +158,7 @@ class TestNightActions:
         wolf_id = self._wolf_id(engine)
         with pytest.raises(ValueError, match="cannot target"):
             await engine.async_submit_night_action(
-                Role.WEREWOLF, NightActionType.WOLF_KILL, wolf_id
+                NightActionType.WOLF_KILL, wolf_id
             )
 
     @pytest.mark.asyncio
@@ -166,10 +166,10 @@ class TestNightActions:
         await self._setup_night(engine)
         target = self._non_wolf_id(engine)
         await engine.async_submit_night_action(
-            Role.SEER, NightActionType.SEER_INVESTIGATE, target
+            NightActionType.SEER_INVESTIGATE, target
         )
         await engine.async_submit_night_action(
-            Role.WEREWOLF, NightActionType.WOLF_KILL, target
+           NightActionType.WOLF_KILL, target
         )
         assert engine._state.night_actions.wolf_victim_id == target
 
