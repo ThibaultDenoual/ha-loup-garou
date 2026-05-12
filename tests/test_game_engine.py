@@ -128,10 +128,20 @@ class TestConfirmRoleSeen:
 
 class TestNightActions:
     async def _setup_night(self, engine):
-        """Start game and confirm all roles so we're in NIGHT phase."""
+        """Start game and confirm all roles so we're in NIGHT_START phase."""
         await _start(engine)
         for pid in engine._state.reveal_order:
             await engine.async_confirm_role_seen(pid)
+
+    async def _advance_to_seer_act(self, engine):
+        """Advance from NIGHT_START to seer's action phase."""
+        await engine.async_next_phase(skip_delay=True)
+        await engine.async_next_phase(skip_delay=True)
+
+    async def _advance_to_wolf_act(self, engine):
+        """Advance from seer sleep to wolf's action phase."""
+        await engine.async_next_phase(skip_delay=True)
+        await engine.async_next_phase(skip_delay=True)
 
     def _wolf_id(self, engine) -> str:
         return next(p.id for p in engine._state.players if p.role == Role.WEREWOLF)
@@ -145,50 +155,55 @@ class TestNightActions:
     @pytest.mark.asyncio
     async def test_seer_is_first_acting_role(self, engine):
         await self._setup_night(engine)
+        await self._advance_to_seer_act(engine)
         assert engine.current_night_role == Role.SEER
 
     @pytest.mark.asyncio
     async def test_wolf_cannot_target_wolf(self, engine):
         await self._setup_night(engine)
+        await self._advance_to_seer_act(engine)
         target = self._non_wolf_id(engine)
         await engine.async_submit_night_action(
-            NightActionType.SEER_INVESTIGATE, target
+            NightActionType.SEER_INVESTIGATE, target, skip_delay=True
         )
+        await self._advance_to_wolf_act(engine)
         # Wolf tries to target another wolf — should fail
         wolf_id = self._wolf_id(engine)
         with pytest.raises(ValueError, match="cannot target"):
             await engine.async_submit_night_action(
-                NightActionType.WOLF_KILL, wolf_id
+                NightActionType.WOLF_KILL, wolf_id, skip_delay=True
             )
 
     @pytest.mark.asyncio
     async def test_wolf_action_recorded(self, engine):
         await self._setup_night(engine)
+        await self._advance_to_seer_act(engine)
         target = self._non_wolf_id(engine)
         await engine.async_submit_night_action(
-            NightActionType.SEER_INVESTIGATE, target
+            NightActionType.SEER_INVESTIGATE, target, skip_delay=True
         )
+        await self._advance_to_wolf_act(engine)
         await engine.async_submit_night_action(
-           NightActionType.WOLF_KILL, target
+           NightActionType.WOLF_KILL, target, skip_delay=True
         )
         assert engine._state.night_actions.wolf_victim_id == target
 
     @pytest.mark.asyncio
     async def test_actions_complete_night_state(self, engine):
         await self._setup_night(engine)
+        await self._advance_to_seer_act(engine)
         target = self._non_wolf_id(engine)
         await engine.async_submit_night_action(
-             NightActionType.SEER_INVESTIGATE, target
+             NightActionType.SEER_INVESTIGATE, target, skip_delay=True
         )
+        await self._advance_to_wolf_act(engine)
         await engine.async_submit_night_action(
-            NightActionType.WOLF_KILL, target
+            NightActionType.WOLF_KILL, target, skip_delay=True
         )
         # Both roles have completed their actions
         assert Role.SEER in engine._state.night_actions.completed_roles
         assert Role.WEREWOLF in engine._state.night_actions.completed_roles
-        # Host advances to day manually
-        # await engine.async_next_phase()
-        # Advances automatically ??
+        # Advances automatically to day after wolf sleep
         assert engine._state.phase in (Phase.DAY, Phase.GAME_OVER)
 
 

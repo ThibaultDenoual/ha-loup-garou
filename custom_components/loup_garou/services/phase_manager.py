@@ -81,6 +81,15 @@ class PhaseManager:
         elif phase == Phase.VOTE:
             pass  # Handled by _handle_state_changed
 
+    async def on_role_wake(self, role: str) -> None:
+        """Handle a role waking up - compatibility method for tests."""
+        if role == Role.SEER:
+            await self._lights.async_set_scene("seer_wake")
+            await self._speaker.async_speak(_format_tts("seer_wake", self._lang))
+        elif role == Role.WEREWOLF:
+            await self._lights.async_set_scene("wolf_wake")
+            await self._speaker.async_speak(_format_tts("wolf_wake", self._lang))
+
     async def on_night_action_submitted(self, role: str) -> None:
         pass  # No longer needed - handled by phase events
 

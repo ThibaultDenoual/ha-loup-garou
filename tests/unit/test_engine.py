@@ -109,12 +109,16 @@ class TestSubmitNightAction:
         for pid in engine.state.reveal_order:
             run_async(engine.async_confirm_role_seen(pid))
 
+        run_async(engine.async_next_phase(skip_delay=True))
+        run_async(engine.async_next_phase(skip_delay=True))
+
         seer = next(p for p in engine.state.players if p.role == Role.SEER)
         target = next(p for p in engine.state.players if p.role == Role.VILLAGER)
 
         state = run_async(engine.async_submit_night_action(
             NightActionType.SEER_INVESTIGATE,
             target.id,
+            skip_delay=True,
         ))
 
         assert Role.SEER in state["night_actions_completed"]
@@ -133,12 +137,16 @@ class TestSubmitNightAction:
         for pid in engine.state.reveal_order:
             run_async(engine.async_confirm_role_seen(pid))
 
+        run_async(engine.async_next_phase(skip_delay=True))
+        run_async(engine.async_next_phase(skip_delay=True))
+
         wolves = [p for p in engine.state.players if p.role == Role.WEREWOLF]
 
         with pytest.raises(ValueError, match="Wolves cannot target each other"):
             run_async(engine.async_submit_night_action(
                 NightActionType.WOLF_KILL,
                 wolves[1].id,
+                skip_delay=True,
             ))
 
 
@@ -264,11 +272,14 @@ class TestCurrentNightRole:
         for pid in engine.state.reveal_order:
             run_async(engine.async_confirm_role_seen(pid))
 
+        run_async(engine.async_next_phase(skip_delay=True))
+        run_async(engine.async_next_phase(skip_delay=True))
+
         assert engine.current_night_role == Role.SEER
 
         seer = next(p for p in engine.state.players if p.role == Role.SEER)
         target = next(p for p in engine.state.players if p.role == Role.VILLAGER)
-        state = run_async(engine.async_submit_night_action(NightActionType.SEER_INVESTIGATE, target.id))
+        state = run_async(engine.async_submit_night_action(NightActionType.SEER_INVESTIGATE, target.id, skip_delay=True))
 
         assert state["night_actions_completed"] == [Role.SEER]
-        assert engine.current_night_role == Role.WEREWOLF # Role advance to next one 
+        assert engine.current_night_role == Role.WEREWOLF 

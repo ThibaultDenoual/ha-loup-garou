@@ -475,12 +475,13 @@ class GameEngine:
         await self._async_save()
 
     async def _async_advance_to_seer_sleep(self, skip_delay: bool = False) -> None:
-        """Transition from SEER act to SEER sleep."""
+        """Transition from SEER act to SEER sleep, then auto-advance to wolf."""
         await self._async_delay(skip_delay)
         self._state.phase = Phase.NIGHT_SEER_SLEEP
         self._state.current_target_id = None
         self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_SEER_SLEEP})
         await self._async_save()
+        await self._async_advance_to_wolf_wake(skip_delay)
 
     async def _async_advance_to_wolf_wake(self, skip_delay: bool = False) -> None:
         """Transition to wolf wake."""
@@ -500,12 +501,13 @@ class GameEngine:
         await self._async_save()
 
     async def _async_advance_to_wolf_sleep(self, skip_delay: bool = False) -> None:
-        """Transition from wolf act to wolf sleep (end of night)."""
+        """Transition from wolf act to wolf sleep, then auto-advance to day."""
         await self._async_delay(skip_delay)
         self._state.phase = Phase.NIGHT_WOLF_SLEEP
         self._state.current_target_id = None
         self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_WOLF_SLEEP})
         await self._async_save()
+        await self._async_advance_to_day()
 
     async def _async_advance_to_day(self) -> None:
         """Resolve night actions and move to day phase."""
