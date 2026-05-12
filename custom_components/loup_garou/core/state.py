@@ -46,12 +46,12 @@ class GameState:
     night_actions: NightActions = field(default_factory=NightActions)
     vote_tallies: dict[str, list[str]] = field(default_factory=dict)
     eliminated_this_round: list[str] = field(default_factory=list)
-    current_night_role_index: int = 0
     current_target_id: str | None = None
     reveal_order: list[str] = field(default_factory=list)
     reveal_index: int = 0
     winner: str | None = None
     language: str = "fr"
+    delay_seconds: float = 2.0
 
     def to_dict(self) -> dict:
         return {
@@ -61,11 +61,11 @@ class GameState:
             "night_actions": self.night_actions.to_dict(),
             "vote_tallies": self.vote_tallies,
             "eliminated_this_round": self.eliminated_this_round,
-            "current_night_role_index": self.current_night_role_index,
             "reveal_order": self.reveal_order,
             "reveal_index": self.reveal_index,
             "winner": self.winner,
             "language": self.language,
+            "delay_seconds": self.delay_seconds,
         }
 
     @classmethod
@@ -78,9 +78,9 @@ class GameState:
         state.night_actions = NightActions.from_dict(na) if na else NightActions()
         state.vote_tallies = data.get("vote_tallies", {})
         state.eliminated_this_round = data.get("eliminated_this_round", [])
-        state.current_night_role_index = data.get("current_night_role_index", 0)
         state.reveal_order = data.get("reveal_order", [])
         state.reveal_index = data.get("reveal_index", 0)
         state.winner = data.get("winner")
         state.language = data.get("language", "fr")
+        state.delay_seconds = data.get("delay_seconds", 2.0)
         return state

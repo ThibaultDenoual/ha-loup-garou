@@ -15,6 +15,7 @@ from ..const import (
     WOLF_TEAM,
     VILLAGE_TEAM,
     NIGHT_WAKE_ORDER,
+    ROLE_PHASE_MAP,
     NightActionType,
     EliminationCause,
     WinCondition,
@@ -120,11 +121,14 @@ class GameEngine:
         return self.get_public_state()
 
     async def async_submit_night_action(
-        self, action_type: str, target_id: str
+        self, action_type: str, target_id: str, skip_delay: bool = False
     ) -> dict:
         """Record a night action from the device."""
-        if self._state.phase != Phase.NIGHT:
+        if not Phase.is_night_subphase(self._state.phase):
             raise ValueError("Not in night phase")
+
+        if self._state.phase != Phase.NIGHT_SEER_ACT and self._state.phase != Phase.NIGHT_WOLF_ACT:
+            raise ValueError("Not waiting for night action")
 
         target = self._get_player(target_id)
         if target is None or not target.alive:
@@ -142,7 +146,7 @@ class GameEngine:
             if target.role in WOLF_TEAM:
                 raise ValueError("Wolves cannot target each other")
             self._state.night_actions.wolf_victim_id = target_id
-            await self._async_advance_night_role()
+            await self._async_advance_to_wolf_sleep(skip_delay)
 
         elif action_type == NightActionType.SEER_INVESTIGATE:
             if self._state.night_actions.seer_target_id is not None:
@@ -151,7 +155,7 @@ class GameEngine:
                 raise ValueError(f"Seer investigate action but wrong acting role: {acting_role}")
             self._state.night_actions.seer_target_id = target_id
             self._state.night_actions.seer_result = target.role
-            await self._async_advance_night_role()
+            await self._async_advance_to_seer_sleep(skip_delay)
 
         if acting_role not in self._state.night_actions.completed_roles:
             self._state.night_actions.completed_roles.append(acting_role)
@@ -233,22 +237,32 @@ class GameEngine:
         await self._async_save()
         return self.get_public_state()
 
-    async def async_next_phase(self) -> dict:
+    async def async_next_phase(self, skip_delay: bool = False) -> dict:
         """Host override to advance phase."""
         current = self._state.phase
 
-        if current == Phase.NIGHT:
+        if current == Phase.NIGHT_START:
+            await self._async_advance_to_seer_wake(skip_delay)
+        elif current == Phase.NIGHT_SEER_WAKE:
+            await self._async_advance_to_seer_act(skip_delay)
+        elif current == Phase.NIGHT_SEER_SLEEP:
+            await self._async_advance_to_wolf_wake(skip_delay)
+        elif current == Phase.NIGHT_WOLF_WAKE:
+            await self._async_advance_to_wolf_act(skip_delay)
+        elif current == Phase.NIGHT_WOLF_SLEEP:
             await self._async_advance_to_day()
         elif current == Phase.DAY:
             self._state.phase = Phase.VOTE
             self._state.vote_tallies = {}
             self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.VOTE})
+            await self._async_save()
         elif current == Phase.VOTE:
-            await self.async_resolve_vote()
+            result = await self.async_resolve_vote()
+            return result
         else:
             _LOGGER.warning("next_phase called in unexpected phase: %s", current)
+            await self._async_save()
 
-        await self._async_save()
         return self.get_public_state()
 
     async def async_begin_vote(self) -> None:
@@ -271,7 +285,7 @@ class GameEngine:
         await self._async_save()
         return self.get_public_state()
 
-    async def async_skip_night_action(self) -> dict:
+    async def async_skip_night_action(self, skip_delay: bool = False) -> dict:
         """Skip the current role's night action without targeting anyone."""
         current_role = self.current_night_role
         if not current_role:
@@ -281,7 +295,14 @@ class GameEngine:
             self._state.night_actions.completed_roles.append(current_role)
 
         self._state.current_target_id = None
-        await self._async_advance_night_role()
+
+        if self._state.phase == Phase.NIGHT_SEER_ACT:
+            await self._async_advance_to_seer_sleep(skip_delay)
+        elif self._state.phase == Phase.NIGHT_WOLF_ACT:
+            await self._async_advance_to_wolf_sleep(skip_delay)
+        else:
+            raise ValueError("Cannot skip at this phase")
+
         return self.get_public_state()
 
     async def async_reset(self) -> None:
@@ -307,13 +328,17 @@ class GameEngine:
     @property
     def current_night_role(self) -> str | None:
         """The role whose action is currently expected at night, or None."""
-        if self._state.phase != Phase.NIGHT:
+        if not Phase.is_night_subphase(self._state.phase):
             return None
-        active_roles = self._active_night_roles()
-        idx = self._state.current_night_role_index
-        if idx < len(active_roles):
-            return active_roles[idx]
-        return None
+        if not Phase.is_active_night_phase(self._state.phase):
+            return None
+        phase_to_role = {
+            Phase.NIGHT_SEER_WAKE: Role.SEER,
+            Phase.NIGHT_SEER_ACT: Role.SEER,
+            Phase.NIGHT_WOLF_WAKE: Role.WEREWOLF,
+            Phase.NIGHT_WOLF_ACT: Role.WEREWOLF,
+        }
+        return phase_to_role.get(self._state.phase)
 
     def get_public_state(self) -> dict:
         """Return sanitized state safe to send to frontend. No roles included."""
@@ -416,17 +441,75 @@ class GameEngine:
         present_roles = {p.role for p in self._state.players if p.alive}
         return [r for r in NIGHT_WAKE_ORDER if r in present_roles]
 
+    async def _async_delay(self, skip_delay: bool) -> None:
+        """Wait for configured delay unless skipped (for tests)."""
+        if not skip_delay and self._state.delay_seconds > 0:
+            import asyncio
+            await asyncio.sleep(self._state.delay_seconds)
+
     async def _async_start_night(self) -> None:
+        """Start the night cycle at NIGHT_START."""
         self._state.round += 1
-        self._state.phase = Phase.NIGHT
+        self._state.phase = Phase.NIGHT_START
         self._state.night_actions = NightActions()
         self._state.eliminated_this_round = []
-        self._state.current_night_role_index = 0
-        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT, "round": self._state.round})
+        self._state.current_target_id = None
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_START, "round": self._state.round})
+        await self._async_save()
+
+    async def _async_advance_to_seer_wake(self, skip_delay: bool = False) -> None:
+        """Transition from NIGHT_START to SEER wake."""
+        await self._async_delay(skip_delay)
+        if not self._has_role(Role.SEER):
+            await self._async_advance_to_wolf_wake(skip_delay)
+            return
+        self._state.phase = Phase.NIGHT_SEER_WAKE
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_SEER_WAKE})
+        await self._async_save()
+
+    async def _async_advance_to_seer_act(self, skip_delay: bool = False) -> None:
+        """Transition from SEER wake to SEER act (choosing target)."""
+        await self._async_delay(skip_delay)
+        self._state.phase = Phase.NIGHT_SEER_ACT
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_SEER_ACT})
+        await self._async_save()
+
+    async def _async_advance_to_seer_sleep(self, skip_delay: bool = False) -> None:
+        """Transition from SEER act to SEER sleep."""
+        await self._async_delay(skip_delay)
+        self._state.phase = Phase.NIGHT_SEER_SLEEP
+        self._state.current_target_id = None
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_SEER_SLEEP})
+        await self._async_save()
+
+    async def _async_advance_to_wolf_wake(self, skip_delay: bool = False) -> None:
+        """Transition to wolf wake."""
+        await self._async_delay(skip_delay)
+        if not self._has_role(Role.WEREWOLF):
+            await self._async_advance_to_day()
+            return
+        self._state.phase = Phase.NIGHT_WOLF_WAKE
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_WOLF_WAKE})
+        await self._async_save()
+
+    async def _async_advance_to_wolf_act(self, skip_delay: bool = False) -> None:
+        """Transition from wolf wake to wolf act (choosing target)."""
+        await self._async_delay(skip_delay)
+        self._state.phase = Phase.NIGHT_WOLF_ACT
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_WOLF_ACT})
+        await self._async_save()
+
+    async def _async_advance_to_wolf_sleep(self, skip_delay: bool = False) -> None:
+        """Transition from wolf act to wolf sleep (end of night)."""
+        await self._async_delay(skip_delay)
+        self._state.phase = Phase.NIGHT_WOLF_SLEEP
+        self._state.current_target_id = None
+        self._fire_event(EVENT_GAME_STATE_CHANGED, {"phase": Phase.NIGHT_WOLF_SLEEP})
         await self._async_save()
 
     async def _async_advance_to_day(self) -> None:
         """Resolve night actions and move to day phase."""
+        await self._async_delay(False)
         victim_id = self._state.night_actions.wolf_victim_id
         if victim_id:
             await self.async_eliminate_player(victim_id, EliminationCause.WOLF_KILL)
@@ -441,19 +524,12 @@ class GameEngine:
         })
         await self._async_save()
 
-    async def _async_advance_night_role(self) -> None:
-        """Advance to the next night role, or resolve night if all roles done."""
-        self._state.current_night_role_index += 1
-        self._state.current_target_id = None
-
-        active_roles = self._active_night_roles()
-        if self._state.current_night_role_index >= len(active_roles):
-            await self._async_advance_to_day()
-        else:
-            await self._async_save()
-
     async def _async_advance_to_night(self) -> None:
         await self._async_start_night()
+
+    def _has_role(self, role: Role) -> bool:
+        """Check if any alive player has the given role."""
+        return any(p.role == role and p.alive for p in self._state.players)
 
     def _fire_event(self, event_type: str, data: dict) -> None:
         self.hass.bus.async_fire(event_type, {
