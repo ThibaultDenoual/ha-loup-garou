@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, call
 
-from custom_components.loup_garou.phase_manager import PhaseManager
+from custom_components.loup_garou.core.phase_manager import PhaseManager
 from custom_components.loup_garou.const import Role, WinCondition, EliminationCause
 
 
