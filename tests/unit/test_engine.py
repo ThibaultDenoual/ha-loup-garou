@@ -271,4 +271,4 @@ class TestCurrentNightRole:
         state = run_async(engine.async_submit_night_action(NightActionType.SEER_INVESTIGATE, target.id))
 
         assert state["night_actions_completed"] == [Role.SEER]
-        assert engine.current_night_role == Role.SEER
+        assert engine.current_night_role == Role.WERWOLF # Role advance to next one 
