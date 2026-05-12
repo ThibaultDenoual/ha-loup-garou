@@ -135,6 +135,8 @@ class GameEngine:
             raise ValueError("No role is acting right now")
 
         if action_type == NightActionType.WOLF_KILL:
+            if acting_role != Role.WEREWOLF:
+                raise ValueError(f"Wolf kill action but wrong acting role: {acting_role}")
             if self._state.night_actions.wolf_victim_id is not None:
                 raise ValueError("Wolf action already submitted")
             if target.role in WOLF_TEAM:
@@ -144,6 +146,8 @@ class GameEngine:
         elif action_type == NightActionType.SEER_INVESTIGATE:
             if self._state.night_actions.seer_target_id is not None:
                 raise ValueError("Seer action already submitted")
+            if acting_role != Role.SEER:
+                raise ValueError(f"Seer investigate action but wrong acting role: {acting_role}")
             self._state.night_actions.seer_target_id = target_id
             self._state.night_actions.seer_result = target.role
 
