@@ -46,7 +46,7 @@ class TTSController:
         tts_language = lang_map.get(self._language, self._language)
 
         service_data = {
-            "entity_id": self._media_player,
+            "media_player_entity_id": self._media_player,
             "message": message,
             "language": tts_language,
         }
