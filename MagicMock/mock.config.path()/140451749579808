@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "loup_garou.game_state",
+  "data": {
+    "phase": "role_reveal",
+    "round": 0,
+    "players": [
+      {
+        "id": "f93ad27f-706c-40d3-8d60-edb1a0c65882",
+        "name": "A",
+        "role": "villager",
+        "alive": true,
+        "role_seen": false
+      },
+      {
+        "id": "4fe2cf6e-c1cd-4e48-8003-4c3007cb8826",
+        "name": "B",
+        "role": "seer",
+        "alive": true,
+        "role_seen": false
+      },
+      {
+        "id": "5059f235-005b-44ed-9c67-866af202e4aa",
+        "name": "C",
+        "role": "villager",
+        "alive": true,
+        "role_seen": false
+      },
+      {
+        "id": "88e4137b-75e7-453b-80d1-4bd0ccd00619",
+        "name": "D",
+        "role": "villager",
+        "alive": true,
+        "role_seen": false
+      },
+      {
+        "id": "c4b77d1d-0d04-4ec7-b4be-f577307ba900",
+        "name": "E",
+        "role": "werewolf",
+        "alive": true,
+        "role_seen": false
+      }
+    ],
+    "night_actions": {
+      "wolf_victim_id": null,
+      "seer_target_id": null,
+      "seer_result": null,
+      "completed_roles": []
+    },
+    "vote_tallies": {},
+    "eliminated_this_round": [],
+    "reveal_order": [
+      "5059f235-005b-44ed-9c67-866af202e4aa",
+      "c4b77d1d-0d04-4ec7-b4be-f577307ba900",
+      "88e4137b-75e7-453b-80d1-4bd0ccd00619",
+      "4fe2cf6e-c1cd-4e48-8003-4c3007cb8826",
+      "f93ad27f-706c-40d3-8d60-edb1a0c65882"
+    ],
+    "reveal_index": 0,
+    "winner": null,
+    "language": "fr",
+    "delay_seconds": 2.0
+  }
+}
