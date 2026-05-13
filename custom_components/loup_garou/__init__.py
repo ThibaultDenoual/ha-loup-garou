@@ -66,7 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         component_name="iframe",
         sidebar_title="Loup Garou",
-        sidebar_icon="mdi:wolf",
+        sidebar_icon="mdi:weather-night",
         frontend_url_path="loup_garou",
         config={"url": "/loup_garou/launcher.html"},
         require_admin=False,
