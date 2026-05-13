@@ -1,0 +1,171 @@
+{
+  "_meta": {
+    "language": "fr",
+    "language_name": "Français",
+    "version": "1.0"
+  },
+
+  "setup": {
+    "title": "🐺 LOUP-GAROU 🐺",
+    "welcome": "Bienvenue au Loup-Garou !",
+    "role_reveal_intro": "Chaque joueur va maintenant apprendre son rôle en privé.",
+    "role_card_role": "Vous êtes le {role_name}.",
+    "role_card_desc": "Description : {description}",
+    "role_card_team": "Équipe : {team}",
+    "role_card_pack": "Membres de la meute : {pack_names}"
+  },
+
+  "night": {
+    "separator": "🌙 NUIT {round} 🌙",
+    "intro_sleep": "Le village s'endort…",
+    "intro_shadows": "Les forces obscures s'éveillent.",
+    "closing": "☽ La nuit touche à sa fin...",
+    "wolves_convene": "🐺 LES LOUPS SE CONVOQUENT",
+    "wolves_awake": "Loups-garous éveillés : {names}",
+    "wolves_chosen": "La meute a choisi… {name} sera chassé.",
+    "wolves_convert_skip": "Le Loup Alpha a choisi de convertir — pas de victime cette nuit.",
+    "no_night_action": "(pas d'action disponible)"
+  },
+
+  "day": {
+    "separator": "☀️ JOUR {round} ☀️",
+    "intro_dawn": "L'aube se lève sur le village.",
+    "intro_gather": "Les survivants se rassembleront sur la place, yeux vides de peur.",
+    "no_deaths": "🏡 Un miracle ! Personne n'est mort cette nuit. Le village respire.",
+    "death_announcement": "💀 {name} a été retrouvé mort. Tué par {cause}.",
+    "death_role_reveal": "C'était {role_name}.",
+    "alive_players": "Joueurs en vie",
+    "discussion_prompt": "Discutez entre vous. Qui suspectez-vous ?\n(Dans une vraie partie, les joueurs parleraient ouvertement pendant plusieurs minutes.)",
+    "discussion_pause": "(Appuyez sur Entrée quand la discussion est terminée et que vous êtes prêt à voter...)",
+    "no_votes_cast": "Aucun vote. Le village ne parvient pas à se décider.",
+    "vote_tie": "Égalité ! {names}.\nPas d'exécution aujourd'hui — le village est divisé.",
+    "condemned": "⚖️ Le village a parlé. {name} est condamné avec {count} vote(s).",
+    "vote_header": "☀️ VOTE DU VILLAGE — Choisissez quelqu'un à éliminer (ou 0 pour s'abstenir) :",
+    "vote_silenced": "🔇 {name} est réduit au silence et ne peut pas voter.",
+    "vote_prompt": "Vote de {name} (0 pour s'abstenir) : ",
+    "vote_invalid": "Choix invalide.",
+    "vote_not_number": "Entrez un nombre."
+  },
+
+  "game_over": {
+    "separator": "🏆 FIN DE PARTIE 🏆",
+    "village_wins": "🎉 Le VILLAGE gagne ! Les loups-garous ont été vaincus !",
+    "werewolf_wins": "🐺 Les LOUPS-GAROUS gagnent ! Ils ont dévoré le village !",
+    "solo_wins": "🎭 {name} gagne !",
+    "thanks": "Merci d'avoir joué au Loup-Garou !",
+    "final_roles": "Rôles finaux :",
+    "player_row": "{status} {name} → {role_name}"
+  },
+
+  "actions": {
+    "investigate_result": "Votre vision révèle : {name} est {allegiance}.",
+    "investigate_wolf": "un Loup-Garou",
+    "investigate_not_wolf": "pas un Loup-Garou",
+    "conversion_log": "🔄 {name} a été converti de {old_role} en Loup-Garou !",
+    "conversion_private": "Vous avez été mordu par le Loup Alpha ! Vous êtes maintenant un LOUP-GAROU.\n  Travaillez avec la meute pour dévorer le village.",
+    "protected_log": "{name} a été protégé.",
+    "day_start_hook": "ℹ️ {message}"
+  },
+
+  "death": {
+    "log": "☠ {name} ({role_name}) est mort de {cause}.",
+    "lover_dies": "💔 {lover_name} ne peut pas supporter la perte de son bien-aimé {name}...\n  Il meurt d'un cœur brisé.",
+    "lovers_linked": "💘 {name1} et {name2} sont liés par l'amour."
+  },
+
+  "roles": {
+    "Villager": {
+      "name": "Villageois",
+      "description": "Un humble citoyen. Pas de pouvoir spécial — mais chaque vote compte."
+    },
+    "Seer": {
+      "name": "Voyante",
+      "description": "Chaque nuit, voyez dans l'âme de quelqu'un et apprenez sa véritable allégeance.",
+      "prompt_investigate": "[VOYANTE] {player_name}, Choisissez quelqu'un à observer :"
+    },
+    "Doctor": {
+      "name": "Docteur",
+      "description": "Chaque nuit, protégez un joueur de la mort. Peut se protéger une fois.",
+      "prompt_protect": "[DOCTEUR] {player_name}, Choisissez quelqu'un à protéger :"
+    },
+    "Bodyguard": {
+      "name": "Garde du Corps",
+      "description": "Protégez un joueur la nuit — mais s'il est attaquée, le Garde du Corps meurt à sa place.",
+      "prompt_guard": "[GARDE DU CORPS] {player_name}, Choisissez quelqu'un à protéger :"
+    },
+    "Hunter": {
+      "name": "Chasseur",
+      "description": "Lorsqu'il est éliminé (jour ou nuit), peut entraîner un joueur dans la tombe.",
+      "death_intro": "\n🏹 Le Chasseur [{player_name}] est tombé ! Il fait un dernier tir...",
+      "prompt_target": "[CHASSEUR] {player_name}, Choisissez votre dernière cible :",
+      "death_result": "{target_name} est touché par la flèche mourante du Chasseur !"
+    },
+    "Witch": {
+      "name": "Sorcière",
+      "description": "Possède une potion de soin et une potion de poison. Chacune peut être utilisée une fois.",
+      "prompt_heal": "[SORCIÈRE] Les loups ont attaque {victim_name}. Utiliser votre potion de soin pour les sauver ?",
+      "prompt_poison_ask": "[SORCIÈRE] Voulez-vous utiliser votre potion de poison ?",
+      "prompt_poison_target": "[SORCIÈRE] Choisissez votre cible pour le poison :"
+    },
+    "Cupid": {
+      "name": "Cupidon",
+      "description": "La Nuit 1, lie deux amoureux. Si l'un meurt, l'autre meurt de chagrin.",
+      "prompt_intro": "[CUPIDON] {player_name}, Choisissez deux joueurs à tomber amoureux !",
+      "prompt_lover1": "Choisissez le premier amoureux :",
+      "prompt_lover2": "Choisissez le deuxième amoureux :"
+    },
+    "Werewolf": {
+      "name": "Loup-Garou",
+      "description": "Chaque nuit, la meute choisit un villageois à dévorer.",
+      "prompt_kill": "Loups-garous, Choisissez votre victime pour cette nuit :"
+    },
+    "Alpha Wolf": {
+      "name": "Loup Alpha",
+      "description": "Une fois par partie, convertit un Villageois en Loup-Garou au lieu de le tuer.",
+      "prompt_convert_ask": "[LOUP ALPHA] Voulez-vous utiliser votre pouvoir de conversion au lieu de tuer cette nuit ?",
+      "prompt_convert_target": "[LOUP ALPHA] Choisissez un Villageois à convertir :"
+    },
+    "Minion": {
+      "name": "Serviteur",
+      "description": "Un serviteur humain des loups. Connaît les loups ; les loups ne le connaissent pas."
+    },
+    "Serial Killer": {
+      "name": "Tueur en Série",
+      "description": "Tue un joueur chaque nuit. Gagne en étant le dernier en vie.",
+      "prompt_kill": "[TUEUR EN SÉRIE] {player_name}, Choisissez votre victime :"
+    },
+    "Jester": {
+      "name": "Bouffon",
+      "description": "Veut être lynché par le village. S'il est éliminé par vote, le Bouffon gagne !",
+      "win_message": "🃏 {player_name} était le Bouffon ! Il a trompé le village et GAGNE !"
+    }
+  },
+
+  "io": {
+    "private_prefix": "[Privé → {name}]",
+    "private_read_prompt": "(Appuyez sur Entrée quand {name} a lu ceci...)",
+    "choose_number": "Entrez un nombre (1-{max}) : ",
+    "choose_numbers": "Entrez les nombres (1-{max}) : ",
+    "choose_invalid": "⚠️ Choix invalide. Pick {min}–{max} nombre(s).",
+    "yes_no_suffix": "[o/n]",
+    "yes_no_invalid": "⚠️ Veuillez entrer o ou n.",
+    "continue_prompt": "(Appuyez sur Entrée pour continuer...)",
+    "player_bullet": "• {name}"
+  },
+
+  "tts": {
+    "roles_distributed": "Les rôles ont été distribués. Le village se prépare pour sa première nuit.",
+    "night_start": "Le village s'endort… Fermez les yeux, tout le monde.",
+    "seer_wake": "Voyante, ouvre les yeux. Choisis un joueur à observer.",
+    "seer_sleep": "Voyante, ferme les yeux.",
+    "wolf_wake": "Loups-garous, ouvrez les yeux. Choisissez votre victime en silence.",
+    "wolf_sleep": "Loups-garous, fermez les yeux.",
+    "day_start_death": "Le village se réveille. {name} a été retrouvé mort. C'était {role}.",
+    "day_start_no_death": "Le village se réveille. Miraculeusement, personne n'est mort cette nuit.",
+    "vote_start": "Le village doit voter pour éliminer un suspect.",
+    "vote_tie": "Égalité ! Le village ne parvient pas à se décider.",
+    "elimination": "{name} est éliminé. C'était {role}.",
+    "wolves_win": "Les loups-garous ont gagné ! Le village est tombé.",
+    "villagers_win": "Le village a gagné ! Tous les loups-garous sont morts."
+  }
+}

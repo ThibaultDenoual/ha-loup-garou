@@ -1,0 +1,171 @@
+{
+  "_meta": {
+    "language": "en",
+    "language_name": "English",
+    "version": "1.0"
+  },
+
+  "setup": {
+    "title": "🐺 WEREWOLF 🐺",
+    "welcome": "Welcome to Werewolf!",
+    "role_reveal_intro": "Each player will now privately learn their role.",
+    "role_card_role": "You are the {role_name}.",
+    "role_card_desc": "Description: {description}",
+    "role_card_team": "Team: {team}",
+    "role_card_pack": "Pack members: {pack_names}"
+  },
+
+  "night": {
+    "separator": "🌙 NIGHT {round} 🌙",
+    "intro_sleep": "The village falls into an uneasy sleep...",
+    "intro_shadows": "Dark forces stir in the shadows.",
+    "closing": "☽ The night draws to a close...",
+    "wolves_convene": "🐺 WEREWOLVES CONVENE",
+    "wolves_awake": "Werewolves awake: {names}",
+    "wolves_chosen": "The pack has chosen... {name} will be hunted.",
+    "wolves_convert_skip": "The Alpha Wolf has chosen to convert — no kill tonight.",
+    "no_night_action": "(no action available)"
+  },
+
+  "day": {
+    "separator": "☀️ DAY {round} ☀️",
+    "intro_dawn": "Dawn breaks over the village.",
+    "intro_gather": "The survivors gather in the square, eyes hollow with fear.",
+    "no_deaths": "🏡 A miracle! No one died last night. The village sighs with relief.",
+    "death_announcement": "💀 {name} was found dead — killed by {cause}.",
+    "death_role_reveal": "They were the {role_name}.",
+    "alive_players": "Alive Players",
+    "discussion_prompt": "Discuss among yourselves. Who do you suspect?\n  (In a real game, players would now talk openly for several minutes.)",
+    "discussion_pause": "(Press Enter when discussion is over and you're ready to vote...)",
+    "no_votes_cast": "No votes cast. The village fails to reach a decision.",
+    "vote_tie": "It's a tie between: {names}.\n  No execution today — the village is divided.",
+    "condemned": "⚖️ The village has spoken. {name} is condemned with {count} vote(s).",
+    "vote_header": "☀️ VILLAGE VOTE — Choose someone to eliminate (or 0 to abstain):",
+    "vote_silenced": "🔇 {name} is silenced and cannot vote.",
+    "vote_prompt": "{name}'s vote (0 to abstain): ",
+    "vote_invalid": "Invalid choice.",
+    "vote_not_number": "Enter a number."
+  },
+
+  "game_over": {
+    "separator": "🏆 GAME OVER 🏆",
+    "village_wins": "🎉 The VILLAGE wins! The werewolves have been vanquished!",
+    "werewolf_wins": "🐺 The WEREWOLVES win! They have devoured the village!",
+    "solo_wins": "🎭 {name} wins!",
+    "thanks": "Thanks for playing Werewolf!",
+    "final_roles": "Final roles:",
+    "player_row": "{status} {name} → {role_name}"
+  },
+
+  "actions": {
+    "investigate_result": "Your vision reveals: {name} is {allegiance}.",
+    "investigate_wolf": "a Werewolf",
+    "investigate_not_wolf": "not a Werewolf",
+    "conversion_log": "🔄 {name} was converted from {old_role} to Werewolf!",
+    "conversion_private": "You have been bitten by the Alpha Wolf! You are now a WEREWOLF.\n  Work with the pack to devour the village.",
+    "protected_log": "{name} was protected from harm.",
+    "day_start_hook": "ℹ️ {message}"
+  },
+
+  "death": {
+    "log": "☠ {name} ({role_name}) died from {cause}.",
+    "lover_dies": "💔 {lover_name} cannot bear the loss of their beloved {name}...\n  They die of a broken heart.",
+    "lovers_linked": "💘 {name1} and {name2} are now bound by love."
+  },
+
+  "roles": {
+    "Villager": {
+      "name": "Villager",
+      "description": "A humble townsfolk. No special power — but every vote counts."
+    },
+    "Seer": {
+      "name": "Seer",
+      "description": "Each night, peer into someone's soul and learn their true allegiance.",
+      "prompt_investigate": "[SEER] {player_name}, choose someone to investigate:"
+    },
+    "Doctor": {
+      "name": "Doctor",
+      "description": "Each night, protect one player from death. May protect themselves once.",
+      "prompt_protect": "[DOCTOR] {player_name}, choose someone to protect:"
+    },
+    "Bodyguard": {
+      "name": "Bodyguard",
+      "description": "Protect a player at night — but if attacked, the Bodyguard dies instead.",
+      "prompt_guard": "[BODYGUARD] {player_name}, choose someone to guard:"
+    },
+    "Hunter": {
+      "name": "Hunter",
+      "description": "When eliminated (day or night), may drag one player to the grave.",
+      "death_intro": "\n🏹 The Hunter [{player_name}] has fallen! They take one last shot...",
+      "prompt_target": "[HUNTER] {player_name}, choose your final target:",
+      "death_result": "{target_name} is struck by the Hunter's dying arrow!"
+    },
+    "Witch": {
+      "name": "Witch",
+      "description": "Holds one healing potion and one poison potion. Each may be used once.",
+      "prompt_heal": "[WITCH] The werewolves attacked {victim_name}. Use your healing potion to save them?",
+      "prompt_poison_ask": "[WITCH] Do you wish to use your poison potion?",
+      "prompt_poison_target": "[WITCH] Choose your poison target:"
+    },
+    "Cupid": {
+      "name": "Cupid",
+      "description": "On Night 1, links two lovers. If one dies, the other dies of heartbreak.",
+      "prompt_intro": "[CUPID] {player_name}, choose two players to fall in love!",
+      "prompt_lover1": "Choose the first lover:",
+      "prompt_lover2": "Choose the second lover:"
+    },
+    "Werewolf": {
+      "name": "Werewolf",
+      "description": "Every night, the pack chooses one villager to devour.",
+      "prompt_kill": "Werewolves, choose your victim for tonight:"
+    },
+    "Alpha Wolf": {
+      "name": "Alpha Wolf",
+      "description": "Once per game, convert a Villager into a Werewolf instead of killing them.",
+      "prompt_convert_ask": "[ALPHA WOLF] Do you wish to use your conversion power instead of killing tonight?",
+      "prompt_convert_target": "[ALPHA WOLF] Choose a Villager to convert to the pack:"
+    },
+    "Minion": {
+      "name": "Minion",
+      "description": "A human servant of the wolves. Knows the wolves; wolves don't know them."
+    },
+    "Serial Killer": {
+      "name": "Serial Killer",
+      "description": "Kills one player each night. Wins by being the last one standing.",
+      "prompt_kill": "[SERIAL KILLER] {player_name}, choose your victim:"
+    },
+    "Jester": {
+      "name": "Jester",
+      "description": "Wants to be lynched by the village. If eliminated by vote, the Jester wins!",
+      "win_message": "🃏 {player_name} was the Jester! They fooled the village and WIN!"
+    }
+  },
+
+  "io": {
+    "private_prefix": "[Private → {name}]",
+    "private_read_prompt": "(Press Enter when {name} has read this...)",
+    "choose_number": "Enter number (1-{max}): ",
+    "choose_numbers": "Enter numbers (1-{max}): ",
+    "choose_invalid": "⚠️ Invalid choice. Pick {min}–{max} number(s).",
+    "yes_no_suffix": "[y/n]",
+    "yes_no_invalid": "⚠️ Please enter y or n.",
+    "continue_prompt": "(Press Enter to continue...)",
+    "player_bullet": "• {name}"
+  },
+
+  "tts": {
+    "roles_distributed": "The roles have been distributed. The village prepares for its first night.",
+    "night_start": "The village falls asleep… Eyes closed, everyone.",
+    "seer_wake": "Seer, open your eyes. Choose a player to investigate.",
+    "seer_sleep": "Seer, close your eyes.",
+    "wolf_wake": "Werewolves, open your eyes. Choose your victim silently.",
+    "wolf_sleep": "Werewolves, close your eyes.",
+    "day_start_death": "The village wakes up. {name} was found dead. They were a {role}.",
+    "day_start_no_death": "The village wakes up. Miraculously, no one died last night.",
+    "vote_start": "The village must vote to eliminate a suspect.",
+    "vote_tie": "It's a tie! The village cannot reach a decision.",
+    "elimination": "{name} is eliminated. They were a {role}.",
+    "wolves_win": "The werewolves win! The village has fallen.",
+    "villagers_win": "The village wins! All werewolves are dead."
+  }
+}
