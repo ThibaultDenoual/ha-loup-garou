@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from custom_components.loup_garou.role_manager import RoleManager, RoleConfig, RoleConfigError
+from custom_components.loup_garou.core.role_manager import RoleManager, RoleConfig, RoleConfigError
 from custom_components.loup_garou.const import Role, WOLF_TEAM, VILLAGE_TEAM
 
 

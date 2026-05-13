@@ -25,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_SPEAKER): str,
-        vol.Optional(CONF_LIGHTS, default=[]): list,
+        vol.Optional(CONF_LIGHTS, default=""): str,
         vol.Optional(CONF_LANGUAGE, default="fr"): vol.In(["fr", "en"]),
     }
 )
@@ -48,7 +48,8 @@ class LoupGarouConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             speaker = user_input.get(CONF_SPEAKER, "")
-            lights = user_input.get(CONF_LIGHTS, [])
+            lights_raw = user_input.get(CONF_LIGHTS, "")
+            lights = [l.strip() for l in lights_raw.split(",") if l.strip()]
             language = user_input.get(CONF_LANGUAGE, "fr")
 
             if not speaker:
@@ -92,17 +93,23 @@ class LoupGarouOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.FlowResult:
         if user_input is not None:
+            lights_raw = user_input.get(CONF_LIGHTS, "")
+            user_input = {
+                **user_input,
+                CONF_LIGHTS: [l.strip() for l in lights_raw.split(",") if l.strip()],
+            }
             return self.async_create_entry(title="", data=user_input)
 
         current = self._entry.data
+        lights_default = ",".join(current.get(CONF_LIGHTS, []))
         schema = vol.Schema(
             {
                 vol.Required(
                     CONF_SPEAKER, default=current.get(CONF_SPEAKER, "")
                 ): str,
                 vol.Optional(
-                    CONF_LIGHTS, default=current.get(CONF_LIGHTS, [])
-                ): list,
+                    CONF_LIGHTS, default=lights_default
+                ): str,
                 vol.Optional(
                     CONF_LANGUAGE, default=current.get(CONF_LANGUAGE, "fr")
                 ): vol.In(["fr", "en"]),

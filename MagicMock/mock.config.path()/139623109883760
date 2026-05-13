@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "loup_garou.game_state",
+  "data": {
+    "phase": "game_over",
+    "round": 0,
+    "players": [
+      {
+        "id": "53c58878-562b-44e7-be7a-d906db3dcbfd",
+        "name": "Wolf1",
+        "role": "werewolf",
+        "alive": true,
+        "role_seen": false
+      },
+      {
+        "id": "9044b89d-66f3-49e9-aaa8-8fa674bd5bd4",
+        "name": "Wolf2",
+        "role": "villager",
+        "alive": false,
+        "role_seen": false
+      },
+      {
+        "id": "dc2b6abb-3254-4744-9a7c-43f7c64857a8",
+        "name": "Villager",
+        "role": "werewolf",
+        "alive": true,
+        "role_seen": false
+      }
+    ],
+    "night_actions": {
+      "wolf_victim_id": null,
+      "seer_target_id": null,
+      "seer_result": null,
+      "completed_roles": []
+    },
+    "vote_tallies": {},
+    "eliminated_this_round": [
+      "9044b89d-66f3-49e9-aaa8-8fa674bd5bd4"
+    ],
+    "reveal_order": [
+      "dc2b6abb-3254-4744-9a7c-43f7c64857a8",
+      "9044b89d-66f3-49e9-aaa8-8fa674bd5bd4",
+      "53c58878-562b-44e7-be7a-d906db3dcbfd"
+    ],
+    "reveal_index": 0,
+    "winner": "wolves",
+    "language": "fr",
+    "delay_seconds": 2.0
+  }
+}

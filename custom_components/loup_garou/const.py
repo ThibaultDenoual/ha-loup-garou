@@ -44,7 +44,7 @@ ROLE_META: dict[str, dict] = {
         "icon": "🏘️",
         "team": "village",
         "has_night_action": False,
-        "description_fr": "Vous êtes un simple villageois. Débattez le jour et votez wisément.",
+        "description_fr": "Vous êtes un simple villageois. Débattez le jour et votez sagement.",
         "description_en": "You are a simple villager. Debate by day and vote wisely.",
     },
     Role.WEREWOLF: {
@@ -70,10 +70,55 @@ ROLE_META: dict[str, dict] = {
 class Phase(StrEnum):
     SETUP = "setup"
     ROLE_REVEAL = "role_reveal"
-    NIGHT = "night"
+    NIGHT_START = "night_start"
+    NIGHT_SEER_WAKE = "night_seer_wake"
+    NIGHT_SEER_ACT = "night_seer_act"
+    NIGHT_SEER_SLEEP = "night_seer_sleep"
+    NIGHT_WOLF_WAKE = "night_wolf_wake"
+    NIGHT_WOLF_ACT = "night_wolf_act"
+    NIGHT_WOLF_SLEEP = "night_wolf_sleep"
     DAY = "day"
     VOTE = "vote"
     GAME_OVER = "game_over"
+
+    @classmethod
+    def is_night_subphase(cls, phase: str) -> bool:
+        return phase in {
+            cls.NIGHT_START,
+            cls.NIGHT_SEER_WAKE,
+            cls.NIGHT_SEER_ACT,
+            cls.NIGHT_SEER_SLEEP,
+            cls.NIGHT_WOLF_WAKE,
+            cls.NIGHT_WOLF_ACT,
+            cls.NIGHT_WOLF_SLEEP,
+        }
+
+    @classmethod
+    def is_active_night_phase(cls, phase: str) -> bool:
+        return phase in {
+            cls.NIGHT_SEER_WAKE,
+            cls.NIGHT_SEER_ACT,
+            cls.NIGHT_WOLF_WAKE,
+            cls.NIGHT_WOLF_ACT,
+        }
+
+    @classmethod
+    def is_night_before_day(cls, phase: str) -> bool:
+        return phase == cls.NIGHT_WOLF_SLEEP
+
+
+ROLE_PHASE_MAP: dict[Role, dict[str, Phase]] = {
+    Role.SEER: {
+        "wake": Phase.NIGHT_SEER_WAKE,
+        "act": Phase.NIGHT_SEER_ACT,
+        "sleep": Phase.NIGHT_SEER_SLEEP,
+    },
+    Role.WEREWOLF: {
+        "wake": Phase.NIGHT_WOLF_WAKE,
+        "act": Phase.NIGHT_WOLF_ACT,
+        "sleep": Phase.NIGHT_WOLF_SLEEP,
+    },
+}
 
 
 # ──────────────────────────────────────────────
@@ -153,11 +198,13 @@ LIGHT_SCENES: dict[str, dict] = {
 
 # Map each phase/event to a scene key
 PHASE_SCENE_MAP: dict[str, str] = {
-    Phase.NIGHT: "night",
+    Phase.NIGHT_START: "night",
+    Phase.NIGHT_SEER_WAKE: "seer_wake",
+    Phase.NIGHT_SEER_SLEEP: "night",
+    Phase.NIGHT_WOLF_WAKE: "wolf_wake",
+    Phase.NIGHT_WOLF_SLEEP: "night",
     Phase.DAY: "day",
     Phase.VOTE: "day",
-    "wolf_wake": "wolf_wake",
-    "seer_wake": "seer_wake",
     "death": "death",
     WinCondition.WOLVES: "wolves_win",
     WinCondition.VILLAGERS: "village_win",
