@@ -59,7 +59,7 @@ def mock_store():
 @pytest.fixture
 def mock_engine(mock_hass):
     """Create an AsyncGameAdapter (new engine wrapper)."""
-    from custom_components.loup_garou.core.adapter import AsyncGameAdapter
+    from custom_components.loup_garou.core_game.io_adapters.ha_adapter import AsyncGameAdapter
 
     engine = AsyncGameAdapter(hass=mock_hass, config_entry_id="test_entry")
     return engine
