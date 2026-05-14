@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 
 from .const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE
-from .core.engine import GameEngine
+from .core.game_engine import GameEngine
 from .services.lights import LightController
 from .services.tts import TTSController
 from .services.phase_manager import PhaseManager
@@ -43,7 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     engine = GameEngine(hass=hass, config_entry_id=entry.entry_id)
-    await engine.async_load()
+    #await engine.async_load()
 
     phase_manager = PhaseManager(
         hass=hass,

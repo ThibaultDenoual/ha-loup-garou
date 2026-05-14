@@ -57,13 +57,11 @@ def mock_store():
 
 
 @pytest.fixture
-def mock_engine(mock_hass, mock_store):
-    """Create a GameEngine with mocked Store."""
-    from custom_components.loup_garou.core.engine import GameEngine
+def mock_engine(mock_hass):
+    """Create an AsyncGameAdapter (new engine wrapper)."""
+    from custom_components.loup_garou.core.adapter import AsyncGameAdapter
 
-    with patch("homeassistant.helpers.storage.Store", return_value=mock_store):
-        engine = GameEngine(mock_hass, config_entry_id="test_entry")
-        engine._store = mock_store
+    engine = AsyncGameAdapter(hass=mock_hass, config_entry_id="test_entry")
     return engine
 
 
