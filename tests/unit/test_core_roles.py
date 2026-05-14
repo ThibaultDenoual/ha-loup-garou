@@ -3,10 +3,6 @@ Tests for core_game roles module.
 """
 
 import pytest
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "custom_components", "loup_garou"))
 
 
 class TestRoleRegistry:
@@ -14,7 +10,7 @@ class TestRoleRegistry:
 
     def test_all_village_roles_exist(self):
         """Verify all village roles are registered."""
-        from core_game.roles import ROLE_REGISTRY
+        from core_game import ROLE_REGISTRY
         
         expected_village = ["Villager", "Seer", "Doctor", "Bodyguard", "Hunter", "Witch", "Cupid"]
         for role in expected_village:
@@ -22,7 +18,7 @@ class TestRoleRegistry:
 
     def test_all_werewolf_roles_exist(self):
         """Verify werewolf roles are registered."""
-        from core_game.roles import ROLE_REGISTRY
+        from core_game import ROLE_REGISTRY
         
         expected_wolves = ["Werewolf", "Alpha Wolf", "Minion"]
         for role in expected_wolves:
@@ -30,14 +26,14 @@ class TestRoleRegistry:
 
     def test_all_solo_roles_exist(self):
         """Verify solo roles are registered."""
-        from core_game.roles import ROLE_REGISTRY
+        from core_game import ROLE_REGISTRY
         
         assert "Serial Killer" in ROLE_REGISTRY
         assert "Jester" in ROLE_REGISTRY
 
     def test_role_has_expected_properties(self):
         """Verify roles have correct default properties."""
-        from core_game.roles import Villager, Werewolf, Seer, SerialKiller
+        from core_game import Villager, Werewolf, Seer, SerialKiller
         
         assert Villager.team == "village"
         assert Villager.has_night_action is False
@@ -59,25 +55,25 @@ class TestPresets:
 
     def test_small_preset_player_count(self):
         """Small preset should have 6 players."""
-        from core_game.roles import PRESETS
+        from core_game import PRESETS
         
         assert len(PRESETS["small"]) == 6
 
     def test_medium_preset_player_count(self):
         """Medium preset should have 9 players."""
-        from core_game.roles import PRESETS
+        from core_game import PRESETS
         
         assert len(PRESETS["medium"]) == 9
 
     def test_large_preset_player_count(self):
         """Large preset should have 13 players."""
-        from core_game.roles import PRESETS
+        from core_game import PRESETS
         
         assert len(PRESETS["large"]) == 13
 
     def test_chaos_preset_has_werewolf_and_serial_killer(self):
         """Chaos preset should include both werewolf and serial killer."""
-        from core_game.roles import PRESETS
+        from core_game import PRESETS
         
         roles = PRESETS["chaos"]
         assert "Werewolf" in roles
@@ -86,7 +82,7 @@ class TestPresets:
 
     def test_preset_contains_valid_role_names(self):
         """All roles in presets should be in registry."""
-        from core_game.roles import ROLE_REGISTRY, PRESETS
+        from core_game import ROLE_REGISTRY, PRESETS
         
         for preset_name, role_names in PRESETS.items():
             for role in role_names:

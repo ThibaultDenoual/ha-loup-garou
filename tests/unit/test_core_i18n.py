@@ -3,10 +3,6 @@ Tests for core_game i18n module.
 """
 
 import pytest
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "custom_components", "loup_garou"))
 
 
 class TestI18n:

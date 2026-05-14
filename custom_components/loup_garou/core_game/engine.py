@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import random
 import time
+from abc import ABC, abstractmethod
 from typing import Optional
 
 from transitions import Machine, MachineError
