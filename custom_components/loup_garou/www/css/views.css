@@ -833,8 +833,8 @@
 }
 
 /* ──────────────────────────────────────────
-   RESPONSIVE
-   ────────────────────────────────────────── */
+    RESPONSIVE
+    ────────────────────────────────────────── */
 @media (max-width: 768px) {
   .view__header { padding: var(--sp-6) var(--sp-4) var(--sp-4); }
   .view__body   { padding: var(--sp-4) var(--sp-4) var(--sp-8); }
@@ -845,4 +845,78 @@
   .preset-grid      { grid-template-columns: 1fr; }
   .vote-tally-row   { grid-template-columns: 100px 1fr 28px; }
   .winner-title     { font-size: var(--text-3xl); }
+
+  .debug-panel {
+    margin: var(--sp-2) var(--sp-4) var(--sp-4);
+    padding: var(--sp-3);
+  }
+
+  .debug-buttons {
+    flex-direction: column;
+  }
+
+  .btn-debug {
+    width: 100%;
+    text-align: center;
+  }
+
+  .phase-label {
+    font-size: var(--text-lg);
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .phase-overlay__text {
+    font-size: var(--text-2xl);
+    padding: 0 var(--sp-4);
+    text-align: center;
+  }
+
+  .app-logo {
+    font-size: var(--text-base);
+  }
+
+  .app-logo .logo-moon {
+    font-size: var(--text-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  html { font-size: 12px; }
+
+  #app-header {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+
+  .status-bar {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    padding-top: var(--sp-2);
+    border-top: 1px solid var(--surface-3);
+    margin-top: var(--sp-2);
+  }
+
+  .ws-status {
+    order: 2;
+  }
+
+  .view--reveal,
+  .view--end {
+    padding: var(--sp-4) var(--sp-3);
+    min-height: calc(100vh - 100px);
+    min-height: calc(100dvh - 100px);
+  }
+
+  .error-message {
+    left: var(--sp-2);
+    right: var(--sp-2);
+    transform: none;
+    bottom: var(--sp-3);
+    text-align: center;
+  }
+
+  .log-area {
+    font-size: 10px;
+  }
 }
