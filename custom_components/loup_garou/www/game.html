@@ -161,11 +161,113 @@
       const observer = new MutationObserver(() => {
         const roundEl = document.getElementById('header-round');
         if (statsEl && roundEl && roundEl.textContent) {
-          statsEl.style.display = 'flex';
+          statsEl.classList.add('visible');
         }
       });
       const roundEl = document.getElementById('header-round');
       if (roundEl) observer.observe(roundEl, { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
+
+  <!-- 7. Debug Panel Setup -->
+  <script>
+    (function() {
+      // Wait for core to be ready
+      const checkCore = () => {
+        if (typeof LoupGarouCore === 'undefined') {
+          setTimeout(checkCore, 50);
+          return;
+        }
+        setupDebugPanel();
+      };
+      checkCore();
+
+      function setupDebugPanel() {
+        const panel = document.getElementById('debug-panel');
+        if (!panel) return;
+
+        // Hide panel if not in debug mode
+        if (!LoupGarouUtils.isDebugMode()) {
+          panel.style.display = 'none';
+          return;
+        }
+
+        // Open panel by default in debug mode
+        panel.open = true;
+
+        // Navigation buttons
+        document.getElementById('debug-reset')?.addEventListener('click', () => {
+          LoupGarouCore.resetGame();
+          logMsg('Game reset', 'info');
+        });
+        document.getElementById('debug-next-phase')?.addEventListener('click', () => {
+          LoupGarouCore.debugNextPhase();
+          logMsg('Next phase', 'info');
+        });
+        document.getElementById('debug-begin-vote')?.addEventListener('click', () => {
+          LoupGarouCore.debugBeginVote();
+          logMsg('Begin vote', 'info');
+        });
+        document.getElementById('debug-resolve-votes')?.addEventListener('click', () => {
+          LoupGarouCore.debugResolveVotes();
+          logMsg('Resolve votes', 'info');
+        });
+      }
+
+      // Update debug buttons based on game state
+      window.updateDebugButtons = function(players) {
+        if (!players) return;
+        const elimDiv = document.getElementById('debug-elim-buttons');
+        const wolfDiv = document.getElementById('debug-wolf-buttons');
+        const seerDiv = document.getElementById('debug-seer-buttons');
+        const alive = players.filter(p => p.alive !== false);
+
+        if (elimDiv) {
+          elimDiv.innerHTML = alive.map(p =>
+            `<button class="btn-debug btn-debug--danger" data-id="${p.id}">Éliminer ${p.name}</button>`
+          ).join('');
+          elimDiv.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => LoupGarouCore.debugEliminate(btn.dataset.id));
+          });
+        }
+
+        if (wolfDiv) {
+          wolfDiv.innerHTML = '<span class="debug-label">Loups:</span> ' +
+            alive.map(p =>
+              `<button class="btn-debug" data-id="${p.id}">Tuer ${p.name}</button>`
+            ).join('');
+          wolfDiv.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => LoupGarouCore.debugWolfKill(btn.dataset.id));
+          });
+        }
+
+        if (seerDiv) {
+          seerDiv.innerHTML = '<span class="debug-label">Voyante:</span> ' +
+            alive.map(p =>
+              `<button class="btn-debug" data-id="${p.id}">Observer ${p.name}</button>`
+            ).join('');
+          seerDiv.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', () => LoupGarouCore.debugSeerInvestigate(btn.dataset.id));
+          });
+        }
+      };
+
+      // Logging
+      window.logMsg = function(msg, type) {
+        const area = document.getElementById('log-area');
+        if (!area) return;
+        const ts = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const div = document.createElement('div');
+        div.className = 'log-entry ' + (type || '');
+        div.textContent = '[' + ts + '] ' + msg;
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+      };
+
+      // Add debug label style
+      const style = document.createElement('style');
+      style.textContent = '.debug-label { color: var(--color-ash); font-size: 11px; margin-right: 4px; }';
+      document.head.appendChild(style);
     })();
   </script>
 
