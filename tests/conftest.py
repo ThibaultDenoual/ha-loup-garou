@@ -6,12 +6,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent.resolve()
 
-if str(ROOT / "custom_components") not in sys.path:
-    sys.path.insert(0, str(ROOT / "custom_components"))
 if str(ROOT / "custom_components" / "loup_garou") not in sys.path:
     sys.path.insert(0, str(ROOT / "custom_components" / "loup_garou"))
-if str(ROOT / "custom_components" / "loup_garou" / "core_game") not in sys.path:
-    sys.path.insert(0, str(ROOT / "custom_components" / "loup_garou" / "core_game"))
 
 import pytest
 import asyncio

@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import MagicMock
 
-from engine import GameEngine
+from core_game.engine import GameEngine
 from core_game import Player, ROLE_REGISTRY, NightAction
 from core_game.roles import WerewolfPackCoordinator
 

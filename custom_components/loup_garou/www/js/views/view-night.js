@@ -1,190 +1,241 @@
-/**
- * view-night.js - Night View Module
- *
- * Handles night phase:
- * - Seer turn (observe players)
- * - Werewolf turn (select victim)
- * - Continue/skip button
- * - Seer result display
- */
+/* ═══════════════════════════════════════════
+   LOUP GAROU — ViewNight
+   Night phase: Seer investigation + Wolf kill
+   ═══════════════════════════════════════════ */
 
-const ViewNight = (function() {
-    'use strict';
+const ViewNight = (() => {
+  const { qs, setHTML, escapeHtml, showToast, createElement, addClass, removeClass } = LoupGarouUtils;
+  const { t, getRoleColor } = LoupGarouI18n;
 
-    const { $, $$, escapeHtml, animateOnce } = LoupGarouUtils;
-    const { t } = LoupGarouI18n;
+  let _state   = null;
+  let _callbacks = {};
+  let _selectedTarget = null;
 
-    let selectedTarget = null;
+  /* ── MAIN RENDER ── */
+  function render(state, opts = {}) {
+    _state = state;
+    _callbacks = opts;
+    _selectedTarget = null;
 
-    function getContainer() { return $('view-night'); }
-    function getPlayerGrid() { return $('night-player-grid'); }
-    function getHint() { return $('night-action-hint'); }
-    function getContinueBtn() { return $('night-continue-btn'); }
-    function getRoleIndicator() { return $('night-role-indicator'); }
-    function getSeerResult() { return $('seer-result'); }
+    const container = qs('#view-night');
+    if (!container) return;
 
-    function render(state) {
-        selectedTarget = null;
-        const grid = getPlayerGrid();
-        const hint = getHint();
-        const btn = getContinueBtn();
-        const indicator = getRoleIndicator();
+    const phase  = state.phase || '';
+    const round  = state.round || 1;
+    const players = state.players || [];
+    const alive   = players.filter(p => p.alive);
 
-        const phase = state?.phase || 'night_start';
-        const nightRole = state?.currentNightRole;
-        const players = state?.players || [];
-        const targetId = state?.currentTargetId;
-        const nightActions = state?.nightActions || {};
+    // Determine sub-phase
+    const isSeer  = phase === 'night_seer_act';
+    const isWolf  = phase === 'night_wolf_act';
+    const isNightStart = ['night_start', 'night_seer_wake', 'night_seer_sleep', 'night_wolf_wake', 'night_wolf_sleep'].includes(phase);
 
-        // Role indicator
-        if (indicator) {
-            if (nightRole === 'seer') {
-                indicator.classList.remove('hidden');
-                indicator.className = 'night-role-indicator seer';
-                indicator.textContent = t('night.seer_turn', { role: t('role.seer') });
-            } else if (nightRole === 'werewolf') {
-                indicator.classList.remove('hidden');
-                indicator.className = 'night-role-indicator werewolf';
-                indicator.textContent = t('night.wolf_turn', { role: t('role.werewolf') });
-            } else {
-                indicator.classList.add('hidden');
-            }
-        }
+    // Body class for ambient lighting
+    container.className = container.className.replace(/\b(seer|wolf)-phase\b/g, '').trim();
+    if (isSeer) container.classList.add('seer-phase');
+    if (isWolf) container.classList.add('wolf-phase');
 
-        // Hint
-        if (hint) {
-            if (nightRole === 'seer') {
-                hint.textContent = t('night.hint_select');
-            } else if (nightRole === 'werewolf') {
-                hint.textContent = t('night.hint_select_kill');
-            } else if (phase === 'night_start' || phase.includes('wake') || phase.includes('sleep')) {
-                hint.textContent = t('night.hint_wait_wake');
-            } else {
-                hint.textContent = t('night.hint_wait');
-            }
-        }
+    // Title
+    let phaseLabel = t('night.title');
+    let subLabel   = t('night.subtitle', { n: round });
+    let roleLabel  = '';
+    let instruction = '';
+    let roleIndicatorCls = '';
 
-        // Player grid
-        if (grid) {
-            const canSelect = nightRole && (phase === 'night_seer_act' || phase === 'night_wolf_act');
-            const showRole = nightRole === 'werewolf';
-
-            grid.innerHTML = players.map(p => {
-                if (!p.alive) {
-                    return `<div class="player-card eliminated">
-                        <div class="player-card__name">${escapeHtml(p.name)}</div>
-                        <i class="fas fa-skull player-card__icon"></i>
-                    </div>`;
-                }
-
-                const classes = ['player-card'];
-                if (nightRole === 'werewolf') classes.push('wolf');
-                if (nightRole === 'seer') classes.push('seer');
-                if (p.id === targetId || p.name === targetId) classes.push('selected');
-
-                const onclick = canSelect
-                    ? `onclick="ViewNight.selectTarget('${escapeHtml(p.id || p.name)}')"`
-                    : '';
-
-                return `<div class="${classes.join(' ')}" ${onclick}>
-                    <div class="player-card__name">${escapeHtml(p.name)}</div>
-                    ${(p.id === targetId || p.name === targetId) ? '<i class="fas fa-crosshairs player-card__target"></i>' : ''}
-                </div>`;
-            }).join('');
-        }
-
-        // Continue button
-        if (btn) {
-            if (nightRole && (phase === 'night_seer_act' || phase === 'night_wolf_act')) {
-                btn.classList.remove('hidden');
-                btn.textContent = selectedTarget ? t('night.continue') : t('night.skip');
-            } else if (phase === 'night_start') {
-                btn.classList.remove('hidden');
-                btn.textContent = t('night.start_night');
-            } else {
-                btn.classList.add('hidden');
-            }
-        }
-
-        // Seer result
-        const seerResultEl = getSeerResult();
-        if (seerResultEl && nightActions.seerResult !== null) {
-            seerResultEl.classList.remove('hidden');
-            const isWolf = nightActions.seerResult === 'werewolf';
-            seerResultEl.innerHTML = `<div class="card animate-slide-up" style="border-left: 4px solid var(--color-seer);">
-                <h3>${t('night.seer_investigate')}</h3>
-                <p>${t('actions.investigate_result', {
-                    name: nightActions.seerTargetId || '?',
-                    allegiance: isWolf ? t('actions.investigate_wolf') : t('actions.investigate_not_wolf')
-                })}</p>
-            </div>`;
-        } else if (seerResultEl) {
-            seerResultEl.classList.add('hidden');
-        }
+    if (isSeer) {
+      roleLabel = t('night.phase_seer');
+      instruction = t('night.seer_instruction');
+      roleIndicatorCls = 'seer-indicator';
+    } else if (isWolf) {
+      roleLabel = t('night.phase_wolves');
+      instruction = t('night.wolves_instruction');
+      roleIndicatorCls = 'wolf-indicator';
+    } else if (isNightStart) {
+      instruction = t('night.village_sleeps');
     }
 
-    function selectTarget(playerId) {
-        selectedTarget = playerId;
-        LoupGarouCore.selectTarget(playerId);
+    // Seer result (if available)
+    const seerResult = state.seer_result_pending;
+    const nightActionsCompleted = state.night_actions_completed;
 
-        $$('.player-card').forEach(card => {
-            const name = card.querySelector('.player-card__name')?.textContent;
-            const id = card.dataset.playerId;
-            if (id === playerId || name === playerId) {
-                card.classList.add('selected');
-                if (!card.querySelector('.player-card__target')) {
-                    card.innerHTML += '<i class="fas fa-crosshairs player-card__target"></i>';
-                }
-            } else {
-                card.classList.remove('selected');
-                const icon = card.querySelector('.player-card__target');
-                if (icon) icon.remove();
-            }
-        });
+    setHTML(container, `
+      <div class="view__header">
+        <div style="display:flex; align-items:center; justify-content:space-between; width:100%; max-width:900px; margin:0 auto; padding: 0 var(--sp-6); box-sizing:border-box">
+          <div>
+            <h2 class="view__title" style="text-align:left">${escapeHtml(phaseLabel)}</h2>
+            <p class="view__subtitle" style="text-align:left">${escapeHtml(subLabel)}</p>
+          </div>
+          ${roleLabel ? `
+          <div class="night-role-indicator ${roleIndicatorCls}">
+            <span>${isSeer ? '🔮' : '🐺'}</span>
+            <span>${escapeHtml(roleLabel)}</span>
+          </div>` : ''}
+        </div>
+      </div>
 
-        const btn = getContinueBtn();
-        if (btn) btn.textContent = t('night.continue');
+      <div class="view__body">
+        <div class="stagger-children" style="display:flex; flex-direction:column; gap:var(--sp-5)">
+
+          ${instruction ? `
+          <div style="text-align:center; color:var(--color-ash); font-size:var(--text-sm); letter-spacing:var(--tracking-wide); padding:var(--sp-3) 0">
+            ${escapeHtml(instruction)}
+          </div>` : ''}
+
+          ${(isSeer || isWolf) ? `
+          <div>
+            <div style="font-family:var(--font-display); font-size:var(--text-xs); letter-spacing:var(--tracking-widest); text-transform:uppercase; color:var(--color-mist); margin-bottom:var(--sp-3)">
+              ${escapeHtml(t('night.select_target'))}
+            </div>
+            <div class="players-grid" id="night-player-grid"></div>
+          </div>` : ''}
+
+          ${isNightStart ? `
+          <div style="text-align:center; padding:var(--sp-8) 0">
+            <div style="font-size:3rem; margin-bottom:var(--sp-4); animation:twinkle 3s ease-in-out infinite">🌕</div>
+            <div style="font-family:var(--font-display); font-size:var(--text-2xl); color:var(--color-pale); letter-spacing:var(--tracking-wide)">${escapeHtml(t('night.village_sleeps'))}</div>
+          </div>` : ''}
+
+        </div>
+      </div>
+
+      <div class="view__footer" id="night-footer">
+      </div>
+    `);
+
+    // Render player grid for action phases
+    if (isSeer || isWolf) {
+      _renderPlayerGrid(alive, isSeer, isWolf, state);
     }
 
-    function handleContinue() {
-        const state = LoupGarouCore.getState();
-        const nightRole = state.currentNightRole;
-        const phase = state.phase;
+    // Render footer buttons
+    _renderFooter(phase, isSeer, isWolf, isNightStart, state);
 
-        if (phase === 'night_start') {
-            LoupGarouCore.nextPhase();
-            return;
+    // Show seer result if available
+    if (seerResult && isSeer) {
+      _showSeerResult(seerResult);
+    }
+  }
+
+  function _renderPlayerGrid(alivePlayers, isSeer, isWolf, state) {
+    const grid = qs('#night-player-grid');
+    if (!grid) return;
+
+    // Filter candidates:
+    // Seer: exclude self (if known), show all alive except seer
+    // Wolf: exclude wolves themselves
+    const phase = state.phase;
+    let candidates = alivePlayers;
+
+    alivePlayers.forEach(player => {
+      const card = createElement('div', {
+        class: 'player-card selectable',
+        style: { '--role-color': isSeer ? 'var(--color-seer)' : 'var(--color-wolf)' },
+        dataset: { playerId: player.id }
+      });
+
+      // Avatar
+      const avatar = createElement('div', { class: 'player-avatar' });
+      avatar.textContent = LoupGarouUtils.getInitials(player.name);
+      avatar.style.color = LoupGarouUtils.stringToColor(player.name);
+      card.appendChild(avatar);
+
+      const nameEl = createElement('div', { class: 'player-name' }, [escapeHtml(player.name)]);
+      card.appendChild(nameEl);
+
+      card.addEventListener('click', () => {
+        // Deselect previous
+        grid.querySelectorAll('.player-card.selected').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        _selectedTarget = player.id;
+
+        // Update confirm button
+        const confirmBtn = qs('#night-confirm-btn');
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.classList.remove('btn-secondary');
+          if (isSeer) confirmBtn.classList.add('btn-seer');
+          else confirmBtn.classList.add('btn-primary');
         }
+      });
 
-        if (selectedTarget) {
-            if (nightRole === 'seer') {
-                LoupGarouCore.submitNightAction('seer_investigate', selectedTarget);
-            } else if (nightRole === 'werewolf') {
-                LoupGarouCore.submitNightAction('wolf_kill', selectedTarget);
-            }
-        } else {
-            LoupGarouCore.skipAction();
+      grid.appendChild(card);
+    });
+  }
+
+  function _renderFooter(phase, isSeer, isWolf, isNightStart, state) {
+    const footer = qs('#night-footer');
+    if (!footer) return;
+    setHTML(footer, '');
+
+    if (isNightStart) {
+      // Just a continue button
+      const nextBtn = createElement('button', { class: 'btn btn-primary btn-lg', id: 'night-next-btn' }, [
+        escapeHtml(t('night.next_phase'))
+      ]);
+      nextBtn.addEventListener('click', () => {
+        if (_callbacks.onNextPhase) _callbacks.onNextPhase();
+      });
+      footer.appendChild(nextBtn);
+      return;
+    }
+
+    if (isSeer || isWolf) {
+      const skipBtn = createElement('button', { class: 'btn btn-ghost' }, [
+        escapeHtml(isWolf ? t('night.wolves_skip') : t('common.skip'))
+      ]);
+      skipBtn.addEventListener('click', () => {
+        if (_callbacks.onSkip) _callbacks.onSkip(isSeer ? 'seer_investigate' : 'wolf_kill');
+      });
+
+      const confirmBtn = createElement('button', {
+        class: 'btn btn-secondary btn-lg',
+        id: 'night-confirm-btn',
+        disabled: true
+      }, [escapeHtml(t('night.action_confirm'))]);
+      confirmBtn.setAttribute('disabled', 'true');
+
+      confirmBtn.addEventListener('click', () => {
+        if (!_selectedTarget) {
+          showToast(t('night.select_target'));
+          return;
         }
-    }
-
-    function show(state) {
-        const container = getContainer();
-        if (container) {
-            container.classList.remove('hidden');
-            animateOnce(container, 'animate-fade-in');
+        const actionType = isSeer ? 'seer_investigate' : 'wolf_kill';
+        if (_callbacks.onAction) {
+          _callbacks.onAction(actionType, _selectedTarget);
         }
-        render(state || LoupGarouCore.getState());
+      });
 
-        const btn = getContinueBtn();
-        if (btn) btn.onclick = handleContinue;
+      footer.appendChild(skipBtn);
+      footer.appendChild(confirmBtn);
+      return;
     }
 
-    function hide() {
-        const container = getContainer();
-        if (container) container.classList.add('hidden');
-    }
+    // Sleep phases — next
+    const nextBtn = createElement('button', { class: 'btn btn-primary btn-lg', id: 'night-next-btn' }, [
+      escapeHtml(t('night.next_phase'))
+    ]);
+    nextBtn.addEventListener('click', () => {
+      if (_callbacks.onNextPhase) _callbacks.onNextPhase();
+    });
+    footer.appendChild(nextBtn);
+  }
 
-    return { show, hide, render, selectTarget, handleContinue };
+  function _showSeerResult(result) {
+    const body = qs('#view-night .view__body');
+    if (!body) return;
+
+    const isWolf = result === 'wolf' || result === 'werewolf';
+    const resultDiv = createElement('div', {
+      class: `seer-result-reveal ${isWolf ? 'is-wolf' : 'is-village'}`
+    });
+    resultDiv.innerHTML = isWolf
+      ? `<div style="font-family:var(--font-display); font-size:var(--text-xl)">${t('night.seer_result_wolf')}</div>`
+      : `<div style="font-family:var(--font-display); font-size:var(--text-xl)">${t('night.seer_result_village')}</div>`;
+
+    body.appendChild(resultDiv);
+  }
+
+  return { render };
 })();
 
-window.ViewNight = ViewNight;
+if (typeof module !== 'undefined') module.exports = ViewNight;

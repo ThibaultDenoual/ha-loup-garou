@@ -1,266 +1,328 @@
-/**
- * view-setup.js - Setup View Module
- *
- * Handles game configuration UI:
- * - Player list management (local, server confirms)
- * - Role configuration
- * - Start game
- */
+/* ═══════════════════════════════════════════
+   LOUP GAROU — ViewSetup
+   Game configuration, player names, roles
+   ═══════════════════════════════════════════ */
 
-const ViewSetup = (function() {
-    'use strict';
+const ViewSetup = (() => {
+  const { qs, createElement, escapeHtml, showToast, setHTML, setText, hide, show, toggle, addClass, removeClass } = LoupGarouUtils;
+  const { t, getRoleName, getRoleSymbol, getRoleColor } = LoupGarouI18n;
 
-    const { $, $$, createElement, escapeHtml, animateOnce } = LoupGarouUtils;
-    const { t } = LoupGarouI18n;
+  const PRESETS = {
+    small:  { name: 'small',  roles: { Villager:3, Werewolf:1, Seer:1, Doctor:1 } },
+    medium: { name: 'medium', roles: { Villager:3, Werewolf:2, 'Alpha Wolf':1, Seer:1, Doctor:1, Witch:1 } },
+    large:  { name: 'large',  roles: { Villager:3, Werewolf:2, 'Alpha Wolf':1, Minion:1, Seer:1, Doctor:1, Bodyguard:1, Witch:1, Hunter:1, Cupid:1 } },
+    chaos:  { name: 'chaos',  roles: { Villager:3, Werewolf:2, 'Serial Killer':1, Jester:1, Seer:1, Doctor:1, Witch:1 } },
+  };
 
-    const players = [];
-    const roles = { villagers: 3, werewolves: 1, seers: 1 };
+  const ROLE_KEYS = [
+    'Villager', 'Werewolf', 'Seer', 'Doctor', 'Hunter',
+    'Witch', 'Bodyguard', 'Cupid', 'Alpha Wolf', 'Minion',
+    'Serial Killer', 'Jester'
+  ];
 
-    // ============================================
-    // DOM References
-    // ============================================
+  let _players = ['', '', '', '', '', ''];
+  let _roleConfig = { Villager: 3, Werewolf: 1, Seer: 1, Doctor: 1 };
+  let _preset = 'small';
+  let _language = 'fr';
+  let _onStart = null;
 
-    function getContainer() { return $('view-setup'); }
-    function getPlayerInput() { return $('setup-player-input'); }
-    function getPlayerList() { return $('setup-player-list'); }
-    function getStartButton() { return $('setup-start-btn'); }
-    function getErrorEl() { return $('setup-error'); }
+  /* ── Render the view into #view-setup ── */
+  function render(opts = {}) {
+    if (opts.onStart) _onStart = opts.onStart;
+    if (opts.language) _language = opts.language;
 
-    // ============================================
-    // Player Management
-    // ============================================
+    const container = qs('#view-setup');
+    if (!container) return;
 
-    function addPlayer(name) {
-        if (!name || name.trim() === '') return false;
-        if (players.length >= 12) return false;
-        if (players.some(p => p.name.toLowerCase() === name.trim().toLowerCase())) {
-            shakeInput();
-            return false;
-        }
+    setHTML(container, `
+      <div class="view__header">
+        <h2 class="view__title">${escapeHtml(t('setup.title'))}</h2>
+        <p class="view__subtitle">${escapeHtml(t('setup.subtitle'))}</p>
+      </div>
 
-        const id = 'player_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-        players.push({ id, name: name.trim(), alive: true });
-        renderPlayerList();
-        updateStartButton();
-        clearInput();
-        return true;
-    }
+      <div class="view__body">
+        <div class="setup-grid stagger-children">
 
-    function removePlayer(index) {
-        if (index < 0 || index >= players.length) return;
-        players.splice(index, 1);
-        renderPlayerList();
-        updateStartButton();
-    }
-
-    function clearInput() {
-        const input = getPlayerInput();
-        if (input) input.value = '';
-    }
-
-    function shakeInput() {
-        const input = getPlayerInput();
-        if (!input) return;
-        input.classList.add('shake');
-        setTimeout(() => input.classList.remove('shake'), 500);
-    }
-
-    // ============================================
-    // Role Configuration
-    // ============================================
-
-    function adjustRole(role, delta) {
-        roles[role] = Math.max(0, (roles[role] || 0) + delta);
-        renderRoleConfig();
-        updateStartButton();
-    }
-
-    // ============================================
-    // Rendering
-    // ============================================
-
-    function renderPlayerList() {
-        const container = getPlayerList();
-        if (!container) return;
-
-        if (players.length === 0) {
-            container.innerHTML = '<p class="text-center text-muted">' + t('setup.players_empty', { count: 0 }) + '</p>';
-            return;
-        }
-
-        container.innerHTML = players.map((p, index) => `
-            <div class="player-tag animate-slide-up">
-                <span>${escapeHtml(p.name)}</span>
-                <button class="player-tag__remove" onclick="ViewSetup.removePlayer(${index})">
-                    <i class="fas fa-times"></i>
-                </button>
+          <!-- Language -->
+          <div class="card">
+            <div class="card__title">${escapeHtml(t('setup.language'))}</div>
+            <div class="flex gap-3">
+              <button class="btn btn-sm ${_language === 'fr' ? 'btn-seer' : 'btn-secondary'}" id="lang-fr">🇫🇷 Français</button>
+              <button class="btn btn-sm ${_language === 'en' ? 'btn-seer' : 'btn-secondary'}" id="lang-en">🇬🇧 English</button>
             </div>
-        `).join('');
-    }
+          </div>
 
-    function renderRoleConfig() {
-        const container = $('role-config');
-        if (!container) return;
-
-        container.innerHTML = `
-            <div class="role-config-grid">
-                <div class="role-config-item">
-                    <span class="role-config-item__icon role-config-item__icon--villager">
-                        <i class="fas fa-user"></i>
-                    </span>
-                    <div class="form-group">
-                        <label class="form-label">${t('setup.villagers')}</label>
-                        <div style="display:flex;gap:8px;justify-content:center;align-items:center;">
-                            <button class="btn btn-sm btn-secondary" onclick="ViewSetup.adjustRole('villagers', -1)">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <span>${roles.villagers}</span>
-                            <button class="btn btn-sm btn-secondary" onclick="ViewSetup.adjustRole('villagers', 1)">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="role-config-item">
-                    <span class="role-config-item__icon role-config-item__icon--wolf">
-                        <i class="fas fa-moon"></i>
-                    </span>
-                    <div class="form-group">
-                        <label class="form-label">${t('setup.werewolves')}</label>
-                        <div style="display:flex;gap:8px;justify-content:center;align-items:center;">
-                            <button class="btn btn-sm btn-secondary" onclick="ViewSetup.adjustRole('werewolves', -1)">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <span>${roles.werewolves}</span>
-                            <button class="btn btn-sm btn-secondary" onclick="ViewSetup.adjustRole('werewolves', 1)">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="role-config-item">
-                    <span class="role-config-item__icon role-config-item__icon--seer">
-                        <i class="fas fa-eye"></i>
-                    </span>
-                    <div class="form-group">
-                        <label class="form-label">${t('setup.seers')}</label>
-                        <div style="display:flex;gap:8px;justify-content:center;align-items:center;">
-                            <button class="btn btn-sm btn-secondary" onclick="ViewSetup.adjustRole('seers', -1)">
-                                <i class="fas fa-minus"></i>
-                            </button>
-                            <span>${roles.seers}</span>
-                            <button class="btn btn-sm btn-secondary" onclick="ViewSetup.adjustRole('seers', 1)">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+          <!-- Players -->
+          <div class="card">
+            <div class="card__title">${escapeHtml(t('setup.players_title'))}</div>
+            <div class="players-input-list" id="players-list"></div>
+            <div style="margin-top:var(--sp-4)">
+              <button class="btn btn-ghost btn-sm" id="add-player-btn">+ ${escapeHtml(t('setup.add_player'))}</button>
             </div>
-        `;
-    }
+            <div style="margin-top:var(--sp-3); font-size:var(--text-xs); color:var(--color-ash); letter-spacing:var(--tracking-wide);" id="player-count-label"></div>
+          </div>
 
-    function updateStartButton() {
-        const btn = getStartButton();
-        if (!btn) return;
+          <!-- Preset selector -->
+          <div class="card">
+            <div class="card__title">${escapeHtml(t('setup.preset_title'))}</div>
+            <div class="preset-grid" id="preset-grid"></div>
+          </div>
 
-        const totalRoles = roles.villagers + roles.werewolves + roles.seers;
-        const count = players.length;
+          <!-- Custom roles -->
+          <div class="card" id="custom-roles-card">
+            <div class="card__title">${escapeHtml(t('setup.custom_roles'))}</div>
+            <div class="role-config-grid" id="role-config-grid"></div>
+          </div>
 
-        if (count < 5) {
-            btn.disabled = true;
-            btn.textContent = t('setup.players_min', { count });
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-secondary');
-        } else if (totalRoles !== count) {
-            btn.disabled = true;
-            btn.textContent = t('setup.error_role_mismatch', { roles: totalRoles, players: count });
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-danger');
-        } else {
-            btn.disabled = false;
-            btn.textContent = t('setup.start_button');
-            btn.classList.add('btn-primary');
-            btn.classList.remove('btn-danger', 'btn-secondary');
+        </div>
+      </div>
+
+      <div class="view__footer">
+        <button class="btn btn-primary btn-lg" id="start-game-btn">
+          ${escapeHtml(t('setup.start_game'))}
+        </button>
+      </div>
+    `);
+
+    _renderPlayerList();
+    _renderPresets();
+    _renderRoleConfig();
+    _attachEvents();
+  }
+
+  function _renderPlayerList() {
+    const list = qs('#players-list');
+    if (!list) return;
+    setHTML(list, '');
+
+    _players.forEach((name, i) => {
+      const row = createElement('div', { class: 'player-input-row' });
+
+      const num = createElement('span', { class: 'player-num' }, [`${i + 1}`]);
+
+      const input = createElement('input', {
+        class: 'input',
+        type: 'text',
+        placeholder: t('setup.player_placeholder'),
+        value: name,
+        'data-index': String(i),
+        maxlength: '24'
+      });
+      input.value = name;
+      input.addEventListener('input', e => {
+        _players[i] = e.target.value;
+        _updatePlayerCount();
+      });
+
+      const removeBtn = createElement('button', {
+        class: 'btn btn-icon btn-ghost',
+        title: t('setup.remove_player'),
+        style: { color: 'var(--color-mist)' }
+      }, ['×']);
+      removeBtn.addEventListener('click', () => {
+        if (_players.length <= 4) {
+          showToast(t('setup.players_min', { n: 4 }), { type: 'error' });
+          return;
         }
-    }
+        _players.splice(i, 1);
+        _renderPlayerList();
+        _syncPresetToCount();
+      });
 
-    function showError(message) {
-        const errorEl = getErrorEl();
-        if (errorEl) {
-            errorEl.textContent = message;
-            errorEl.classList.remove('hidden');
-            setTimeout(() => errorEl.classList.add('hidden'), 3000);
-        }
-    }
+      row.appendChild(num);
+      row.appendChild(input);
+      row.appendChild(removeBtn);
+      list.appendChild(row);
+    });
 
-    // ============================================
-    // Visibility
-    // ============================================
+    _updatePlayerCount();
+  }
 
-    function show(state) {
-        const container = getContainer();
-        if (container) {
-            container.classList.remove('hidden');
-            animateOnce(container, 'animate-fade-in');
-        }
-        renderRoleConfig();
-        renderPlayerList();
-        updateStartButton();
+  function _updatePlayerCount() {
+    const el = qs('#player-count-label');
+    if (el) el.textContent = t('setup.total', { n: _players.length });
+  }
 
-        const input = getPlayerInput();
-        if (input) {
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    const name = input.value.trim();
-                    if (addPlayer(name)) {
-                        input.value = '';
-                    }
-                }
-            });
-        }
+  function _renderPresets() {
+    const grid = qs('#preset-grid');
+    if (!grid) return;
+    setHTML(grid, '');
 
-        const addBtn = $('setup-add-btn');
-        if (addBtn) {
-            addBtn.onclick = function() {
-                const name = getPlayerInput()?.value.trim();
-                if (name) addPlayer(name);
-            };
-        }
-
-        const startBtn = getStartButton();
-        if (startBtn) {
-            startBtn.onclick = function() {
-                const totalRoles = roles.villagers + roles.werewolves + roles.seers;
-                if (players.length < 5) {
-                    showError(t('setup.error_min_players'));
-                    return;
-                }
-                if (totalRoles !== players.length) {
-                    showError(t('setup.error_role_mismatch', { roles: totalRoles, players: players.length }));
-                    return;
-                }
-                LoupGarouCore.startGame();
-            };
-        }
-    }
-
-    function hide() {
-        const container = getContainer();
-        if (container) container.classList.add('hidden');
-    }
-
-    // ============================================
-    // Public API
-    // ============================================
-
-    return {
-        show,
-        hide,
-        addPlayer,
-        removePlayer,
-        adjustRole,
-        getPlayers: () => [...players],
+    const detailKeys = {
+      small: t('setup.preset_small_detail'),
+      medium: t('setup.preset_medium_detail'),
+      large: t('setup.preset_large_detail'),
+      chaos: t('setup.preset_chaos_detail'),
     };
+
+    for (const [key, preset] of Object.entries(PRESETS)) {
+      const btn = createElement('button', {
+        class: `preset-btn ${_preset === key ? 'active' : ''}`,
+        'data-preset': key
+      });
+      btn.innerHTML = `
+        <div class="preset-btn__name">${escapeHtml(t(`setup.preset_${key}`))}</div>
+        <div class="preset-btn__detail">${escapeHtml(detailKeys[key] || '')}</div>
+      `;
+      btn.addEventListener('click', () => {
+        _preset = key;
+        _roleConfig = Object.assign({}, preset.roles);
+        // Adjust player count to match preset total
+        const total = Object.values(_roleConfig).reduce((a, b) => a + b, 0);
+        while (_players.length < total) _players.push('');
+        while (_players.length > total) _players.pop();
+        _renderPlayerList();
+        _renderPresets();
+        _renderRoleConfig();
+      });
+      grid.appendChild(btn);
+    }
+  }
+
+  function _renderRoleConfig() {
+    const grid = qs('#role-config-grid');
+    if (!grid) return;
+    setHTML(grid, '');
+
+    for (const roleKey of ROLE_KEYS) {
+      const count = _roleConfig[roleKey] || 0;
+      const color = getRoleColor(roleKey);
+      const symbol = getRoleSymbol(roleKey);
+
+      const item = createElement('div', { class: 'role-config-item' });
+      item.innerHTML = `
+        <div class="role-config-item__name" style="color:${color}">
+          <span style="margin-right:var(--sp-2)">${symbol}</span>${escapeHtml(getRoleName(roleKey))}
+        </div>
+      `;
+
+      const stepper = createElement('div', { class: 'number-stepper' });
+      const minusBtn = createElement('button', { class: 'stepper-btn' }, ['−']);
+      const valueEl  = createElement('div', { class: 'stepper-value' }, [String(count)]);
+      const plusBtn  = createElement('button', { class: 'stepper-btn' }, ['+']);
+
+      minusBtn.addEventListener('click', () => {
+        if ((_roleConfig[roleKey] || 0) > 0) {
+          _roleConfig[roleKey] = (_roleConfig[roleKey] || 0) - 1;
+          valueEl.textContent = _roleConfig[roleKey];
+          _preset = 'custom';
+          _renderPresets();
+          // Adjust players
+          _syncPlayersToRoleTotal();
+        }
+      });
+
+      plusBtn.addEventListener('click', () => {
+        _roleConfig[roleKey] = (_roleConfig[roleKey] || 0) + 1;
+        valueEl.textContent = _roleConfig[roleKey];
+        _preset = 'custom';
+        _renderPresets();
+        _syncPlayersToRoleTotal();
+      });
+
+      stepper.appendChild(minusBtn);
+      stepper.appendChild(valueEl);
+      stepper.appendChild(plusBtn);
+      item.appendChild(stepper);
+      grid.appendChild(item);
+    }
+  }
+
+  function _syncPlayersToRoleTotal() {
+    const total = Object.values(_roleConfig).reduce((a, b) => a + b, 0);
+    while (_players.length < total) _players.push('');
+    while (_players.length > total) _players.pop();
+    _renderPlayerList();
+  }
+
+  function _syncPresetToCount() {
+    _renderPresets();
+    _renderRoleConfig();
+  }
+
+  function _attachEvents() {
+    const addBtn = qs('#add-player-btn');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        if (_players.length >= 20) {
+          showToast('Maximum 20 joueurs', { type: 'error' });
+          return;
+        }
+        _players.push('');
+        _renderPlayerList();
+      });
+    }
+
+    const langFr = qs('#lang-fr');
+    const langEn = qs('#lang-en');
+    if (langFr) langFr.addEventListener('click', () => {
+      _language = 'fr';
+      LoupGarouI18n.setLanguage('fr');
+      render();
+    });
+    if (langEn) langEn.addEventListener('click', () => {
+      _language = 'en';
+      LoupGarouI18n.setLanguage('en');
+      render();
+    });
+
+    const startBtn = qs('#start-game-btn');
+    if (startBtn) {
+      startBtn.addEventListener('click', () => {
+        if (!_validate()) return;
+        if (_onStart) {
+          _onStart({
+            player_names: _players.map(n => n.trim()),
+            role_config: _buildRoleConfigPayload(),
+            language: _language
+          });
+        }
+      });
+    }
+  }
+
+  function _validate() {
+    const names = _players.map(n => n.trim()).filter(Boolean);
+    if (names.length < 4) {
+      showToast(t('setup.players_min', { n: 4 }), { type: 'error' });
+      return false;
+    }
+    if (names.length !== _players.length) {
+      showToast(t('setup.players_names'), { type: 'error' });
+      return false;
+    }
+    const roleTotal = Object.values(_roleConfig).reduce((a, b) => a + b, 0);
+    if (roleTotal !== _players.length) {
+      showToast(t('setup.roles_mismatch', { n: _players.length }), { type: 'error' });
+      return false;
+    }
+    return true;
+  }
+
+  function _buildRoleConfigPayload() {
+    // Send preset name if applicable, else custom config
+    if (_preset && _preset !== 'custom') {
+      return { preset: _preset };
+    }
+    // Convert { RoleKey: count } → flat role name array
+    const roles = [];
+    for (const [key, count] of Object.entries(_roleConfig)) {
+      for (let i = 0; i < count; i++) roles.push(key);
+    }
+    return { roles };
+  }
+
+  function _show() {
+    const el = qs('#view-setup');
+    if (el) el.classList.add('active');
+  }
+
+  function _hide() {
+    const el = qs('#view-setup');
+    if (el) el.classList.remove('active');
+  }
+
+  return { render, show: _show, hide: _hide };
 })();
 
-window.ViewSetup = ViewSetup;
+if (typeof module !== 'undefined') module.exports = ViewSetup;
