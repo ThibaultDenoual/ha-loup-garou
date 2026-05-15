@@ -1,298 +1,370 @@
-/**
- * utils.js - Shared Utilities Module
- *
- * Provides common functionality:
- * - DOM utilities (escapeHtml, $, $$)
- * - WebSocket management
- * - State management
- * - Animation utilities
- * - Debug/logging utilities
- */
+/* ═══════════════════════════════════════════
+   LOUP GAROU — Utils
+   DOM, WebSocket, Animations, Toast
+   ═══════════════════════════════════════════ */
 
-const LoupGarouUtils = (function() {
-    'use strict';
+const LoupGarouUtils = (() => {
 
-    // ============================================
-    // State
-    // ============================================
+  /* ──────────────────────────────────────────
+     DOM HELPERS
+     ────────────────────────────────────────── */
+  function qs(selector, parent = document) {
+    return parent.querySelector(selector);
+  }
 
-    const state = {
-        ws: null,
-        wsReady: false,
-        gameState: null,
-        players: [],
-        selectedTarget: null,
-        debugMode: true, // Toggle this to enable/disable debug features
-    };
+  function qsAll(selector, parent = document) {
+    return Array.from(parent.querySelectorAll(selector));
+  }
 
-    // ============================================
-    // DOM Utilities
-    // ============================================
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
-    /**
-     * Escape HTML to prevent XSS
-     * @param {string} text - Text to escape
-     * @returns {string} Escaped text
-     */
-    function escapeHtml(text) {
-        if (typeof text !== 'string') return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+  function createElement(tag, attrs = {}, children = []) {
+    const el = document.createElement(tag);
+    for (const [key, val] of Object.entries(attrs)) {
+      if (key === 'class') {
+        el.className = val;
+      } else if (key === 'style' && typeof val === 'object') {
+        Object.assign(el.style, val);
+      } else if (key.startsWith('on') && typeof val === 'function') {
+        el.addEventListener(key.slice(2).toLowerCase(), val);
+      } else if (key === 'dataset' && typeof val === 'object') {
+        Object.assign(el.dataset, val);
+      } else {
+        el.setAttribute(key, val);
+      }
     }
-
-    /**
-     * Shorthand for document.getElementById
-     * @param {string} id - Element ID
-     * @returns {HTMLElement|null}
-     */
-    function $(id) {
-        return document.getElementById(id);
+    for (const child of children) {
+      if (child == null) continue;
+      if (typeof child === 'string') {
+        el.appendChild(document.createTextNode(child));
+      } else {
+        el.appendChild(child);
+      }
     }
+    return el;
+  }
 
-    /**
-     * Shorthand for document.querySelectorAll
-     * @param {string} selector - CSS selector
-     * @param {HTMLElement} parent - Parent element (default: document)
-     * @returns {NodeList}
-     */
-    function $$(selector, parent = document) {
-        return parent.querySelectorAll(selector);
+  function setHTML(el, html) {
+    if (!el) return;
+    el.innerHTML = html;
+  }
+
+  function setText(el, text) {
+    if (!el) return;
+    el.textContent = text;
+  }
+
+  function show(el) {
+    if (!el) return;
+    el.classList.remove('hidden');
+  }
+
+  function hide(el) {
+    if (!el) return;
+    el.classList.add('hidden');
+  }
+
+  function toggle(el, condition) {
+    if (!el) return;
+    el.classList.toggle('hidden', !condition);
+  }
+
+  function addClass(el, ...cls) {
+    if (!el) return;
+    el.classList.add(...cls);
+  }
+
+  function removeClass(el, ...cls) {
+    if (!el) return;
+    el.classList.remove(...cls);
+  }
+
+  function hasClass(el, cls) {
+    return el ? el.classList.contains(cls) : false;
+  }
+
+  function empty(el) {
+    if (!el) return;
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  /* ──────────────────────────────────────────
+     ANIMATION HELPERS
+     ────────────────────────────────────────── */
+  function animateOnce(el, animationClass, duration = 600) {
+    return new Promise(resolve => {
+      if (!el) return resolve();
+      el.classList.add(animationClass);
+      const cleanup = () => {
+        el.classList.remove(animationClass);
+        resolve();
+      };
+      setTimeout(cleanup, duration);
+    });
+  }
+
+  function addRipple(btn, e) {
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 2;
+    const x = (e ? e.clientX - rect.left : rect.width / 2) - size / 2;
+    const y = (e ? e.clientY - rect.top  : rect.height / 2) - size / 2;
+    const ripple = createElement('span', {
+      class: 'ripple',
+      style: { width: `${size}px`, height: `${size}px`, left: `${x}px`, top: `${y}px` }
+    });
+    btn.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+  }
+
+  // Attach ripple to all .btn elements dynamically
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.btn');
+    if (btn) addRipple(btn, e);
+  });
+
+  function fadeIn(el, duration = 300) {
+    if (!el) return;
+    el.style.opacity = '0';
+    el.style.transition = `opacity ${duration}ms ease`;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { el.style.opacity = '1'; });
+    });
+  }
+
+  function staggerAnimate(parent, cls = 'stagger-children') {
+    if (!parent) return;
+    parent.classList.add(cls);
+    setTimeout(() => parent.classList.remove(cls), 2000);
+  }
+
+  /* ──────────────────────────────────────────
+     TOAST NOTIFICATIONS
+     ────────────────────────────────────────── */
+  let _toastContainer = null;
+
+  function getToastContainer() {
+    if (!_toastContainer) {
+      _toastContainer = createElement('div', { class: 'toast-container', id: 'toast-container' });
+      document.body.appendChild(_toastContainer);
     }
+    return _toastContainer;
+  }
 
-    /**
-     * Create an element with attributes and children
-     * @param {string} tag - HTML tag name
-     * @param {Object} attrs - Attributes object
-     * @param {Array} children - Child elements or strings
-     * @returns {HTMLElement}
-     */
-    function createElement(tag, attrs = {}, children = []) {
-        const el = document.createElement(tag);
+  function showToast(message, opts = {}) {
+    const { type = 'info', duration = 3500 } = opts;
+    const container = getToastContainer();
+    const toast = createElement('div', {
+      class: `toast${type === 'error' ? ' toast-error' : ''}`
+    });
+    toast.textContent = message;
+    container.appendChild(toast);
 
-        Object.keys(attrs).forEach(key => {
-            if (key === 'className') {
-                el.className = attrs[key];
-            } else if (key === 'dataset') {
-                Object.keys(attrs.dataset).forEach(dataKey => {
-                    el.dataset[dataKey] = attrs.dataset[dataKey];
-                });
-            } else if (key.startsWith('on')) {
-                el.addEventListener(key.slice(2).toLowerCase(), attrs[key]);
-            } else {
-                el.setAttribute(key, attrs[key]);
-            }
-        });
+    setTimeout(() => {
+      toast.classList.add('toast-out');
+      setTimeout(() => toast.remove(), 500);
+    }, duration);
+  }
 
-        children.forEach(child => {
-            if (typeof child === 'string') {
-                el.appendChild(document.createTextNode(child));
-            } else if (child instanceof Node) {
-                el.appendChild(child);
-            }
-        });
+  /* ──────────────────────────────────────────
+     WEBSOCKET WITH AUTO-RECONNECT
+     ────────────────────────────────────────── */
+  function createWebSocket(path, handlers = {}) {
+    const WS_URL = (() => {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${location.host}${path}`;
+    })();
 
-        return el;
-    }
+    let ws = null;
+    let reconnectTimer = null;
+    let reconnectDelay = 1500;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT = 10;
+    let intentionallyClosed = false;
+    let _onMessage = handlers.onMessage || (() => {});
+    let _onOpen    = handlers.onOpen    || (() => {});
+    let _onClose   = handlers.onClose   || (() => {});
+    let _onStatus  = handlers.onStatus  || (() => {});
 
-    // ============================================
-    // WebSocket Utilities
-    // ============================================
+    function connect() {
+      intentionallyClosed = false;
+      _onStatus('connecting');
+      try {
+        ws = new WebSocket(WS_URL);
+      } catch(err) {
+        debugLog('WS create error:', err);
+        scheduleReconnect();
+        return;
+      }
 
-    /**
-     * Create WebSocket connection with auto-reconnect
-     * @param {string} path - WebSocket path (e.g., '/loup_garou/ws')
-     * @param {Object} handlers - Event handlers { onOpen, onMessage, onError, onClose }
-     * @returns {WebSocket}
-     */
-    function createWebSocket(path, handlers = {}) {
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const url = `${protocol}//${location.host}${path}`;
-        const ws = new WebSocket(url);
+      ws.onopen = () => {
+        reconnectDelay = 1500;
+        reconnectAttempts = 0;
+        _onStatus('connected');
+        _onOpen();
+        debugLog('WS connected');
+      };
 
-        let reconnectAttempts = 0;
-        const maxReconnectAttempts = 5;
-        const baseDelay = 1000;
+      ws.onclose = e => {
+        _onStatus('disconnected');
+        _onClose(e);
+        debugLog('WS closed', e.code, e.reason);
+        if (!intentionallyClosed) scheduleReconnect();
+      };
 
-        ws.onopen = (event) => {
-            state.wsReady = true;
-            reconnectAttempts = 0;
-            if (handlers.onOpen) handlers.onOpen(event);
-        };
+      ws.onerror = err => {
+        debugLog('WS error', err);
+        _onStatus('error');
+      };
 
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (handlers.onMessage) handlers.onMessage(data);
-            } catch (e) {
-                console.error('Failed to parse WebSocket message:', e);
-            }
-        };
-
-        ws.onerror = (event) => {
-            if (handlers.onError) handlers.onError(event);
-        };
-
-        ws.onclose = (event) => {
-            state.wsReady = false;
-            if (handlers.onClose) handlers.onClose(event);
-
-            // Auto-reconnect
-            if (reconnectAttempts < maxReconnectAttempts) {
-                reconnectAttempts++;
-                const delay = baseDelay * Math.pow(2, reconnectAttempts - 1);
-                setTimeout(() => {
-                    console.log(`Reconnecting... (attempt ${reconnectAttempts})`);
-                    createWebSocket(path, handlers);
-                }, delay);
-            }
-        };
-
-        state.ws = ws;
-        return ws;
-    }
-
-    /**
-     * Send message via WebSocket
-     * @param {string} type - Message type
-     * @param {Object} data - Message data
-     */
-    function wsSend(type, data = {}) {
-        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-            state.ws.send(JSON.stringify({ type, ...data }));
-        } else {
-            console.warn('WebSocket not connected');
+      ws.onmessage = e => {
+        try {
+          const data = JSON.parse(e.data);
+          _onMessage(data);
+        } catch (err) {
+          debugLog('WS parse error', err);
         }
+      };
     }
 
-    /**
-     * Check if WebSocket is connected
-     * @returns {boolean}
-     */
-    function isWsConnected() {
-        return state.ws && state.ws.readyState === WebSocket.OPEN;
+    function scheduleReconnect() {
+      if (reconnectAttempts >= MAX_RECONNECT) {
+        debugLog('WS max reconnect attempts reached');
+        _onStatus('error');
+        return;
+      }
+      _onStatus('reconnecting');
+      reconnectAttempts++;
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
+      debugLog(`WS reconnecting in ${reconnectDelay}ms (attempt ${reconnectAttempts})`);
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connect, reconnectDelay);
     }
 
-    // ============================================
-    // Animation Utilities
-    // ============================================
-
-    /**
-     * Add animation class and remove after completion
-     * @param {HTMLElement} el - Element to animate
-     * @param {string} animationClass - CSS animation class
-     * @param {number} duration - Duration in ms (optional, auto-detected)
-     */
-    function animateOnce(el, animationClass, duration) {
-        if (!el) return;
-
-        // Get animation duration from CSS if not provided
-        if (!duration) {
-            const style = getComputedStyle(el);
-            duration = parseFloat(style.animationDuration) * 1000;
-        }
-
-        el.classList.add(animationClass);
-        setTimeout(() => {
-            el.classList.remove(animationClass);
-        }, duration);
+    function send(data) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(data));
+        return true;
+      }
+      debugLog('WS not ready, cannot send', data);
+      return false;
     }
 
-    /**
-     * Show element with animation
-     * @param {HTMLElement} el - Element to show
-     * @param {string} animation - Animation class (default: 'animate-slide-up')
-     */
-    function showWithAnimation(el, animation = 'animate-slide-up') {
-        if (!el) return;
-        el.classList.remove('hidden');
-        animateOnce(el, animation);
+    function close() {
+      intentionallyClosed = true;
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
     }
 
-    /**
-     * Hide element with animation
-     * @param {HTMLElement} el - Element to hide
-     */
-    function hideWithAnimation(el) {
-        if (!el) return;
-        el.classList.add('hidden');
+    function isConnected() {
+      return ws && ws.readyState === WebSocket.OPEN;
     }
 
-    /**
-     * Toggle element visibility
-     * @param {HTMLElement} el - Element to toggle
-     */
-    function toggleVisibility(el) {
-        if (!el) return;
-        el.classList.toggle('hidden');
+    connect();
+
+    return { send, close, isConnected, reconnect: connect };
+  }
+
+  /* ──────────────────────────────────────────
+     DEBUG LOGGING
+     ────────────────────────────────────────── */
+  let _debug = location.search.includes('debug=1') ||
+              localStorage.getItem('lg_debug') === '1';
+
+  function debugLog(...args) {
+    if (_debug) console.log('[LG]', ...args);
+  }
+
+  function isDebugMode() {
+    return _debug;
+  }
+
+  function setDebugMode(enabled) {
+    _debug = !!enabled;
+    if (enabled) {
+      localStorage.setItem('lg_debug', '1');
+    } else {
+      localStorage.removeItem('lg_debug');
     }
+  }
 
-    // ============================================
-    // Debug Utilities
-    // ============================================
+  /* ──────────────────────────────────────────
+     MISC HELPERS
+     ────────────────────────────────────────── */
+  function debounce(fn, delay = 200) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+  }
 
-    /**
-     * Debug logging
-     * @param {string} msg - Message
-     * @param {string} type - Log type ('log', 'info', 'warn', 'error')
-     */
-    function debugLog(msg, type = 'log') {
-        if (!state.debugMode) return;
-
-        const timestamp = new Date().toLocaleTimeString('fr-FR', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-
-        const logFn = console[type] || console.log;
-        logFn(`[${timestamp}] ${msg}`);
-    }
-
-    /**
-     * Get debug mode status
-     * @returns {boolean}
-     */
-    function isDebugMode() {
-        return state.debugMode;
-    }
-
-    /**
-     * Toggle debug mode
-     * @param {boolean} enabled - Enable/disable
-     */
-    function setDebugMode(enabled) {
-        state.debugMode = !!enabled;
-    }
-
-    // ============================================
-    // Public API
-    // ============================================
-
-    return {
-        // State (read-only access)
-        getState: () => ({ ...state }),
-
-        // DOM utilities
-        escapeHtml,
-        $,
-        $$,
-        createElement,
-
-        // WebSocket utilities
-        createWebSocket,
-        wsSend,
-        isWsConnected,
-
-        // Animation utilities
-        animateOnce,
-        showWithAnimation,
-        hideWithAnimation,
-        toggleVisibility,
-
-        // Debug utilities
-        debugLog,
-        isDebugMode,
-        setDebugMode,
+  function throttle(fn, limit = 200) {
+    let last = 0;
+    return (...args) => {
+      const now = Date.now();
+      if (now - last >= limit) { last = now; fn(...args); }
     };
+  }
+
+  function getInitials(name) {
+    if (!name) return '?';
+    return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  // Generate a stable pastel color from a string
+  function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 50%, 55%)`;
+  }
+
+  function formatRound(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  /* ──────────────────────────────────────────
+     STARS BACKGROUND
+     ────────────────────────────────────────── */
+  function createStars(container, count = 60) {
+    for (let i = 0; i < count; i++) {
+      const star = createElement('div', {
+        class: 'star',
+        style: {
+          left: `${Math.random() * 100}%`,
+          top:  `${Math.random() * 60}%`,
+          '--twinkle-dur':   `${2 + Math.random() * 4}s`,
+          '--twinkle-delay': `${Math.random() * 4}s`,
+          opacity: Math.random() * 0.6 + 0.2
+        }
+      });
+      container.appendChild(star);
+    }
+  }
+
+  return {
+    qs, qsAll, escapeHtml, createElement, setHTML, setText,
+    show, hide, toggle, addClass, removeClass, hasClass, empty,
+    animateOnce, addRipple, fadeIn, staggerAnimate,
+    showToast,
+    createWebSocket,
+    debugLog, isDebugMode, setDebugMode,
+    debounce, throttle,
+    getInitials, stringToColor, formatRound, sleep,
+    createStars
+  };
+
 })();
+
+if (typeof module !== 'undefined') module.exports = LoupGarouUtils;

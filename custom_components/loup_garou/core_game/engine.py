@@ -27,9 +27,9 @@ from typing import Optional
 
 from transitions import Machine, MachineError
 
-from game_state import GameState, Player
-from io_interface import IOInterface, ConsoleIO
-from roles import (
+from .game_state import GameState, Player
+from .io_interface import IOInterface, ConsoleIO
+from .roles import (
     Role, NightAction, ROLE_REGISTRY, PRESETS,
     Werewolf, AlphaWolf, Minion, WerewolfPackCoordinator,
 )

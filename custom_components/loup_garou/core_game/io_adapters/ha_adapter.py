@@ -97,8 +97,18 @@ class AsyncGameAdapter:
         role_config: dict,
         language: str = "fr",
     ) -> dict:
-        role_cfg = role_config.get("preset") or "medium"
-        role_names = CORE_PRESETS.get(role_cfg, CORE_PRESETS["small"])
+        if "preset" in role_config:
+            role_cfg = role_config.get("preset", "medium")
+            role_names = CORE_PRESETS.get(role_cfg, CORE_PRESETS["small"])
+        else:
+            villagers = role_config.get("villagers", 3)
+            werewolves = role_config.get("werewolves", 1)
+            seers = role_config.get("seers", 1)
+            role_names = (
+                ["Werewolf"] * werewolves +
+                ["Seer"] * seers +
+                ["Villager"] * villagers
+            )
         _LOGGER.warning(f"Starting game with players: {player_names} and roles: {role_names}")
         if len(role_names) != len(player_names):
             raise ValueError(
@@ -320,11 +330,15 @@ class AsyncGameAdapter:
         alive_players = [p for p in self._state.players if p["alive"]]
 
         next_reveal_player = None
+        current_reveal_role = None
         if (
             self._state.phase == "role_reveal"
             and self._state.reveal_index < len(self._state.reveal_order)
         ):
             next_reveal_player = self._state.reveal_order[self._state.reveal_index]
+            core_player = self._get_core_player(next_reveal_player)
+            if core_player:
+                current_reveal_role = core_player.role.name
 
         return {
             "phase": self._state.phase,
@@ -335,6 +349,8 @@ class AsyncGameAdapter:
                 {"id": p["id"], "name": p["name"], "alive": p["alive"], "role_seen": p.get("role_seen", False)}
                 for p in self._state.players
             ],
+            "current_reveal_role": current_reveal_role,
+            "current_reveal_player": next_reveal_player,
             "alive_count": len(alive_players),
             "dead_count": len(self._state.players) - len(alive_players),
             "reveal_index": self._state.reveal_index,

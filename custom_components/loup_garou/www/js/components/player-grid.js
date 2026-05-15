@@ -1,221 +1,183 @@
-/**
- * player-grid.js - Player Grid Component
- *
- * Renders the player grid with selection, role indicators, and status.
- */
+/* ═══════════════════════════════════════════
+   LOUP GAROU — PlayerGrid Component
+   Renders interactive player cards grid
+   ═══════════════════════════════════════════ */
 
-const PlayerGrid = (function() {
-    'use strict';
+const PlayerGrid = (() => {
+  const { createElement, escapeHtml, getInitials, stringToColor, addClass, removeClass } = LoupGarouUtils;
+  const { getRoleColor, getRoleSymbol, getRoleName, getRoleTeam } = LoupGarouI18n;
 
-    const { $, escapeHtml, createElement } = LoupGarouUtils;
-    const { t } = LoupGarouI18n;
+  let _container = null;
+  let _players = [];
+  let _selectedId = null;
+  let _selectable = false;
+  let _showRoles = false;
+  let _onSelect = null;
+  let _highlightTeam = null; // 'wolf' | 'village' | null
 
-    // ============================================
-    // Constants
-    // ============================================
+  /* ── Build a single player card ── */
+  function _buildCard(player) {
+    const isAlive = player.alive !== false;
+    const isSelected = player.id === _selectedId;
+    const roleKey = player.role || null;
+    const roleColor = roleKey ? getRoleColor(roleKey) : 'var(--color-mist)';
+    const roleTeam  = roleKey ? getRoleTeam(roleKey)  : 'village';
+    const initials  = getInitials(player.name);
+    const avatarBg  = stringToColor(player.name);
 
-    const ROLE_ICONS = {
-        werewolf: 'fa-wolf',
-        wolf: 'fa-wolf',
-        seer: 'fa-crystal-ball',
-    };
+    const dimmed = _highlightTeam && roleKey && roleTeam !== _highlightTeam;
 
-    const ROLE_COLORS = {
-        werewolf: 'var(--color-werewolf)',
-        wolf: 'var(--color-werewolf)',
-        seer: 'var(--color-seer)',
-    };
+    const card = createElement('div', {
+      class: [
+        'player-card',
+        _selectable && isAlive ? 'selectable' : '',
+        isSelected ? 'selected' : '',
+        !isAlive ? 'dead' : '',
+        dimmed ? 'dimmed' : ''
+      ].filter(Boolean).join(' '),
+      dataset: { playerId: player.id },
+      style: { '--role-color': roleColor }
+    });
 
-    // ============================================
-    // State
-    // ============================================
+    // Avatar
+    const avatar = createElement('div', {
+      class: 'player-avatar',
+      style: { borderColor: isAlive ? roleColor : 'rgba(255,255,255,0.08)' }
+    });
 
-    let currentTarget = null;
-    let onTargetSelect = null;
+    if (roleKey && _showRoles) {
+      avatar.textContent = getRoleSymbol(roleKey);
+      avatar.style.fontSize = 'var(--text-xl)';
+    } else {
+      avatar.textContent = initials;
+      avatar.style.color = avatarBg;
+    }
 
-    // ============================================
-    // Render Functions
-    // ============================================
+    card.appendChild(avatar);
 
-    /**
-     * Render the player grid
-     * @param {Array} players - Array of player objects
-     * @param {Object} options - Rendering options
-     * @param {boolean} options.canSelect - Whether players can be selected
-     * @param {string|null} options.targetId - Currently selected target ID
-     * @param {boolean} options.showRole - Whether to show role (for wolves)
-     * @param {Function} options.onSelect - Callback when player is selected
-     * @returns {string} HTML string
-     */
-    function render(players, options = {}) {
-        const {
-            canSelect = false,
-            targetId = null,
-            showRole = false,
-            onSelect = null
-        } = options;
+    // Name
+    const nameEl = createElement('div', { class: 'player-name' }, [
+      escapeHtml(player.name)
+    ]);
+    card.appendChild(nameEl);
 
-        currentTarget = targetId;
-        onTargetSelect = onSelect;
+    // Role badge (if visible)
+    if (_showRoles && roleKey) {
+      const badge = createElement('div', {
+        class: 'player-role-badge',
+        style: { color: roleColor }
+      }, [getRoleName(roleKey)]);
+      card.appendChild(badge);
+    }
 
-        if (!players || players.length === 0) {
-            return '<p class="text-center text-muted">' + t('game.no_players') + '</p>';
+    // Vote count badge
+    if (player.votes != null && player.votes > 0) {
+      const voteBadge = createElement('div', {
+        class: 'badge badge-wolf',
+        style: { position: 'absolute', top: '6px', right: '6px', fontSize: 'var(--text-xs)' }
+      }, [`${player.votes} ✗`]);
+      card.style.position = 'relative';
+      card.appendChild(voteBadge);
+    }
+
+    // Click handler
+    if (_selectable && isAlive && _onSelect) {
+      card.addEventListener('click', () => {
+        _selectedId = player.id;
+        render();
+        _onSelect(player.id, player);
+      });
+    }
+
+    return card;
+  }
+
+  /* ── Public: render grid into container ── */
+  function render(players, opts = {}) {
+    if (players !== undefined) _players = players;
+    if (opts.container !== undefined) _container = opts.container;
+    if (opts.selectable !== undefined) _selectable = opts.selectable;
+    if (opts.showRoles !== undefined) _showRoles = opts.showRoles;
+    if (opts.onSelect !== undefined) _onSelect = opts.onSelect;
+    if (opts.selectedId !== undefined) _selectedId = opts.selectedId;
+    if (opts.highlightTeam !== undefined) _highlightTeam = opts.highlightTeam;
+    if (opts.clearSelection) _selectedId = null;
+
+    if (!_container) return;
+
+    // Clear and rebuild
+    while (_container.firstChild) _container.removeChild(_container.firstChild);
+
+    for (const player of _players) {
+      _container.appendChild(_buildCard(player));
+    }
+
+    // Stagger animation
+    _container.querySelectorAll('.player-card').forEach((card, i) => {
+      card.style.animationDelay = `${i * 60}ms`;
+      card.style.animation = `fade-up var(--duration-slow) var(--ease-out) both`;
+    });
+  }
+
+  /* ── Public: select a player programmatically ── */
+  function selectPlayer(id) {
+    _selectedId = id;
+    if (!_container) return;
+    _container.querySelectorAll('.player-card').forEach(card => {
+      const isThis = card.dataset.playerId === String(id);
+      card.classList.toggle('selected', isThis);
+    });
+  }
+
+  /* ── Public: mark player as dead with animation ── */
+  function markDead(id) {
+    if (!_container) return;
+    const card = _container.querySelector(`[data-player-id="${id}"]`);
+    if (!card) return;
+    card.classList.add('dying');
+    setTimeout(() => {
+      card.classList.remove('dying');
+      card.classList.add('dead');
+    }, 1200);
+  }
+
+  /* ── Public: update vote tallies ── */
+  function updateVotes(tallies) {
+    // tallies: { playerId: count }
+    if (!_container) return;
+    _container.querySelectorAll('.player-card').forEach(card => {
+      const id = card.dataset.playerId;
+      const count = tallies[id] || 0;
+      let badge = card.querySelector('.vote-badge');
+      if (count > 0) {
+        if (!badge) {
+          badge = createElement('div', {
+            class: 'badge badge-wolf vote-badge',
+            style: { position: 'absolute', top: '6px', right: '6px', fontSize: 'var(--text-xs)' }
+          });
+          card.style.position = 'relative';
+          card.appendChild(badge);
+          card.classList.add('vote-registered');
+          setTimeout(() => card.classList.remove('vote-registered'), 400);
         }
+        badge.textContent = `${count} ✗`;
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+  }
 
-        return players.map(player => {
-            const classes = ['player-card'];
-            const dataAttrs = {};
+  /* ── Public: clear selection ── */
+  function clearSelection() {
+    _selectedId = null;
+    if (!_container) return;
+    _container.querySelectorAll('.player-card.selected').forEach(c => c.classList.remove('selected'));
+  }
 
-            // Add status classes
-            if (!player.alive) {
-                classes.push('eliminated');
-            }
+  /* ── Public: get selected ID ── */
+  function getSelected() { return _selectedId; }
 
-            // Add role-based styling
-            const roleKey = player.role?.toLowerCase() || player.role_key?.toLowerCase();
-            if (roleKey === 'werewolf' || roleKey === 'wolf') {
-                classes.push('wolf');
-            } else if (roleKey === 'seer') {
-                classes.push('seer');
-            }
-
-            // Selected state
-            if (player.id === targetId || player.name === targetId) {
-                classes.push('selected');
-            }
-
-            // Build HTML
-            const classStr = classes.join(' ');
-            const dataStr = Object.entries(dataAttrs)
-                .map(([k, v]) => `data-${k}="${escapeHtml(v)}"`)
-                .join(' ');
-
-            const onclickAttr = canSelect && player.alive !== false
-                ? `onclick="PlayerGrid.selectPlayer('${escapeHtml(player.id || player.name)}')"`
-                : '';
-
-            const iconHtml = !player.alive
-                ? '<i class="fas fa-skull player-card__icon"></i>'
-                : '';
-
-            const targetIconHtml = (player.id === targetId || player.name === targetId)
-                ? '<i class="fas fa-crosshairs player-card__target" style="color:var(--color-accent-warning);"></i>'
-                : '';
-
-            return `
-                <div class="${classStr}" ${dataStr} ${onclickAttr}>
-                    <div class="player-card__name">${escapeHtml(player.name)}</div>
-                    ${iconHtml}
-                    ${targetIconHtml}
-                </div>
-            `;
-        }).join('');
-    }
-
-    /**
-     * Render player tags for setup list
-     * @param {Array} players - Array of player names
-     * @param {Function} onRemove - Callback when remove is clicked
-     * @returns {string} HTML string
-     */
-    function renderTags(players, onRemove = null) {
-        return players.map((name, index) => `
-            <div class="player-tag">
-                ${escapeHtml(name)}
-                <button class="player-tag__remove" onclick="${onRemove ? `PlayerGrid.removePlayer(${index})` : `PlayerGrid._defaultRemove(${index})`}">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `).join('');
-    }
-
-    // ============================================
-    // Player Management
-    // ============================================
-
-    /**
-     * Select a player
-     * @param {string} playerId - Player ID or name
-     */
-    function selectPlayer(playerId) {
-        currentTarget = playerId;
-        if (onTargetSelect) {
-            onTargetSelect(playerId);
-        }
-
-        // Update UI
-        $$('.player-card').forEach(card => {
-            const name = card.querySelector('.player-card__name')?.textContent;
-            const id = card.dataset.playerId;
-
-            if (id === playerId || name === playerId) {
-                card.classList.add('selected');
-                // Add crosshairs icon
-                if (!card.querySelector('.player-card__target')) {
-                    card.innerHTML += '<i class="fas fa-crosshairs player-card__target" style="color:var(--color-accent-warning);"></i>';
-                }
-            } else {
-                card.classList.remove('selected');
-                const targetIcon = card.querySelector('.player-card__target');
-                if (targetIcon) targetIcon.remove();
-            }
-        });
-    }
-
-    /**
-     * Clear selection
-     */
-    function clearSelection() {
-        currentTarget = null;
-        $$('.player-card').forEach(card => {
-            card.classList.remove('selected');
-            const targetIcon = card.querySelector('.player-card__target');
-            if (targetIcon) targetIcon.remove();
-        });
-    }
-
-    /**
-     * Get current selected player
-     * @returns {string|null}
-     */
-    function getSelectedPlayer() {
-        return currentTarget;
-    }
-
-    /**
-     * Remove player by index (default handler)
-     * @param {number} index
-     */
-    function _defaultRemove(index) {
-        // Override this by setting onRemove when calling renderTags
-        console.warn('No remove handler set for player tags');
-    }
-
-    /**
-     * Highlight dead players
-     * @param {Array} deadPlayerIds - IDs of dead players
-     */
-    function markDead(deadPlayerIds) {
-        $$('.player-card').forEach(card => {
-            const name = card.querySelector('.player-card__name')?.textContent;
-            if (deadPlayerIds.includes(name)) {
-                card.classList.add('eliminated');
-                card.classList.remove('selected');
-            }
-        });
-    }
-
-    // ============================================
-    // Public API
-    // ============================================
-
-    return {
-        render,
-        renderTags,
-        selectPlayer,
-        clearSelection,
-        getSelectedPlayer,
-        markDead,
-        removePlayer: _defaultRemove,
-    };
+  return { render, selectPlayer, markDead, updateVotes, clearSelection, getSelected };
 })();
+
+if (typeof module !== 'undefined') module.exports = PlayerGrid;
