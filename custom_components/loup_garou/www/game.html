@@ -34,13 +34,13 @@
 
       <div class="flex items-center gap-4">
         <!-- Round / Alive count -->
-        <div id="header-stats" class="status-bar" style="display:none">
-          <div class="status-item" style="color:var(--color-village)">
+        <div id="header-stats" class="status-bar">
+          <div class="status-item status-item--village">
             <div class="status-dot"></div>
-            <span id="header-alive" style="font-family:var(--font-display); font-size:var(--text-sm)"></span>
+            <span id="header-alive" class="status-alive"></span>
           </div>
-          <div style="width:1px; height:16px; background:rgba(255,255,255,0.08)"></div>
-          <div style="font-family:var(--font-display); font-size:var(--text-xs); letter-spacing:var(--tracking-wide); color:var(--color-ash)">
+          <div class="status-divider"></div>
+          <div class="status-round">
             <span id="header-round"></span>
           </div>
         </div>
@@ -48,7 +48,7 @@
         <!-- WebSocket status -->
         <div class="ws-status" id="ws-status">
           <div class="ws-dot"></div>
-          <span id="ws-label" style="font-size:var(--text-xs); letter-spacing:var(--tracking-wide)">—</span>
+          <span id="ws-label">—</span>
         </div>
       </div>
     </header>

@@ -748,6 +748,58 @@
 }
 
 /* ──────────────────────────────────────────
+    HEADER STATS (Round / Alive count)
+    ────────────────────────────────────────── */
+.status-bar {
+  display: none;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.status-bar.visible {
+  display: flex;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.status-item--village {
+  color: var(--color-village);
+}
+
+.status-item--village .status-dot {
+  background: var(--color-village);
+  box-shadow: 0 0 8px rgba(246, 201, 14, 0.4);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-alive {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+}
+
+.status-round {
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-ash);
+}
+
+/* ──────────────────────────────────────────
     STATUS BAR (ws-status)
     ────────────────────────────────────────── */
 .ws-status {
