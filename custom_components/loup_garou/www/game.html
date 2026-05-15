@@ -1,583 +1,173 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Loup Garou</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#07080a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Loup Garou</title>
 
-    <!-- Modular CSS -->
-    <link rel="stylesheet" href="css/variables.css">
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/views.css">
-    <link rel="stylesheet" href="css/animations.css">
-
-    <style>
-        /* ============================================
-         * App Layout
-         * ============================================ */
-
-        .app-header {
-            text-align: center;
-            padding: var(--spacing-lg) 0;
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .app-header h1 {
-            color: var(--color-accent-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--spacing-md);
-        }
-
-        .app-header h1 i {
-            color: var(--color-werewolf);
-        }
-
-        /* ============================================
-         * Status Bar
-         * ============================================ */
-
-        #status-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: var(--color-bg-tertiary);
-            padding: var(--spacing-sm) var(--spacing-md);
-            text-align: center;
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-            z-index: var(--z-sticky);
-        }
-
-        #status-bar.error {
-            background: var(--color-accent-danger);
-            color: white;
-        }
-
-        /* ============================================
-         * Phase Label
-         * ============================================ */
-
-        #phase-label {
-            font-size: var(--font-size-xl);
-            text-align: center;
-            padding: var(--spacing-lg);
-            margin-bottom: var(--spacing-md);
-            background: linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-tertiary));
-            border-radius: var(--radius-lg);
-            border-left: 4px solid var(--color-accent-primary);
-        }
-
-        /* ============================================
-         * Phase Transition Overlay
-         * ============================================ */
-
-        #phase-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: var(--z-modal);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 20, 0.95);
-            transition: opacity 0.5s ease;
-        }
-
-        #phase-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .phase-overlay__text {
-            font-size: var(--font-size-2xl);
-            font-weight: var(--font-weight-bold);
-            color: var(--color-text-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-        }
-
-        /* ============================================
-         * Error Message
-         * ============================================ */
-
-        #error-message {
-            position: fixed;
-            bottom: var(--spacing-lg);
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--color-accent-danger);
-            color: white;
-            padding: var(--spacing-sm) var(--spacing-lg);
-            border-radius: var(--radius-pill);
-            font-size: var(--font-size-sm);
-            z-index: var(--z-toast);
-            transition: opacity 0.3s ease;
-        }
-
-        #error-message.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        /* ============================================
-         * Debug Panel
-         * ============================================ */
-
-        .debug-panel {
-            background: var(--color-bg-dark);
-            border: 1px dashed var(--color-border-light);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-md);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .debug-panel summary {
-            cursor: pointer;
-            color: var(--color-text-muted);
-            font-size: var(--font-size-sm);
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-sm);
-        }
-
-        .debug-panel summary:hover {
-            color: var(--color-text-primary);
-        }
-
-        .debug-section {
-            margin: var(--spacing-md) 0;
-        }
-
-        .debug-section h4 {
-            color: var(--color-text-muted);
-            font-size: var(--font-size-xs);
-            text-transform: uppercase;
-            margin-bottom: var(--spacing-sm);
-            letter-spacing: 0.05em;
-        }
-
-        .debug-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: var(--spacing-xs);
-        }
-
-        .btn-debug {
-            background: var(--color-bg-primary);
-            color: var(--color-text-muted);
-            border: 1px solid var(--color-border-default);
-            padding: var(--spacing-xs) var(--spacing-sm);
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            font-size: var(--font-size-xs);
-            transition: all var(--transition-fast);
-        }
-
-        .btn-debug:hover {
-            background: var(--color-bg-tertiary);
-            color: var(--color-text-primary);
-            border-color: var(--color-border-light);
-        }
-
-        .btn-debug.danger {
-            border-color: var(--color-accent-danger);
-            color: var(--color-accent-danger);
-        }
-
-        .btn-debug.danger:hover {
-            background: rgba(220, 53, 69, 0.2);
-        }
-
-        .btn-debug.success {
-            border-color: var(--color-accent-success);
-            color: var(--color-accent-success);
-        }
-
-        .btn-debug.success:hover {
-            background: rgba(76, 175, 80, 0.2);
-        }
-
-        /* Log Area */
-        #log-area {
-            background: var(--color-bg-primary);
-            border-radius: var(--radius-md);
-            padding: var(--spacing-sm);
-            font-family: var(--font-family-mono);
-            font-size: var(--font-size-xs);
-            max-height: 120px;
-            overflow-y: auto;
-            color: var(--color-text-muted);
-            margin-top: var(--spacing-sm);
-        }
-
-        .log-entry {
-            margin-bottom: 2px;
-            padding: 2px 0;
-        }
-
-        .log-entry.err {
-            color: var(--color-accent-danger);
-        }
-
-        .log-entry.info {
-            color: var(--color-accent-info);
-        }
-
-        /* ============================================
-         * Responsive Adjustments
-         * ============================================ */
-
-        @media (max-width: 480px) {
-            body {
-                padding: var(--spacing-sm);
-            }
-
-            .app-header h1 {
-                font-size: var(--font-size-xl);
-            }
-
-            .role-config-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .debug-buttons {
-                flex-direction: column;
-            }
-
-            .btn-debug {
-                width: 100%;
-                text-align: center;
-            }
-        }
-    </style>
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/views.css" />
+  <link rel="stylesheet" href="css/animations.css" />
 </head>
 <body>
-    <!-- Status Bar -->
-    <div id="status-bar">Connexion en cours...</div>
 
-    <div class="container">
-        <!-- App Header -->
-        <header class="app-header">
-            <h1>
-                <i class="fas fa-moon"></i>
-                Loup Garou
-            </h1>
-        </header>
+  <!-- Stars overlay (visible during night phases) -->
+  <div id="stars-layer" class="stars-layer"></div>
 
-        <!-- Debug Panel (toggleable via isDebugMode() in utils.js) -->
-        <details class="debug-panel" id="debug-panel" open>
-            <summary>
-                <i class="fas fa-bug"></i>
-                <span data-i18n="debug.title">Panneau de test</span>
-            </summary>
-            <div class="debug-section">
-                <h4 data-i18n="debug.navigation">Navigation</h4>
-                <div class="debug-buttons">
-                    <button class="btn-debug danger" id="debug-reset">Reset</button>
-                    <button class="btn-debug" id="debug-next-phase">Phase suivante</button>
-                    <button class="btn-debug success" id="debug-begin-vote">Commencer vote</button>
-                    <button class="btn-debug" id="debug-resolve-votes">Resoudre votes</button>
-                </div>
-            </div>
-            <div class="debug-section">
-                <h4 data-i18n="debug.elimination">Elimination</h4>
-                <div class="debug-buttons" id="debug-elim-buttons"></div>
-            </div>
-            <div class="debug-section">
-                <h4 data-i18n="debug.night_action">Action nuit</h4>
-                <div class="debug-buttons" id="debug-wolf-buttons"></div>
-                <div class="debug-buttons" id="debug-seer-buttons"></div>
-            </div>
-            <div class="debug-section">
-                <h4 data-i18n="debug.log">Log</h4>
-                <div id="log-area"></div>
-            </div>
-        </details>
+  <!-- ══════════════════════════════════════
+       APP SHELL
+       ══════════════════════════════════════ -->
+  <div id="app">
 
-        <!-- Error Message -->
-        <div id="error-message" class="hidden"></div>
+    <!-- Header -->
+    <header id="app-header">
+      <div class="app-logo">
+        <span class="logo-moon">🌕</span>
+        <span id="app-title">Loup Garou</span>
+      </div>
 
-        <!-- Phase Label -->
-        <div id="phase-label" class="phase-label" data-i18n="phase.setup">Configuration</div>
-
-        <!-- Phase Transition Overlay -->
-        <div id="phase-overlay" class="hidden">
-            <span class="phase-overlay__text"></span>
+      <div class="flex items-center gap-4">
+        <!-- Round / Alive count -->
+        <div id="header-stats" class="status-bar" style="display:none">
+          <div class="status-item" style="color:var(--color-village)">
+            <div class="status-dot"></div>
+            <span id="header-alive" style="font-family:var(--font-display); font-size:var(--text-sm)"></span>
+          </div>
+          <div style="width:1px; height:16px; background:rgba(255,255,255,0.08)"></div>
+          <div style="font-family:var(--font-display); font-size:var(--text-xs); letter-spacing:var(--tracking-wide); color:var(--color-ash)">
+            <span id="header-round"></span>
+          </div>
         </div>
 
-        <!-- ============================================
-             SETUP VIEW
-             ============================================ -->
-        <section id="view-setup">
-            <div class="setup-header">
-                <h1 data-i18n="setup.title">Configuration de la partie</h1>
-            </div>
+        <!-- WebSocket status -->
+        <div class="ws-status" id="ws-status">
+          <div class="ws-dot"></div>
+          <span id="ws-label" style="font-size:var(--text-xs); letter-spacing:var(--tracking-wide)">—</span>
+        </div>
+      </div>
+    </header>
 
-            <div class="setup-section">
-                <h3 class="setup-section__title">
-                    <i class="fas fa-users"></i>
-                    <span data-i18n="setup.players_label">Joueurs</span>
-                    <span id="setup-player-count" class="text-muted"> (<span data-i18n="setup.players_min" data-params='{"count":0}'>0/5 min</span>)</span>
-                </h3>
-                <div class="setup-player-form">
-                    <input type="text" id="setup-player-input" placeholder="Nom du joueur" data-i18n-placeholder="setup.add_player_placeholder">
-                    <button class="btn btn-primary" id="setup-add-btn" data-i18n="setup.add_player_button">Ajouter</button>
-                </div>
-                <div id="setup-player-list" class="player-list"></div>
-                <div id="setup-error" class="hidden"></div>
-            </div>
+    <!-- ══════════════════════════════════════
+         VIEW CONTAINER
+         ══════════════════════════════════════ -->
+    <div id="view-container">
 
-            <div class="setup-section">
-                <h3 class="setup-section__title">
-                    <i class="fas fa-masks-theater"></i>
-                    <span data-i18n="setup.roles_label">Distribution des roles</span>
-                </h3>
-                <div id="role-config"></div>
-            </div>
+      <!-- ── SETUP ── -->
+      <div id="view-setup" class="view"></div>
 
-            <div style="text-align: center; margin-top: var(--spacing-xl);">
-                <button class="btn btn-lg btn-primary" id="setup-start-btn" data-i18n="setup.start_button">
-                    Commencer la partie
-                </button>
-            </div>
-        </section>
+      <!-- ── REVEAL ── -->
+      <div id="view-reveal" class="view view--reveal"></div>
 
-        <!-- ============================================
-             REVEAL VIEW
-             ============================================ -->
-        <section id="view-reveal" class="hidden">
-            <div class="reveal-container">
-                <div id="reveal-banner" class="reveal-banner">
-                    <span class="reveal-banner__icon">
-                        <i class="fas fa-mask"></i>
-                    </span>
-                    <span id="reveal-banner-text">Player doit voir son role</span>
-                </div>
-                <div id="reveal-progress" class="text-muted">1/5</div>
-                <div class="player-grid" id="reveal-player-grid" style="max-width: 400px; margin: 0 auto;"></div>
-                <div style="margin-top: var(--spacing-xl);">
-                    <button class="btn btn-lg btn-primary" id="reveal-confirm-btn" data-i18n="reveal.confirm_button">
-                        J'ai vu mon role
-                    </button>
-                </div>
-            </div>
-        </section>
+      <!-- ── NIGHT ── -->
+      <div id="view-night" class="view"></div>
 
-        <!-- ============================================
-             NIGHT VIEW
-             ============================================ -->
-        <section id="view-night" class="hidden">
-            <div class="night-header">
-                <h2 data-i18n="phase.night_start">Nuit - Le village s'endort</h2>
-                <div id="night-role-indicator" class="night-role-indicator hidden"></div>
-            </div>
+      <!-- ── DAY ── -->
+      <div id="view-day" class="view"></div>
 
-            <div class="night-role-label" id="night-action-hint"></div>
+      <!-- ── VOTE ── -->
+      <div id="view-vote" class="view"></div>
 
-            <div class="player-grid" id="night-player-grid"></div>
+      <!-- ── GAME OVER ── -->
+      <div id="view-end" class="view view--end"></div>
 
-            <div id="seer-result" class="hidden"></div>
+    </div><!-- /view-container -->
 
-            <div style="margin-top: var(--spacing-xl); text-align: center;">
-                <button class="btn btn-lg btn-warning hidden" id="night-continue-btn">
-                    Continuer
-                </button>
-            </div>
-        </section>
+    <!-- Phase Label -->
+    <div id="phase-label" class="phase-label" data-i18n="phase.setup">Configuration</div>
 
-        <!-- ============================================
-             DAY VIEW
-             ============================================ -->
-        <section id="view-day" class="hidden">
-            <div class="day-header">
-                <h2 data-i18n="phase.day">Jour</h2>
-                <p class="text-muted" style="margin-top: var(--spacing-sm);">
-                    Les joueurs eliminés cette nuit :
-                </p>
-                <div id="dead-list"></div>
-            </div>
+    <!-- Debug Panel -->
+    <details class="debug-panel" id="debug-panel">
+      <summary class="debug-panel__summary">
+        <span class="debug-panel__icon">⚙</span>
+        <span data-i18n="debug.title">Panneau de test</span>
+      </summary>
+      <div class="debug-section">
+        <h4 class="debug-section__title" data-i18n="debug.navigation">Navigation</h4>
+        <div class="debug-buttons">
+          <button class="btn-debug btn-debug--danger" id="debug-reset">Reset</button>
+          <button class="btn-debug" id="debug-next-phase">Phase suivante</button>
+          <button class="btn-debug btn-debug--success" id="debug-begin-vote">Commencer vote</button>
+          <button class="btn-debug" id="debug-resolve-votes">Résoudre votes</button>
+        </div>
+      </div>
+      <div class="debug-section">
+        <h4 class="debug-section__title" data-i18n="debug.elimination">Élimination</h4>
+        <div class="debug-buttons" id="debug-elim-buttons"></div>
+      </div>
+      <div class="debug-section">
+        <h4 class="debug-section__title" data-i18n="debug.night_action">Action nuit</h4>
+        <div class="debug-buttons" id="debug-wolf-buttons"></div>
+        <div class="debug-buttons" id="debug-seer-buttons"></div>
+      </div>
+      <div class="debug-section">
+        <h4 class="debug-section__title" data-i18n="debug.log">Log</h4>
+        <div id="log-area" class="log-area"></div>
+      </div>
+    </details>
 
-            <div class="player-grid" id="day-player-grid"></div>
+  </div><!-- /app -->
 
-            <div class="day-actions">
-                <button class="btn btn-lg btn-warning" id="day-start-vote-btn" data-i18n="day.start_vote">
-                    Commencer le vote
-                </button>
-                <button class="btn btn-lg btn-secondary" id="day-skip-btn" data-i18n="day.skip_vote">
-                    Passer (sans vote)
-                </button>
-            </div>
-        </section>
+  <!-- Phase Overlay (fullscreen transition) -->
+  <div id="phase-overlay" class="phase-overlay hidden">
+    <span class="phase-overlay__text"></span>
+  </div>
 
-        <!-- ============================================
-             VOTE VIEW
-             ============================================ -->
-        <section id="view-vote" class="hidden">
-            <div class="vote-header">
-                <h2 data-i18n="phase.vote">Vote</h2>
-            </div>
+  <!-- Error Message Toast -->
+  <div id="error-message" class="error-message hidden"></div>
 
-            <div id="vote-counter" class="text-muted" style="text-align: center; margin-bottom: var(--spacing-lg);">
-                Votes: 0/0
-            </div>
+  <!-- Toast container (injected by utils) -->
 
-            <div class="player-grid" id="vote-player-grid"></div>
+  <!-- ══════════════════════════════════════
+       JAVASCRIPT — load order matters
+       ══════════════════════════════════════ -->
 
-            <div class="vote-actions" style="margin-top: var(--spacing-xl);">
-                <button class="btn btn-lg btn-danger" id="vote-resolve-btn" data-i18n="vote.resolve">
-                    Terminer le vote
-                </button>
-            </div>
-        </section>
+  <!-- 1. i18n (no deps) -->
+  <script src="js/i18n.js"></script>
 
-        <!-- ============================================
-             END VIEW
-             ============================================ -->
-        <section id="view-end" class="hidden">
-            <div id="game-over-banner" class="game-over-banner">
-                <span class="game-over-banner__icon"></span>
-                <h1></h1>
-                <p class="text-muted"></p>
-            </div>
+  <!-- 2. Utils (no deps) -->
+  <script src="js/utils.js"></script>
 
-            <div class="end-actions">
-                <button class="btn btn-lg btn-primary" id="end-new-game-btn" data-i18n="game_over.new_game">
-                    Nouvelle partie
-                </button>
-            </div>
-        </section>
-    </div>
+  <!-- 3. Components -->
+  <script src="js/components/player-grid.js"></script>
 
-    <!-- Modular JS -->
-    <script src="js/i18n.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/components/player-grid.js"></script>
-    <script src="js/core.js"></script>
-    <script src="js/views/view-setup.js"></script>
-    <script src="js/views/view-reveal.js"></script>
-    <script src="js/views/view-night.js"></script>
-    <script src="js/views/view-day.js"></script>
-    <script src="js/views/view-vote.js"></script>
-    <script src="js/views/view-end.js"></script>
+  <!-- 4. Views (depend on i18n + utils) -->
+  <script src="js/views/view-setup.js"></script>
+  <script src="js/views/view-reveal.js"></script>
+  <script src="js/views/view-night.js"></script>
+  <script src="js/views/view-day.js"></script>
+  <script src="js/views/view-vote.js"></script>
+  <script src="js/views/view-end.js"></script>
 
-    <script>
-        // ============================================
-        // App Initialization
-        // ============================================
+  <!-- 5. Core (orchestrator — boots on DOMContentLoaded) -->
+  <script src="js/core.js"></script>
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const views = {
-                setup: ViewSetup,
-                reveal: ViewReveal,
-                night: ViewNight,
-                day: ViewDay,
-                vote: ViewVote,
-                end: ViewEnd
-            };
+  <!-- 6. Inline: stars + header stats visibility -->
+  <script>
+    // Create stars for night effect
+    const starsLayer = document.getElementById('stars-layer');
+    if (starsLayer) LoupGarouUtils.createStars(starsLayer, 70);
 
-            LoupGarouCore.init({
-                views,
-                onStateUpdate: function(state) {
-                    if (window.updateDebugButtons) {
-                        window.updateDebugButtons(state.players);
-                    }
-                },
-                onLog: function(msg, type) {
-                    if (window.logMsg) window.logMsg(msg, type);
-                }
-            });
-
-            setupDebugPanel();
-            applyTranslations();
-
-            // Show setup view by default
-            ViewSetup.show();
-        });
-
-        // ============================================
-        // Debug Panel
-        // ============================================
-
-        function setupDebugPanel() {
-            if (!LoupGarouUtils.isDebugMode()) {
-                const panel = document.getElementById('debug-panel');
-                if (panel) panel.classList.add('hidden');
-                return;
-            }
-
-            // Navigation
-            document.getElementById('debug-reset')?.addEventListener('click', () => LoupGarouCore.resetGame());
-            document.getElementById('debug-next-phase')?.addEventListener('click', () => LoupGarouCore.debugNextPhase());
-            document.getElementById('debug-begin-vote')?.addEventListener('click', () => LoupGarouCore.debugBeginVote());
-            document.getElementById('debug-resolve-votes')?.addEventListener('click', () => LoupGarouCore.debugResolveVotes());
+    // Show/hide header stats based on phase
+    (function() {
+      const origApply = LoupGarouCore ? null : null; // hook in after core loads
+      // Observer pattern: watch #header-round for changes
+      const statsEl = document.getElementById('header-stats');
+      const observer = new MutationObserver(() => {
+        const roundEl = document.getElementById('header-round');
+        if (statsEl && roundEl && roundEl.textContent) {
+          statsEl.style.display = 'flex';
         }
+      });
+      const roundEl = document.getElementById('header-round');
+      if (roundEl) observer.observe(roundEl, { childList: true, characterData: true, subtree: true });
+    })();
+  </script>
 
-        window.updateDebugButtons = function(players) {
-            if (!players) return;
-            const elimDiv = document.getElementById('debug-elim-buttons');
-            const wolfDiv = document.getElementById('debug-wolf-buttons');
-            const seerDiv = document.getElementById('debug-seer-buttons');
-            const alive = players.filter(p => p.alive !== false);
-
-            if (elimDiv) {
-                elimDiv.innerHTML = alive.map(p =>
-                    `<button class="btn-debug danger" onclick="LoupGarouCore.debugEliminate('${p.id || p.name}')">Eliminer ${p.name}</button>`
-                ).join('');
-            }
-
-            const nonWolf = alive.filter(p => p.role !== 'werewolf');
-            if (wolfDiv) {
-                wolfDiv.innerHTML = '<span style="color:var(--color-text-muted);font-size:11px;">Loups:</span> ' +
-                    nonWolf.map(p =>
-                        `<button class="btn-debug" onclick="LoupGarouCore.debugWolfKill('${p.id || p.name}')">Tuer ${p.name}</button>`
-                    ).join('');
-            }
-
-            if (seerDiv) {
-                seerDiv.innerHTML = '<span style="color:var(--color-text-muted);font-size:11px;">Voyante:</span> ' +
-                    alive.map(p =>
-                        `<button class="btn-debug" onclick="LoupGarouCore.debugSeerInvestigate('${p.id || p.name}')">Observer ${p.name}</button>`
-                    ).join('');
-            }
-        };
-
-        // ============================================
-        // Translations
-        // ============================================
-
-        function applyTranslations() {
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                const params = el.getAttribute('data-params');
-                el.textContent = LoupGarouI18n.t(key, params ? JSON.parse(params) : undefined);
-            });
-
-            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-                const key = el.getAttribute('data-i18n-placeholder');
-                el.placeholder = LoupGarouI18n.t(key);
-            });
-        }
-
-        // ============================================
-        // Logging
-        // ============================================
-
-        function logMsg(msg, type) {
-            const area = document.getElementById('log-area');
-            if (!area) return;
-            const ts = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const div = document.createElement('div');
-            div.className = `log-entry ${type || ''}`;
-            div.textContent = `[${ts}] ${msg}`;
-            area.appendChild(div);
-            area.scrollTop = area.scrollHeight;
-        }
-
-        window.logMsg = logMsg;
-    </script>
 </body>
 </html>
