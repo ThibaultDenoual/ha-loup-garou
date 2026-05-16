@@ -643,6 +643,13 @@ select.input option {
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+
+  width: 220px;
+  height: 293px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .role-card__inner {
@@ -650,9 +657,8 @@ select.input option {
   transform-style: preserve-3d;
   transition: transform 0.7s var(--ease-out);
   border-radius: var(--radius-xl);
-  aspect-ratio: 3/4;
-  max-width: 220px;
-  margin: 0 auto;
+  width: 100%;
+  height: 100%;
 }
 
 .role-card.revealed .role-card__inner {
@@ -662,13 +668,16 @@ select.input option {
 .role-card__face {
   position: absolute;
   inset: 0;
-  border-radius: var(--radius-xl);
-  backface-visibility: hidden;
+
+  width: 100%;
+  height: 100%;
+
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--sp-6);
+
+  backface-visibility: hidden;
 }
 
 .role-card__front {
@@ -711,6 +720,24 @@ select.input option {
   text-transform: uppercase;
   color: var(--color-ash);
   margin-top: var(--sp-2);
+}
+
+#seen-btn {
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+#seen-btn.hidden {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reveal-actions {
+  min-height: 56px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 /* ──────────────────────────────────────────

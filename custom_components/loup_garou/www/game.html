@@ -94,6 +94,7 @@
           <button class="btn-debug" id="debug-next-phase">Phase suivante</button>
           <button class="btn-debug btn-debug--success" id="debug-begin-vote">Commencer vote</button>
           <button class="btn-debug" id="debug-resolve-votes">Résoudre votes</button>
+          <button class="btn-debug" id="debug-refresh-logs">↻ Logs Backend</button>
         </div>
       </div>
       <div class="debug-section">
@@ -211,6 +212,15 @@
         document.getElementById('debug-resolve-votes')?.addEventListener('click', () => {
           LoupGarouCore.debugResolveVotes();
           logMsg('Resolve votes', 'info');
+        });
+        document.getElementById('debug-refresh-logs')?.addEventListener('click', () => {
+          const ws = LoupGarouCore.ws;
+          if (ws && ws.isConnected()) {
+            ws.send({ type: 'get_debug_log' });
+            logMsg('Requested backend logs', 'info');
+          } else {
+            logMsg('WS not connected', 'error');
+          }
         });
       }
 

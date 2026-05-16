@@ -22,7 +22,8 @@ const ViewReveal = (() => {
     const revealIndex  = state.reveal_index || 0;
     const revealTotal  = state.reveal_total || state.players.length;
     const nextPlayer   = state.next_reveal_player;
-    const playerName   = nextPlayer ? escapeHtml(nextPlayer.name) : '…';
+    const playerName   = nextPlayer && nextPlayer.name ? escapeHtml(nextPlayer.name) : '…';
+    const playerRole   = nextPlayer && (nextPlayer.role_key || nextPlayer.role) || null;
 
     // Progress dots
     const dotsHtml = Array.from({ length: revealTotal }, (_, i) => {
@@ -89,9 +90,11 @@ const ViewReveal = (() => {
 
   function _fillRoleBack(player) {
     const back = qs('#role-card-back');
-    if (!back || !player || !player.role) return;
+    if (!back || !player) return;
 
-    const roleKey = player.role;
+    const roleKey = player.role_key || player.role;
+    if (!roleKey) return;
+
     const color   = getRoleColor(roleKey);
     const glow    = getRoleGlow(roleKey);
     const symbol  = getRoleSymbol(roleKey);
@@ -121,13 +124,11 @@ const ViewReveal = (() => {
 
     card.addEventListener('click', () => {
       if (!_revealed) {
-        // Reveal
         _fillRoleBack(player);
         card.classList.add('revealed');
         _revealed = true;
         if (seenBtn) seenBtn.classList.remove('hidden');
       } else {
-        // Hide again
         card.classList.remove('revealed');
         _revealed = false;
         if (seenBtn) seenBtn.classList.add('hidden');
@@ -141,7 +142,8 @@ const ViewReveal = (() => {
           return;
         }
         if (_onConfirm && player) {
-          _onConfirm(player.id);
+          const playerId = player.id || player.name;
+          _onConfirm(playerId);
         }
       });
     }
