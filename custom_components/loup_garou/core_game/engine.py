@@ -240,6 +240,8 @@ class GameEngine:
             action = WerewolfPackCoordinator.coordinate(gs)
             if action:
                 gs.tonight_actions.append(action)
+                if self._events:
+                    self._events.on_role_acting(action.actor, "werewolf_kill")
 
         for p in actors:
             if p.role.team == "werewolf" and isinstance(p.role, Werewolf):
@@ -248,11 +250,15 @@ class GameEngine:
                 action = p.role.act(gs)
                 if action:
                     gs.tonight_actions.append(action)
+                    if self._events:
+                        self._events.on_role_acting(p, action.action_type)
                 continue
 
             action = p.role.act(gs)
             if action:
                 gs.tonight_actions.append(action)
+                if self._events:
+                    self._events.on_role_acting(p, action.action_type)
 
     def _resolve_night(self):
         gs = self.state
@@ -475,3 +481,7 @@ class GameEvents(ABC):
     @abstractmethod
     def on_game_over(self, winner: Optional[str]) -> None:
         """Called when the game ends."""
+
+    @abstractmethod
+    def on_role_acting(self, player: "Player", action_type: str) -> None:
+        """Called when a role is about to act during night phase."""

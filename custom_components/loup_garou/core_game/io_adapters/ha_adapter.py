@@ -20,7 +20,7 @@ from .. import (
     PRESETS as CORE_PRESETS,
 )
 from ..io_adapters.ha_io import HomeAssistantIO
-from ..engine import GameEngine
+from ..engine import GameEngine, GameEvents
 from ...const import EVENT_GAME_STARTED, EVENT_GAME_STATE_CHANGED
 
 if TYPE_CHECKING:
@@ -60,6 +60,35 @@ class HAIntegrationState:
     reveal_index: int = 0
     winner: Optional[str] = None
     language: str = "fr"
+    current_acting_player_id: Optional[str] = None
+    current_action_type: Optional[str] = None
+    pending_seer_result: Optional[str] = None
+
+
+class HAGameEvents(GameEvents):
+    """GameEvents implementation for Home Assistant integration."""
+
+    def __init__(self, adapter: "AsyncGameAdapter"):
+        self._adapter = adapter
+
+    def on_phase_changed(self, old_phase: str, new_phase: str) -> None:
+        self._adapter._on_phase_changed(old_phase, new_phase)
+
+    def on_night_resolved(
+        self,
+        deaths: list[tuple[Player, str]],
+        protections: set[Player]
+    ) -> None:
+        self._adapter._on_night_resolved(deaths, protections)
+
+    def on_player_eliminated(self, player: Player, cause: str) -> None:
+        self._adapter._on_player_eliminated(player, cause)
+
+    def on_game_over(self, winner: Optional[str]) -> None:
+        self._adapter._on_game_over(winner)
+
+    def on_role_acting(self, player: Player, action_type: str) -> None:
+        self._adapter._on_role_acting(player, action_type)
 
 
 class AsyncGameAdapter:
@@ -95,6 +124,39 @@ class AsyncGameAdapter:
     def _run_sync(self, func, *args, **kwargs):
         loop = asyncio.get_event_loop()
         return loop.run_in_executor(None, func, *args, **kwargs)
+
+    def _on_phase_changed(self, old_phase: str, new_phase: str) -> None:
+        self._state.phase = new_phase
+        if self._hass:
+            self._hass.bus.fire(EVENT_GAME_STATE_CHANGED, {"phase": new_phase})
+
+    def _on_night_resolved(
+        self,
+        deaths: list[tuple[Player, str]],
+        protections: set[Player]
+    ) -> None:
+        self._state.eliminated_this_round = [p.name for p, _ in deaths]
+        for player, _ in deaths:
+            ha_player = self._get_player(player.name)
+            if ha_player:
+                ha_player["alive"] = False
+
+    def _on_player_eliminated(self, player: Player, cause: str) -> None:
+        ha_player = self._get_player(player.name)
+        if ha_player:
+            ha_player["alive"] = False
+        if player.name not in self._state.eliminated_this_round:
+            self._state.eliminated_this_round.append(player.name)
+
+    def _on_game_over(self, winner: Optional[str]) -> None:
+        self._state.winner = winner
+        self._state.phase = "game_over"
+        if self._hass:
+            self._hass.bus.fire(EVENT_GAME_STATE_CHANGED, {"phase": "game_over"})
+
+    def _on_role_acting(self, player: Player, action_type: str) -> None:
+        self._state.current_acting_player_id = player.name
+        self._state.current_action_type = action_type
 
     async def async_start_game(
         self,
@@ -135,11 +197,13 @@ class AsyncGameAdapter:
             light_controller=self._lights,
             hass=self._hass,
         )
+        game_events = HAGameEvents(self)
         self._engine = GameEngine(
             player_names=player_names,
             role_names=shuffled_roles,
             io=self._io,
             seed=None,
+            events=game_events,
         )
 
         self._state = HAIntegrationState(
