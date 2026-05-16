@@ -19,8 +19,9 @@ from .. import (
     ROLE_REGISTRY,
     PRESETS as CORE_PRESETS,
 )
-from ..io_adapters import HomeAssistantIO, MockIO
+from ..io_adapters.ha_io import HomeAssistantIO
 from ..engine import GameEngine
+from ...const import EVENT_GAME_STARTED
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -75,9 +76,13 @@ class AsyncGameAdapter:
         self,
         hass: "HomeAssistant" = None,
         config_entry_id: str = "",
+        tts_controller=None,
+        light_controller=None,
     ):
         self._hass = hass
         self._config_entry_id = config_entry_id
+        self._tts = tts_controller
+        self._lights = light_controller
         self._engine: Optional[GameEngine] = None
         self._io: Optional[HomeAssistantIO] = None
         self._state = HAIntegrationState()
@@ -125,7 +130,11 @@ class AsyncGameAdapter:
         for p in players:
             p.role.player = p
 
-        self._io = MockIO()
+        self._io = HomeAssistantIO(
+            tts_controller=self._tts,
+            light_controller=self._lights,
+            hass=self._hass,
+        )
         self._engine = GameEngine(
             player_names=player_names,
             role_names=shuffled_roles,
@@ -141,6 +150,9 @@ class AsyncGameAdapter:
             reveal_index=0,
             language=language,
         )
+
+        if self._hass:
+            self._hass.bus.fire(EVENT_GAME_STARTED, {"io": self._io})
 
         return self.get_public_state()
 

@@ -57,6 +57,14 @@ class IOInterface(ABC):
     def separator(self, title: str = "") -> None:
         """Print a visual separator with optional title."""
 
+    @abstractmethod
+    def speak(self, message: str) -> None:
+        """Play TTS message. No-op if not available (e.g., console)."""
+
+    @abstractmethod
+    def set_scene(self, scene_key: str) -> None:
+        """Set light scene. No-op if not available (e.g., console)."""
+
 
 # ─────────────────────────────────────────────
 #  Console (CLI) implementation
@@ -147,3 +155,9 @@ class ConsoleIO(IOInterface):
             print(f"\n{line[:58]}")
         else:
             print(f"\n{'━' * 58}")
+
+    def speak(self, message: str) -> None:
+        pass
+
+    def set_scene(self, scene_key: str) -> None:
+        pass

@@ -149,6 +149,7 @@ class WinCondition(StrEnum):
 # HA WebSocket event names
 # ──────────────────────────────────────────────
 EVENT_GAME_STATE_CHANGED = f"{DOMAIN}_state_changed"
+EVENT_GAME_STARTED = f"{DOMAIN}_game_started"
 EVENT_GAME_OVER = f"{DOMAIN}_game_over"
 
 

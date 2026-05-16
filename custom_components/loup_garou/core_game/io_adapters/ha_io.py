@@ -87,9 +87,21 @@ class HomeAssistantIO(IOInterface):
     asynchronously by the adapter through WebSocket.
     """
 
-    def __init__(self):
+    def __init__(self, tts_controller=None, light_controller=None, hass=None):
         self.pending_operations: list[IOOperation] = []
         self._current_choice_op: Optional[ChooseTargetOp] = None
+        self._tts = tts_controller
+        self._lights = light_controller
+        self._hass = hass
+
+    def set_controllers(self, tts_controller, light_controller) -> None:
+        """Set or update TTS and Light controllers after initialization."""
+        self._tts = tts_controller
+        self._lights = light_controller
+
+    def set_hass(self, hass) -> None:
+        """Set the Home Assistant instance for async scheduling."""
+        self._hass = hass
 
     def announce(self, message: str) -> None:
         self.pending_operations.append(AnnounceOp(message=message))
@@ -130,6 +142,14 @@ class HomeAssistantIO(IOInterface):
 
     def separator(self, title: str = "") -> None:
         self.pending_operations.append(SeparatorOp(title=title))
+
+    def speak(self, message: str) -> None:
+        if self._tts and self._hass:
+            self._hass.async_create_task(self._tts.async_speak(message))
+
+    def set_scene(self, scene_key: str) -> None:
+        if self._lights and self._hass:
+            self._hass.async_create_task(self._lights.async_set_scene(scene_key))
 
     def get_pending(self) -> list[IOOperation]:
         """Return and clear all pending operations."""
@@ -200,4 +220,10 @@ class MockIO(IOInterface):
         pass
 
     def separator(self, title: str = "") -> None:
+        pass
+
+    def speak(self, message: str) -> None:
+        pass
+
+    def set_scene(self, scene_key: str) -> None:
         pass
