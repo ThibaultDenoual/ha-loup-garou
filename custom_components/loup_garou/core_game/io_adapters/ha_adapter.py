@@ -63,6 +63,8 @@ class HAIntegrationState:
     current_acting_player_id: Optional[str] = None
     current_action_type: Optional[str] = None
     pending_seer_result: Optional[str] = None
+    night_action_actor_ids: list = field(default_factory=list)
+    night_action_actor_index: int = 0
 
 
 class HAGameEvents(GameEvents):
@@ -281,18 +283,71 @@ class AsyncGameAdapter:
         if not self._engine:
             raise ValueError("Game not started")
 
+        actor_id = self._state.current_acting_player_id
+        if not actor_id:
+            raise ValueError("No actor currently acting")
+
+        actor = self._get_core_player(actor_id)
+        if not actor or not actor.alive:
+            raise ValueError(f"Invalid actor: {actor_id}")
+
         target = self._get_core_player(target_id)
         if not target or not target.alive:
             raise ValueError(f"Invalid target: {target_id}")
 
-        if action_type == "wolf_kill":
-            self._state.night_actions["wolf_victim_id"] = target_id
+        action_type_map = {
+            "seer_investigate": "investigate",
+            "wolf_kill": "kill",
+            "doctor_protect": "protect",
+            "bodyguard_guard": "protect",
+            "witch_heal": "protect",
+            "witch_poison": "kill",
+            "alpha_convert": "convert",
+            "cupid_link": "none",
+            "serial_killer_kill": "kill",
+        }
+        engine_action_type = action_type_map.get(action_type, action_type)
 
-        elif action_type == "seer_investigate":
-            self._state.night_actions["seer_target_id"] = target_id
-            self._state.night_actions["seer_result"] = target.role.team
+        self._engine.submit_night_action(actor_id, engine_action_type, target_id)
+
+        if action_type == "seer_investigate":
+            self._state.pending_seer_result = target.role.team
+
+        self._advance_to_next_actor()
 
         return self.get_public_state()
+
+    def _advance_to_next_actor(self) -> None:
+        idx = self._state.night_action_actor_index
+        actors = self._state.night_action_actor_ids
+
+        if idx >= len(actors):
+            self._state.current_acting_player_id = None
+            self._state.current_action_type = None
+            return
+
+        next_actor_id = actors[idx]
+        next_actor = self._get_core_player(next_actor_id)
+
+        if next_actor and next_actor.alive:
+            self._state.current_acting_player_id = next_actor_id
+            self._state.current_action_type = self._get_action_type_for_role(next_actor.role.role_key)
+        else:
+            self._state.night_action_actor_index += 1
+            self._advance_to_next_actor()
+
+    def _get_action_type_for_role(self, role_key: str) -> str:
+        mapping = {
+            "Seer": "seer_investigate",
+            "Werewolf": "wolf_kill",
+            "Doctor": "doctor_protect",
+            "Bodyguard": "bodyguard_guard",
+            "Witch": "witch_heal",
+            "Alpha Wolf": "alpha_convert",
+            "Serial Killer": "serial_killer_kill",
+            "Cupid": "cupid_link",
+        }
+        return mapping.get(role_key, "")
 
     async def async_submit_vote(self, voter_id: str, target_id: str) -> dict:
         if target_id not in self._state.vote_tallies:
@@ -350,26 +405,35 @@ class AsyncGameAdapter:
         current = self._state.phase
 
         if current == "night_start":
+            self._init_night_actions()
             self._state.phase = "night_seer_wake"
         elif current == "night_seer_wake":
             self._state.phase = "night_seer_act"
         elif current == "night_seer_act":
-            self._state.phase = "night_seer_sleep"
+            self._advance_to_next_actor()
+            if self._state.current_acting_player_id:
+                self._state.phase = "night_seer_sleep"
+            else:
+                self._state.phase = "night_wolf_wake"
         elif current == "night_seer_sleep":
-            self._state.phase = "night_wolf_wake"
+            if self._state.night_action_actor_index < len(self._state.night_action_actor_ids):
+                self._state.phase = "night_wolf_wake"
+            else:
+                self._state.phase = "night_wolf_wake"
         elif current == "night_wolf_wake":
             self._state.phase = "night_wolf_act"
         elif current == "night_wolf_act":
-            self._state.phase = "night_wolf_sleep"
+            self._advance_to_next_actor()
+            if self._state.current_acting_player_id:
+                self._state.phase = "night_wolf_sleep"
+            else:
+                self._state.phase = "night_wolf_sleep"
         elif current == "night_wolf_sleep":
             self._state.round += 1
             self._state.phase = "day"
-            self._state.night_actions = {
-                "wolf_victim_id": None,
-                "seer_target_id": None,
-                "seer_result": None,
-                "completed_roles": [],
-            }
+            self._state.night_action_actor_ids = []
+            self._state.night_action_actor_index = 0
+            self._state.pending_seer_result = None
         elif current == "day":
             self._state.phase = "discussion"
         elif current == "discussion":
@@ -388,6 +452,18 @@ class AsyncGameAdapter:
             self._hass.bus.fire(EVENT_GAME_STATE_CHANGED, {"phase": self._state.phase})
 
         return self.get_public_state()
+
+    def _init_night_actions(self) -> None:
+        if not self._engine:
+            return
+        actors = self._engine.get_night_action_actors()
+        self._state.night_action_actor_ids = [p.name for p in actors]
+        self._state.night_action_actor_index = 0
+
+        if actors:
+            first_actor = actors[0]
+            self._state.current_acting_player_id = first_actor.name
+            self._state.current_action_type = self._get_action_type_for_role(first_actor.role.role_key)
 
     async def async_begin_vote(self) -> dict:
         self._state.phase = "vote"

@@ -454,6 +454,49 @@ class GameEngine:
     #  Helpers
     # ─────────────────────────────────────────
 
+    def submit_night_action(
+        self,
+        actor_name: str,
+        action_type: str,
+        target_name: str,
+    ) -> Optional[NightAction]:
+        """Submit a night action from external UI (HA adapter).
+
+        This allows the async UI to provide targets for roles that need them,
+        rather than having the engine call io.choose_target() synchronously.
+
+        Returns the created NightAction, or None if invalid.
+        """
+        gs = self.state
+
+        actor = next((p for p in gs.players if p.name == actor_name), None)
+        if not actor or not actor.alive:
+            return None
+
+        target = next((p for p in gs.players if p.name == target_name), None)
+        if not target or not target.alive:
+            return None
+
+        action = NightAction(
+            actor=actor,
+            action_type=action_type,
+            target=target,
+        )
+        gs.tonight_actions.append(action)
+
+        if self._events:
+            self._events.on_role_acting(actor, action_type)
+
+        return action
+
+    def get_night_action_actors(self) -> list[Player]:
+        """Get the list of players who have night actions, in priority order."""
+        gs = self.state
+        return sorted(
+            [p for p in gs.alive_players if p.role.has_night_action],
+            key=lambda p: p.role.night_priority
+        )
+
 
 # ─────────────────────────────────────────────
 #  GameEvents — for external effects (HA hooks)
