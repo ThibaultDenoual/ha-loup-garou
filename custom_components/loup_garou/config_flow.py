@@ -18,6 +18,8 @@ from .const import (
     CONF_SPEAKER,
     CONF_LIGHTS,
     CONF_LANGUAGE,
+    CONF_TTS_ENGINE,
+    DEFAULT_TTS_ENGINE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_SPEAKER): str,
         vol.Optional(CONF_LIGHTS, default=""): str,
         vol.Optional(CONF_LANGUAGE, default="fr"): vol.In(["fr", "en"]),
+        vol.Optional(CONF_TTS_ENGINE, default=DEFAULT_TTS_ENGINE): str,
     }
 )
 
@@ -51,6 +54,7 @@ class LoupGarouConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             lights_raw = user_input.get(CONF_LIGHTS, "")
             lights = [l.strip() for l in lights_raw.split(",") if l.strip()]
             language = user_input.get(CONF_LANGUAGE, "fr")
+            tts_engine = user_input.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE)
 
             if not speaker:
                 errors[CONF_SPEAKER] = "no_speaker"
@@ -61,6 +65,7 @@ class LoupGarouConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_SPEAKER: speaker,
                         CONF_LIGHTS: lights,
                         CONF_LANGUAGE: language,
+                        CONF_TTS_ENGINE: tts_engine,
                     },
                 )
 
@@ -113,6 +118,9 @@ class LoupGarouOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_LANGUAGE, default=current.get(CONF_LANGUAGE, "fr")
                 ): vol.In(["fr", "en"]),
+                vol.Optional(
+                    CONF_TTS_ENGINE, default=current.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE)
+                ): str,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

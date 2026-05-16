@@ -28,7 +28,9 @@ const ViewNight = (() => {
     // Determine sub-phase
     const isSeer  = phase === 'night_seer_act';
     const isWolf  = phase === 'night_wolf_act';
-    const isNightStart = ['night_start', 'night_seer_wake', 'night_seer_sleep', 'night_wolf_wake', 'night_wolf_sleep'].includes(phase);
+    const isSeerWake = phase === 'night_seer_wake';
+    const isWolfWake = phase === 'night_wolf_wake';
+    const isNightStart = ['night_start', 'night_seer_sleep', 'night_wolf_sleep'].includes(phase);
 
     // Body class for ambient lighting
     container.className = container.className.replace(/\b(seer|wolf)-phase\b/g, '').trim();
@@ -50,6 +52,10 @@ const ViewNight = (() => {
       roleLabel = t('night.phase_wolves');
       instruction = t('night.wolves_instruction');
       roleIndicatorCls = 'wolf-indicator';
+    } else if (isSeerWake) {
+      instruction = t('night.seer_wake');
+    } else if (isWolfWake) {
+      instruction = t('night.wolves_wake');
     } else if (isNightStart) {
       instruction = t('night.village_sleeps');
     }
@@ -108,7 +114,21 @@ const ViewNight = (() => {
     }
 
     // Render footer buttons
-    _renderFooter(phase, isSeer, isWolf, isNightStart, state);
+    _renderFooter(phase, isSeer, isWolf, isSeerWake, isWolfWake, isNightStart, state);
+
+    // Auto-advance from night_start to seer wake after brief delay (allows TTS to start)
+    if (phase === 'night_start' && _callbacks.onNextPhase) {
+      setTimeout(() => {
+        _callbacks.onNextPhase();
+      }, 800);
+    }
+
+    // Auto-advance from seer wake to seer act (seamless transition)
+    if ((isSeerWake || isWolfWake) && _callbacks.onNextPhase) {
+      setTimeout(() => {
+        _callbacks.onNextPhase();
+      }, 600);
+    }
 
     // Show seer result if available
     if (seerResult && isSeer) {
@@ -162,10 +182,21 @@ const ViewNight = (() => {
     });
   }
 
-  function _renderFooter(phase, isSeer, isWolf, isNightStart, state) {
+  function _renderFooter(phase, isSeer, isWolf, isSeerWake, isWolfWake, isNightStart, state) {
     const footer = qs('#night-footer');
     if (!footer) return;
     setHTML(footer, '');
+
+    if (isSeerWake || isWolfWake) {
+      const nextBtn = createElement('button', { class: 'btn btn-primary btn-lg', id: 'night-next-btn' }, [
+        escapeHtml(t('common.continue'))
+      ]);
+      nextBtn.addEventListener('click', () => {
+        if (_callbacks.onNextPhase) _callbacks.onNextPhase();
+      });
+      footer.appendChild(nextBtn);
+      return;
+    }
 
     if (isNightStart) {
       // Just a continue button

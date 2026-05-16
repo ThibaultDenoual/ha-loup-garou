@@ -39,13 +39,14 @@ class TTSController:
     async def async_speak(self, message: str) -> None:
         """Speak a message via the configured TTS engine and media player."""
         if not self._media_player:
-            _LOGGER.debug("No speaker configured, skipping TTS: %s", message)
+            _LOGGER.warning("No speaker configured, skipping TTS: %s", message)
             return
 
         lang_map = {"fr": "fr-FR", "en": "en-US"}
         tts_language = lang_map.get(self._language, self._language)
 
         service_data = {
+            "entity_id": self._tts_engine,
             "media_player_entity_id": self._media_player,
             "message": message,
             "language": tts_language,

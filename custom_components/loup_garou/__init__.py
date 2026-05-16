@@ -7,7 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 
-from .const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE
+from .const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE
 from .core_game.io_adapters.ha_adapter import AsyncGameAdapter as GameEngine
 from .services.lights import LightController
 from .services.tts import TTSController
@@ -39,6 +39,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     speaker_controller = TTSController(
         hass=hass,
         media_player_entity=conf.get(CONF_SPEAKER, ""),
+        tts_engine=conf.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE),
         language=conf.get(CONF_LANGUAGE, "fr"),
     )
 
