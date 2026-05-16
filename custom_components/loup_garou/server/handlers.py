@@ -168,7 +168,9 @@ async def handle_night_action(
         target_id = data.get("target_id", "")
         add_debug_log(f"handle_night_action: type={action_type}, target={target_id}", "info")
 
-        acting_role = engine.current_night_role
+        state = engine.get_public_state()
+        acting_role = state.get("current_night_role")
+
         await engine.async_submit_night_action(action_type, target_id, skip_delay)
 
         if phase_manager and acting_role:

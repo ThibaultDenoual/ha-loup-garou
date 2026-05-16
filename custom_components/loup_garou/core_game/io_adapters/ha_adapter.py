@@ -412,16 +412,23 @@ class AsyncGameAdapter:
         return {"phase": "setup"}
 
     def get_public_state(self) -> dict:
-        alive_players = [p for p in self._state.players if p["alive"]]
+        if not self._engine:
+            return {"phase": "setup", "players": []}
+
+        engine_phase = self._engine._fsm_state
+        gs = self._engine.state
+
+        if engine_phase == "setup" and self._state.phase == "role_reveal":
+            phase = "role_reveal"
+        else:
+            phase = engine_phase
+
+        alive_players = gs.alive_players
 
         next_reveal_player = None
         current_reveal_role = None
-        players_with_roles = []
 
-        if (
-            self._state.phase == "role_reveal"
-            and self._state.reveal_index < len(self._state.reveal_order)
-        ):
+        if phase == "role_reveal" and self._state.reveal_index < len(self._state.reveal_order):
             next_reveal_name = self._state.reveal_order[self._state.reveal_index]
             core_player = self._get_core_player(next_reveal_name)
             if core_player:
@@ -435,33 +442,38 @@ class AsyncGameAdapter:
                     "alive": core_player.alive,
                 }
 
-        for p in self._state.players:
+        players_data = []
+        for p in gs.players:
             player_data = {
-                "id": p["id"],
-                "name": p["name"],
-                "alive": p["alive"],
-                "role_seen": p.get("role_seen", False),
+                "id": p.name,
+                "name": p.name,
+                "alive": p.alive,
+                "role_seen": False,
             }
-            if self._state.phase == "role_reveal":
-                core_p = self._get_core_player(p["id"])
-                if core_p:
-                    player_data["role"] = core_p.role.name
-                    player_data["role_key"] = core_p.role.role_key
-                    player_data["team"] = core_p.role.team
-            players_with_roles.append(player_data)
+            if phase == "role_reveal":
+                player_data["role"] = p.role.name
+                player_data["role_key"] = p.role.role_key
+                player_data["team"] = p.role.team
+            players_data.append(player_data)
+
+        current_night_role = None
+        if self._state.current_acting_player_id:
+            acting_player = self._get_core_player(self._state.current_acting_player_id)
+            if acting_player:
+                current_night_role = acting_player.role.role_key
 
         return {
-            "phase": self._state.phase,
-            "round": self._state.round,
+            "phase": phase,
+            "round": gs.round_number,
             "language": self._state.language,
-            "winner": self._state.winner,
-            "players": players_with_roles,
+            "winner": gs.winner,
+            "players": players_data,
             "current_reveal_role": current_reveal_role,
             "current_reveal_player": next_reveal_player,
             "alive_count": len(alive_players),
-            "dead_count": len(self._state.players) - len(alive_players),
+            "dead_count": len(gs.players) - len(alive_players),
             "reveal_index": self._state.reveal_index,
-            "reveal_total": len(self._state.players),
+            "reveal_total": len(gs.players),
             "next_reveal_player": next_reveal_player,
             "eliminated_this_round": self._state.eliminated_this_round,
             "vote_tallies_count": {
@@ -470,18 +482,12 @@ class AsyncGameAdapter:
             },
             "votes_cast": sum(len(v) for v in self._state.vote_tallies.values()),
             "alive_voter_count": len(alive_players),
-            "current_night_role": self._get_current_night_role(),
+            "current_night_role": current_night_role,
+            "current_action_type": self._state.current_action_type,
+            "current_acting_player_id": self._state.current_acting_player_id,
             "current_target_id": self._state.current_target_id,
-            "night_actions_completed": self._state.night_actions.get("completed_roles", []),
+            "pending_seer_result": self._state.pending_seer_result,
         }
-
-    def _get_current_night_role(self) -> Optional[str]:
-        phase = self._state.phase
-        if phase == "night_seer_wake" or phase == "night_seer_act":
-            return "seer"
-        if phase == "night_wolf_wake" or phase == "night_wolf_act":
-            return "werewolf"
-        return None
 
     def get_role_reveal_data(self, player_id: str) -> dict:
         player = self._get_player(player_id)
