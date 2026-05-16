@@ -30,7 +30,7 @@ from transitions import Machine, MachineError
 from .game_state import GameState, Player
 from .io_interface import IOInterface, ConsoleIO
 from .roles import (
-    Role, NightAction, ROLE_REGISTRY, PRESETS,
+    Role, NightAction, ROLE_REGISTRY,
     Werewolf, AlphaWolf, Minion, WerewolfPackCoordinator,
 )
 
@@ -79,15 +79,14 @@ class GameEngine:
     Synchronous game engine orchestrating all game phases via FSM.
 
     Public API:
-        engine = GameEngine(player_names, preset="medium")
+        engine = GameEngine(player_names, role_names=["Werewolf", "Seer", "Doctor", "Villager"])
         engine.run()
     """
 
     def __init__(
         self,
         player_names: list[str],
-        role_names: Optional[list[str]] = None,
-        preset: Optional[str] = None,
+        role_names: list[str],
         io: Optional[IOInterface] = None,
         seed: Optional[int] = None,
         events: Optional["GameEvents"] = None,
@@ -98,11 +97,6 @@ class GameEngine:
         self.io: IOInterface = io or ConsoleIO()
         self._events = events
         self._pending_solo_death: Optional[tuple[Player, str]] = None
-
-        if role_names is None:
-            if preset is None:
-                preset = self._pick_preset(len(player_names))
-            role_names = PRESETS[preset]
 
         if len(role_names) != len(player_names):
             raise ValueError(
@@ -453,16 +447,6 @@ class GameEngine:
     # ─────────────────────────────────────────
     #  Helpers
     # ─────────────────────────────────────────
-
-    @staticmethod
-    def _pick_preset(n: int) -> str:
-        if n <= 6:
-            return "small"
-        if n <= 9:
-            return "medium"
-        if n <= 13:
-            return "large"
-        return "chaos"
 
 
 # ─────────────────────────────────────────────
