@@ -5,8 +5,6 @@
   "documentation": "https://github.com/ThibaultDenoual/ha-loup-garou",
   "issue_tracker": "https://github.com/ThibaultDenoual/ha-loup-garou/issues",
   "codeowners": ["@ThibaultDenoual"],
-  "requirements": [],
-  "dependencies": [],
   "iot_class": "local_push",
   "config_flow": true
 }
