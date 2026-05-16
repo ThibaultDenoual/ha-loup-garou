@@ -65,6 +65,7 @@ class HAIntegrationState:
     pending_seer_result: Optional[str] = None
     night_action_actor_ids: list = field(default_factory=list)
     night_action_actor_index: int = 0
+    completed_night_actions: list = field(default_factory=list)
 
 
 class HAGameEvents(GameEvents):
@@ -312,6 +313,9 @@ class AsyncGameAdapter:
 
         if action_type == "seer_investigate":
             self._state.pending_seer_result = target.role.team
+
+        if actor_id not in self._state.completed_night_actions:
+            self._state.completed_night_actions.append(actor_id)
 
         self._advance_to_next_actor()
 
@@ -563,6 +567,7 @@ class AsyncGameAdapter:
             "current_acting_player_id": self._state.current_acting_player_id,
             "current_target_id": self._state.current_target_id,
             "pending_seer_result": self._state.pending_seer_result,
+            "night_actions_completed": self._state.completed_night_actions,
         }
 
     def get_role_reveal_data(self, player_id: str) -> dict:
