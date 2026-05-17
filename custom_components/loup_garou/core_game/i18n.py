@@ -1,28 +1,16 @@
 """
 i18n.py — Internationalization helper for the game engine.
 
-Usage:
-    from i18n import t, set_language, get_language
-
-    # Basic translation
-    t("roles.Seer.name")  # -> "Seer" or "Voyante"
-
-    # With interpolation
-    t("roles.Seer.prompt_investigate", player_name="Alice")
-    # -> "[SEER] Alice, choose someone to investigate:"
-
-    # Switch language
-    set_language("fr")
+Loads translations from JSON locale files at startup.
 """
 
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-_current_language: str = "en"
+_current_language: str = "fr"
 _translations: dict[str, dict] = {}
 
 
@@ -32,15 +20,12 @@ def _load_locales() -> None:
 
     locales_dir = Path(__file__).parent / "locales"
     if not locales_dir.exists():
-        return
+        raise FileNotFoundError(f"Locales directory not found: {locales_dir}")
 
     for file in locales_dir.glob("*.json"):
         lang = file.stem
-        try:
-            with open(file, "r", encoding="utf-8") as f:
-                _translations[lang] = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: Failed to load locale {file}: {e}")
+        with open(file, "r", encoding="utf-8") as f:
+            _translations[lang] = json.load(f)
 
 
 _load_locales()
@@ -49,11 +34,9 @@ _load_locales()
 def set_language(lang: str) -> None:
     """Set the current language for translations."""
     global _current_language
-    if lang in _translations:
-        _current_language = lang
-    else:
-        print(f"Warning: Unknown language '{lang}', falling back to 'en'")
-        _current_language = "en"
+    if lang not in _translations:
+        raise ValueError(f"Unknown language '{lang}'. Available: {list(_translations.keys())}")
+    _current_language = lang
 
 
 def get_language() -> str:
@@ -71,42 +54,41 @@ def t(key: str, **kwargs: Any) -> str:
 
     Returns:
         Translated string with placeholders replaced
-
-    Example:
-        t("roles.Seer.prompt_investigate", player_name="Alice")
     """
     keys = key.split(".")
-    lang = _current_language
-
-    # Try current language, fall back to English
-    for attempt_lang in (lang, "en"):
-        if attempt_lang not in _translations:
-            continue
-        d = _translations[attempt_lang]
-        try:
-            for k in keys:
-                d = d[k]
-            if isinstance(d, str):
-                return d.format(**kwargs) if kwargs else d
-        except (KeyError, TypeError):
-            continue
-
-    # Return the key itself if not found
+    d = _translations[_current_language]
+    for k in keys:
+        d = d[k]
+    if isinstance(d, str):
+        return d.format(**kwargs) if kwargs else d
     return key
+
+
+def role_name(role_key: str) -> str:
+    """Get translated role name."""
+    return _translations[_current_language]["roles"][role_key]["name"]
+
+
+def role_description(role_key: str) -> str:
+    """Get translated role description."""
+    return _translations[_current_language]["roles"][role_key]["description"]
+
+
+def role_team(role_key: str) -> str:
+    """Get role team."""
+    return _translations[_current_language]["roles"][role_key]["team"]
+
+
+def role_article(role_key: str) -> str:
+    """Get French article for role (for TTS formatting)."""
+    return _translations[_current_language]["articles"].get(role_key, "un")
+
+
+def tts(key: str, **kwargs: Any) -> str:
+    """Get TTS string."""
+    return t(f"tts.{key}", **kwargs)
 
 
 def available_languages() -> list[str]:
     """Return list of available language codes."""
     return list(_translations.keys())
-
-
-def has_key(key: str) -> bool:
-    """Check if a translation key exists in the current language."""
-    keys = key.split(".")
-    d = _translations.get(_current_language, {})
-    try:
-        for k in keys:
-            d = d[k]
-        return isinstance(d, str)
-    except (KeyError, TypeError):
-        return False
