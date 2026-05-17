@@ -29,43 +29,6 @@ class Role(StrEnum):
     SEER = "seer"
 
 
-# Team membership — used for win condition checks
-WOLF_TEAM: set[Role] = {Role.WEREWOLF}
-VILLAGE_TEAM: set[Role] = {Role.VILLAGER, Role.SEER}
-
-# Night wake order (roles that act at night, in order)
-# Only roles present in the current game are actually called
-NIGHT_WAKE_ORDER: list[Role] = [
-    Role.SEER,
-    Role.WEREWOLF,
-]
-
-# Role display metadata (used by frontend)
-ROLE_META: dict[str, dict] = {
-    Role.VILLAGER: {
-        "icon": "🏘️",
-        "team": "village",
-        "has_night_action": False,
-        "description_fr": "Vous êtes un simple villageois. Débattez le jour et votez sagement.",
-        "description_en": "You are a simple villager. Debate by day and vote wisely.",
-    },
-    Role.WEREWOLF: {
-        "icon": "🐺",
-        "team": "wolves",
-        "has_night_action": True,
-        "description_fr": "Vous êtes un loup-garou. La nuit, choisissez votre victime en silence.",
-        "description_en": "You are a werewolf. At night, silently choose your victim.",
-    },
-    Role.SEER: {
-        "icon": "🔮",
-        "team": "village",
-        "has_night_action": True,
-        "description_fr": "Vous êtes la voyante. Chaque nuit, découvrez la vraie nature d'un joueur.",
-        "description_en": "You are the seer. Each night, discover the true nature of one player.",
-    },
-}
-
-
 # ──────────────────────────────────────────────
 # Game phases
 # ──────────────────────────────────────────────

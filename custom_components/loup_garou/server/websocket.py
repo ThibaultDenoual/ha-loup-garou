@@ -119,18 +119,3 @@ class LoupGarouWebSocketView(HomeAssistantView):
                 await ws.send_json(message)
         except Exception:
             pass
-
-
-async def handle_get_debug_log(
-    ws: web.WebSocketResponse,
-    data: dict,
-    engine,
-    phase_manager,
-) -> None:
-    """Handler to get debug logs."""
-    from .websocket import get_debug_log
-    add_debug_log("handle_get_debug_log called", "info")
-    await ws.send_json({
-        "type": "debug_log",
-        "data": get_debug_log(),
-    })

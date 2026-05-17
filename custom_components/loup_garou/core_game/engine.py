@@ -96,7 +96,6 @@ class GameEngine:
 
         self.io: IOInterface = io or ConsoleIO()
         self._events = events
-        self._pending_solo_death: Optional[tuple[Player, str]] = None
 
         if len(role_names) != len(player_names):
             raise ValueError(

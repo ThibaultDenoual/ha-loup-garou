@@ -29,24 +29,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-HA_PHASE_MAP = {
-    "setup": "setup",
-    "role_reveal": "setup",
-    "night_start": "night_start",
-    "night_seer_wake": "night_start",
-    "night_seer_act": "night_actions",
-    "night_seer_sleep": "night_actions",
-    "night_wolf_wake": "night_actions",
-    "night_wolf_act": "night_actions",
-    "night_wolf_sleep": "resolve_night",
-    "day": "day_start",
-    "discussion": "discussion",
-    "vote": "vote",
-    "resolve_day": "resolve_day",
-    "game_over": "game_over",
-}
-
-
 @dataclass
 class HAIntegrationState:
     phase: str = "setup"
@@ -123,10 +105,6 @@ class AsyncGameAdapter:
     @property
     def state(self) -> HAIntegrationState:
         return self._state
-
-    def _run_sync(self, func, *args, **kwargs):
-        loop = asyncio.get_event_loop()
-        return loop.run_in_executor(None, func, *args, **kwargs)
 
     def _on_phase_changed(self, old_phase: str, new_phase: str) -> None:
         self._state.phase = new_phase
@@ -498,8 +476,8 @@ class AsyncGameAdapter:
         engine_phase = self._engine._fsm_state
         gs = self._engine.state
 
-        if engine_phase == "setup" and self._state.phase == "role_reveal":
-            phase = "role_reveal"
+        if engine_phase == "setup":
+            phase = self._state.phase
         else:
             phase = engine_phase
 
