@@ -8,26 +8,12 @@ from ..const import (
     Role,
     EliminationCause,
     WinCondition,
-    ROLE_NAMES_FR,
-    ROLE_NAMES_EN,
-    ROLE_ARTICLES_FR,
-    TTS,
     EVENT_GAME_STATE_CHANGED,
     EVENT_GAME_STARTED,
 )
+from ..core_game.i18n import t as i18n_t, role_name, role_article, tts, set_language as i18n_set_language
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _role_display(role: str, lang: str) -> str:
-    if lang == "fr":
-        return ROLE_NAMES_FR.get(role, role)
-    return ROLE_NAMES_EN.get(role, role)
-
-
-def _format_tts(key: str, lang: str, **kwargs) -> str:
-    template = TTS[key][lang]
-    return template.format(**kwargs)
 
 
 class PhaseManager:
@@ -46,6 +32,8 @@ class PhaseManager:
         self._lang = language
         self._pending_phase: str | None = None
 
+        i18n_set_language(language)
+
         hass.bus.async_listen(
             EVENT_GAME_STATE_CHANGED,
             self._handle_state_changed,
@@ -57,12 +45,12 @@ class PhaseManager:
 
     async def on_game_started(self) -> None:
         if self._io:
-            self._io.speak(_format_tts("roles_distributed", self._lang))
+            self._io.speak(tts("roles_distributed"))
 
     async def on_night_started(self) -> None:
         if self._io:
             self._io.set_scene("night")
-            self._io.speak(_format_tts("night_start", self._lang))
+            self._io.speak(tts("night_start"))
 
     async def on_phase_changed(self, phase: str) -> None:
         """Handle phase change events from the engine."""
@@ -72,15 +60,15 @@ class PhaseManager:
             await self.on_night_started()
         elif phase == Phase.NIGHT_SEER_WAKE:
             self._io.set_scene("seer_wake")
-            self._io.speak(_format_tts("seer_wake", self._lang))
+            self._io.speak(tts("seer_wake"))
         elif phase == Phase.NIGHT_SEER_SLEEP:
-            self._io.speak(_format_tts("seer_sleep", self._lang))
+            self._io.speak(tts("seer_sleep"))
             self._io.set_scene("night")
         elif phase == Phase.NIGHT_WOLF_WAKE:
             self._io.set_scene("wolf_wake")
-            self._io.speak(_format_tts("wolf_wake", self._lang))
+            self._io.speak(tts("wolf_wake"))
         elif phase == Phase.NIGHT_WOLF_SLEEP:
-            self._io.speak(_format_tts("wolf_sleep", self._lang))
+            self._io.speak(tts("wolf_sleep"))
             self._io.set_scene("night")
 
     async def on_role_wake(self, role: str) -> None:
@@ -89,13 +77,13 @@ class PhaseManager:
             return
         if role == Role.SEER:
             self._io.set_scene("seer_wake")
-            self._io.speak(_format_tts("seer_wake", self._lang))
+            self._io.speak(tts("seer_wake"))
         elif role == Role.WEREWOLF:
             self._io.set_scene("wolf_wake")
-            self._io.speak(_format_tts("wolf_wake", self._lang))
+            self._io.speak(tts("wolf_wake"))
 
     async def on_night_action_submitted(self, role: str) -> None:
-        pass  # No longer needed - handled by phase events
+        pass
 
     async def on_day_started(self, eliminated_player_id: str | None) -> None:
         if not self._io:
@@ -104,30 +92,24 @@ class PhaseManager:
 
         if eliminated_player_id:
             player = self._engine.state.players[eliminated_player_id]
-            role_name = _role_display(player.role, self._lang)
+            r_name = role_name(player.role)
             if self._lang == "fr":
-                article = ROLE_ARTICLES_FR.get(player.role, "un")
-                text = _format_tts(
-                    "day_start_death", self._lang,
-                    name=player.name, article=article, role=role_name
-                )
+                article = role_article(player.role)
+                text = tts("day_start_death", name=player.name, article=article, role=r_name)
             else:
-                text = _format_tts(
-                    "day_start_death", self._lang,
-                    name=player.name, role=role_name
-                )
+                text = tts("day_start_death", name=player.name, role=r_name)
         else:
-            text = _format_tts("day_start_no_death", self._lang)
+            text = tts("day_start_no_death")
 
         self._io.speak(text)
 
     async def on_vote_started(self) -> None:
         if self._io:
-            self._io.speak(_format_tts("vote_start", self._lang))
+            self._io.speak(tts("vote_start"))
 
     async def on_vote_tie(self) -> None:
         if self._io:
-            self._io.speak(_format_tts("vote_tie", self._lang))
+            self._io.speak(tts("vote_tie"))
 
     async def on_player_eliminated(
         self,
@@ -137,21 +119,15 @@ class PhaseManager:
         if not self._io:
             return
         player = self._engine.state.players[player_id]
-        role_name = _role_display(player.role, self._lang)
+        r_name = role_name(player.role)
 
         self._io.set_scene("death")
 
         if self._lang == "fr":
-            article = ROLE_ARTICLES_FR.get(player.role, "un")
-            text = _format_tts(
-                "elimination", self._lang,
-                name=player.name, article=article, role=role_name
-            )
+            article = role_article(player.role)
+            text = tts("elimination", name=player.name, article=article, role=r_name)
         else:
-            text = _format_tts(
-                "elimination", self._lang,
-                name=player.name, role=role_name
-            )
+            text = tts("elimination", name=player.name, role=r_name)
 
         self._io.speak(text)
 
@@ -162,7 +138,7 @@ class PhaseManager:
         self._io.set_scene(scene)
 
         tts_key = "wolves_win" if winner == WinCondition.WOLVES else "villagers_win"
-        self._io.speak(_format_tts(tts_key, self._lang))
+        self._io.speak(tts(tts_key))
 
     async def _handle_state_changed(self, event) -> None:
         phase = event.data.get("phase", "")
@@ -195,6 +171,7 @@ class PhaseManager:
 
     def set_language(self, lang: str) -> None:
         self._lang = lang
+        i18n_set_language(lang)
 
     def set_io(self, io_interface) -> None:
         """Set the IO interface (called when game starts)."""
