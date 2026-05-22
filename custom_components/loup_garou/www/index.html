@@ -261,21 +261,31 @@
             const phaseLabels = {
                 setup: 'Configuration',
                 role_reveal: 'Distribution des roles',
-                night: 'Nuit',
+                night_start: 'Nuit - Le village s\'endort',
+                night_seer_wake: 'Nuit - Reveil de la Voyante',
+                night_seer_act: 'Nuit - La Voyante observe',
+                night_seer_sleep: 'Nuit - La Voyante se rendort',
+                night_wolf_wake: 'Nuit - Reveil des Loups',
+                night_wolf_act: 'Nuit - Les Loups choose leur victime',
+                night_wolf_sleep: 'Nuit - Les Loups se rendorment',
                 day: 'Jour',
                 vote: 'Vote',
                 game_over: 'Fin de partie'
             };
+
+            const nightSubphases = ['night_start', 'night_seer_wake', 'night_seer_act', 'night_seer_sleep', 'night_wolf_wake', 'night_wolf_act', 'night_wolf_sleep'];
+            const isNightPhase = nightSubphases.includes(phase);
 
             document.getElementById('phase').textContent = phaseLabels[phase] || phase;
 
             // Night role label
             const nightRoleLabel = document.getElementById('night-role-label');
             const nightRole = gameState.current_night_role;
-            if (phase === 'night' && nightRole) {
+            if (isNightPhase && nightRole) {
                 nightRoleLabel.style.display = 'block';
                 const iconClass = roleIcons[nightRole] || 'fa-moon';
-                nightRoleLabel.innerHTML = `<i class="fas ${iconClass}"></i> Tour de la <strong>${roleLabels[nightRole] || nightRole}</strong>`;
+                const phaseAction = phase.includes('wake') ? 'reveil' : phase.includes('act') ? 'observe' : 'se rendort';
+                nightRoleLabel.innerHTML = `<i class="fas ${iconClass}"></i> Tour de la <strong>${roleLabels[nightRole] || nightRole}</strong> - ${phaseAction}`;
             } else {
                 nightRoleLabel.style.display = 'none';
             }
@@ -297,7 +307,7 @@
             if (gamePlayers.length === 0) {
                 playersDiv.innerHTML = '<p style="text-align: center;">Aucun joueur</p>';
             } else {
-                const canSelect = (phase === 'night' && nightRole) || (phase === 'role_reveal');
+                const canSelect = (isNightPhase && nightRole && phase.includes('_act')) || (phase === 'role_reveal');
                 playersDiv.innerHTML = gamePlayers.map(p => {
                     const classes = ['player'];
                     if (p.alive === false) classes.push('eliminated');
@@ -322,18 +332,21 @@
             if (phase === 'role_reveal') {
                 actionsDiv.innerHTML = `<button class="btn" onclick="send('confirm_role_seen')">J'ai vu mon role</button>`;
                 hintDiv.textContent = 'Cliquez sur un joueur pour le selectionner, puis validez';
-            } else if (phase === 'night' && nightRole) {
-                if (nightRole === 'seer') {
+            } else if (isNightPhase && nightRole) {
+                if (nightRole === 'seer' && phase === 'night_seer_act') {
                     actionsDiv.innerHTML = `<button class="btn btn-warning" onclick="sendNightAction('seer_investigate')" ${!targetId ? 'disabled' : ''}>Observer le joueur choisi</button>
                         <button class="btn btn-secondary" onclick="send('skip_action')">Passer (ne rien faire)</button>`;
                     hintDiv.textContent = 'Selectionnez un joueur pour l\'observer';
-                } else if (nightRole === 'werewolf') {
+                } else if (nightRole === 'werewolf' && phase === 'night_wolf_act') {
                     actionsDiv.innerHTML = `<button class="btn btn-danger" onclick="sendNightAction('wolf_kill')" ${!targetId ? 'disabled' : ''}>Tuer le joueur choisi</button>
                         <button class="btn btn-secondary" onclick="send('skip_action')">Passer (ne rien faire)</button>`;
                     hintDiv.textContent = 'Selectionnez un joueur (non-loup) pour le tuer';
+                } else {
+                    actionsDiv.innerHTML = `<button class="btn btn-secondary" onclick="send('next_phase')">Continuer</button>`;
+                    hintDiv.textContent = phase.includes('wake') ? 'Attendez que la scene se termine...' : 'Attendez...';
                 }
-            } else if (phase === 'night') {
-                actionsDiv.innerHTML = `<button class="btn btn-secondary" onclick="send('next_phase')">Passer a la journee</button>`;
+            } else if (phase === 'night_start') {
+                actionsDiv.innerHTML = `<button class="btn btn-secondary" onclick="send('next_phase')">Commencer la nuit</button>`;
             } else if (phase === 'day') {
                 actionsDiv.innerHTML = `<button class="btn btn-warning" onclick="send('begin_vote')">Commencer le vote</button>
                     <button class="btn" onclick="send('next_phase')">Passer (sans vote)</button>`;

@@ -107,9 +107,10 @@ async def handle_skip_action(
     data: dict,
     engine: GameEngine,
     phase_manager: PhaseManager | None,
+    skip_delay: bool = False,
 ) -> None:
     try:
-        await engine.async_skip_night_action()
+        await engine.async_skip_night_action(skip_delay)
         await ws.send_json({
             "type": "state",
             "data": engine.get_public_state(),
@@ -128,11 +129,12 @@ async def handle_night_action(
     data: dict,
     engine: GameEngine,
     phase_manager: PhaseManager | None,
+    skip_delay: bool = False,
 ) -> None:
     try:
         action_type = NightActionType(data.get("action_type", ""))
         acting_role = engine.current_night_role
-        await engine.async_submit_night_action(action_type, data.get("target_id"))
+        await engine.async_submit_night_action(action_type, data.get("target_id"), skip_delay)
         if phase_manager and acting_role:
             await phase_manager.on_night_action_submitted(acting_role)
         await ws.send_json({
