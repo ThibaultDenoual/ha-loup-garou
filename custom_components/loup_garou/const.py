@@ -44,7 +44,7 @@ ROLE_META: dict[str, dict] = {
         "icon": "🏘️",
         "team": "village",
         "has_night_action": False,
-        "description_fr": "Vous êtes un simple villageois. Débattez le jour et votez wisément.",
+        "description_fr": "Vous êtes un simple villageois. Débattez le jour et votez sagement.",
         "description_en": "You are a simple villager. Debate by day and vote wisely.",
     },
     Role.WEREWOLF: {
