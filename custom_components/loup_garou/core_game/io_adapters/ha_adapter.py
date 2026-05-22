@@ -1,5 +1,5 @@
 """
-adapter.py — Async adapter that bridges sync core_game with Home Assistant.
+ha_adapter.py — Async adapter bridging sync core_game with Home Assistant.
 
 This adapter wraps the synchronous GameEngine and provides async methods
 compatible with the HA integration, using run_in_executor for thread-safety.
@@ -10,18 +10,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
-import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
-from ..core_game import (
-    GameEngine,
+from .. import (
     GameState,
     Player,
     ROLE_REGISTRY,
     PRESETS as CORE_PRESETS,
 )
-from ..core_game.io_adapters import HomeAssistantIO, MockIO
+from ..io_adapters import HomeAssistantIO, MockIO
+from ..engine import GameEngine
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -29,7 +28,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-# Phase mapping between HA phases and core_game phases
 HA_PHASE_MAP = {
     "setup": "setup",
     "role_reveal": "setup",
@@ -50,7 +48,6 @@ HA_PHASE_MAP = {
 
 @dataclass
 class HAIntegrationState:
-    """Extended state for HA integration."""
     phase: str = "setup"
     round: int = 0
     players: list = field(default_factory=list)
@@ -91,7 +88,6 @@ class AsyncGameAdapter:
         return self._state
 
     def _run_sync(self, func, *args, **kwargs):
-        """Execute a sync function in a thread pool."""
         loop = asyncio.get_event_loop()
         return loop.run_in_executor(None, func, *args, **kwargs)
 
@@ -101,9 +97,18 @@ class AsyncGameAdapter:
         role_config: dict,
         language: str = "fr",
     ) -> dict:
-        """Initialize a new game with given players and roles."""
-        role_cfg = role_config.get("preset") or "medium"
-        role_names = CORE_PRESETS.get(role_cfg, CORE_PRESETS["small"])
+        if "preset" in role_config:
+            role_cfg = role_config.get("preset", "medium")
+            role_names = CORE_PRESETS.get(role_cfg, CORE_PRESETS["small"])
+        else:
+            villagers = role_config.get("villagers", 3)
+            werewolves = role_config.get("werewolves", 1)
+            seers = role_config.get("seers", 1)
+            role_names = (
+                ["Werewolf"] * werewolves +
+                ["Seer"] * seers +
+                ["Villager"] * villagers
+            )
         _LOGGER.warning(f"Starting game with players: {player_names} and roles: {role_names}")
         if len(role_names) != len(player_names):
             raise ValueError(
@@ -140,7 +145,6 @@ class AsyncGameAdapter:
         return self.get_public_state()
 
     def _player_to_ha(self, player: Player) -> dict:
-        """Convert core_game Player to HA player dict."""
         return {
             "id": player.name,
             "name": player.name,
@@ -152,7 +156,6 @@ class AsyncGameAdapter:
         }
 
     async def async_confirm_role_seen(self, player_id: str) -> dict:
-        """Mark player's role as seen, advance reveal if complete."""
         player = self._get_player(player_id)
         if player:
             player["role_seen"] = True
@@ -193,7 +196,6 @@ class AsyncGameAdapter:
         target_id: str,
         skip_delay: bool = False,
     ) -> dict:
-        """Submit a night action (wolf kill, seer investigate)."""
         if not self._engine:
             raise ValueError("Game not started")
 
@@ -211,7 +213,6 @@ class AsyncGameAdapter:
         return self.get_public_state()
 
     async def async_submit_vote(self, voter_id: str, target_id: str) -> dict:
-        """Record a day vote."""
         if target_id not in self._state.vote_tallies:
             self._state.vote_tallies[target_id] = []
         self._state.vote_tallies[target_id].append(voter_id)
@@ -219,7 +220,6 @@ class AsyncGameAdapter:
         return self.get_public_state()
 
     async def async_resolve_vote(self) -> dict:
-        """Resolve the current vote and eliminate the player with most votes."""
         if not self._state.vote_tallies:
             self._state.eliminated_this_round = []
             return self.get_public_state()
@@ -239,7 +239,6 @@ class AsyncGameAdapter:
         return self.get_public_state()
 
     async def async_eliminate_player(self, player_id: str, cause: str) -> dict:
-        """Eliminate a player and check win condition."""
         player = self._get_player(player_id)
         if not player:
             raise ValueError(f"Unknown player: {player_id}")
@@ -255,7 +254,6 @@ class AsyncGameAdapter:
         return self.get_public_state()
 
     def _check_win_condition(self) -> Optional[str]:
-        """Check win conditions and return winner."""
         alive = [p for p in self._state.players if p["alive"]]
         wolves = [p for p in alive if p["team"] == "werewolf"]
         village = [p for p in alive if p["team"] in ("village", "solo")]
@@ -267,7 +265,6 @@ class AsyncGameAdapter:
         return None
 
     async def async_next_phase(self, skip_delay: bool = False) -> dict:
-        """Advance to the next phase."""
         current = self._state.phase
 
         if current == "night_start":
@@ -308,18 +305,15 @@ class AsyncGameAdapter:
         return self.get_public_state()
 
     async def async_begin_vote(self) -> dict:
-        """Start the vote phase."""
         self._state.phase = "vote"
         self._state.vote_tallies = {}
         return self.get_public_state()
 
     async def async_select_target(self, target_id: str) -> dict:
-        """Record the currently selected target for UI feedback."""
         self._state.current_target_id = target_id
         return self.get_public_state()
 
     async def async_skip_night_action(self, skip_delay: bool = False) -> dict:
-        """Skip the current role's night action."""
         self._state.night_actions["completed_roles"] = (
             self._state.night_actions.get("completed_roles", []) + ["current"]
         )
@@ -327,22 +321,24 @@ class AsyncGameAdapter:
         return self.get_public_state()
 
     async def async_reset(self) -> dict:
-        """Reset game to initial state."""
         self._engine = None
         self._io = None
         self._state = HAIntegrationState()
         return {"phase": "setup"}
 
     def get_public_state(self) -> dict:
-        """Return sanitized state for frontend."""
         alive_players = [p for p in self._state.players if p["alive"]]
 
         next_reveal_player = None
+        current_reveal_role = None
         if (
             self._state.phase == "role_reveal"
             and self._state.reveal_index < len(self._state.reveal_order)
         ):
             next_reveal_player = self._state.reveal_order[self._state.reveal_index]
+            core_player = self._get_core_player(next_reveal_player)
+            if core_player:
+                current_reveal_role = core_player.role.name
 
         return {
             "phase": self._state.phase,
@@ -353,6 +349,8 @@ class AsyncGameAdapter:
                 {"id": p["id"], "name": p["name"], "alive": p["alive"], "role_seen": p.get("role_seen", False)}
                 for p in self._state.players
             ],
+            "current_reveal_role": current_reveal_role,
+            "current_reveal_player": next_reveal_player,
             "alive_count": len(alive_players),
             "dead_count": len(self._state.players) - len(alive_players),
             "reveal_index": self._state.reveal_index,
@@ -371,7 +369,6 @@ class AsyncGameAdapter:
         }
 
     def _get_current_night_role(self) -> Optional[str]:
-        """Get the role that should act in the current night phase."""
         phase = self._state.phase
         if phase == "night_seer_wake" or phase == "night_seer_act":
             return "seer"
@@ -380,7 +377,6 @@ class AsyncGameAdapter:
         return None
 
     def get_role_reveal_data(self, player_id: str) -> dict:
-        """Return role data for a specific player during reveal."""
         player = self._get_player(player_id)
         if not player:
             raise ValueError(f"Unknown player: {player_id}")
@@ -402,7 +398,6 @@ class AsyncGameAdapter:
         }
 
     def get_seer_result(self, seer_player_id: str) -> dict:
-        """Return seer investigation result."""
         player = self._get_player(seer_player_id)
         if not player or player.get("role_key") != "Seer":
             raise ValueError("Not a seer")
@@ -418,7 +413,6 @@ class AsyncGameAdapter:
         }
 
     def get_full_state_for_end(self) -> dict:
-        """Full state including all roles — only sent at game over."""
         if self._state.phase != "game_over":
             raise ValueError("Game not over yet")
 

@@ -1,504 +1,348 @@
-/**
- * core.js - Main Entry Point for Loup Garou Game UI
- *
- * Manages:
- * - WebSocket connection to /loup_garou/ws
- * - Game state from server
- * - Phase transitions
- * - View rendering orchestration
- * - Debug panel integration
- */
+/* ═══════════════════════════════════════════
+   LOUP GAROU — Core
+   Entry point, state management, WS routing
+   ═══════════════════════════════════════════ */
 
-const LoupGarouCore = (function() {
-    'use strict';
+const LoupGarouCore = (() => {
+  const { qs, setHTML, setText, showToast, createWebSocket, debugLog, addClass, removeClass, createStars } = LoupGarouUtils;
+  const { t, setLanguage, getRoleTeam } = LoupGarouI18n;
 
-    // ============================================
-    // Dependencies
-    // ============================================
+  // ── State ──
+  let _ws     = null;
+  let _state  = null;  // Last known game state from server
+  let _views  = {};
 
-    const { $, $$, createWebSocket, debugLog, isDebugMode } = LoupGarouUtils;
-    const { t } = LoupGarouI18n;
+  // ── Phase → view mapping ──
+  const PHASE_VIEW_MAP = {
+    'setup':            'setup',
+    'role_reveal':      'reveal',
+    'night_start':      'night',
+    'night_seer_wake':  'night',
+    'night_seer_act':   'night',
+    'night_seer_sleep': 'night',
+    'night_wolf_wake':  'night',
+    'night_wolf_act':   'night',
+    'night_wolf_sleep': 'night',
+    'day_start':        'day',
+    'day':              'day',
+    'discussion':       'day',
+    'vote':             'vote',
+    'resolve_day':      'day',
+    'game_over':        'end',
+  };
 
-    // ============================================
-    // State
-    // ============================================
+  /* ──────────────────────────────────────────
+     INIT
+     ────────────────────────────────────────── */
+  function init() {
+    _setupViews();
+    _setupWS();
+    _setupStars();
+    _showView('setup');
+    _renderSetupView();
+  }
 
-    const state = {
-        ws: null,
-        connected: false,
-        currentPhase: 'setup',
-        round: 0,
-        players: [],
-        roles: { villagers: 3, werewolves: 2, seers: 1 },
-        winner: null,
-        language: 'fr',
-        revealIndex: 0,
-        revealTotal: 0,
-        nextRevealPlayer: null,
-        eliminatedThisRound: [],
-        voteTallies: {},
-        votesCast: 0,
-        aliveVoterCount: 0,
-        currentNightRole: null,
-        currentTargetId: null,
-        nightActionsCompleted: [],
-        nightActions: {
-            wolfVictimId: null,
-            seerTargetId: null,
-            seerResult: null,
-            completedRoles: [],
-        },
-        seerReveals: [],
-        deadTonight: [],
-        gameOver: false,
+  function _setupViews() {
+    _views = {
+      setup:  ViewSetup,
+      reveal: ViewReveal,
+      night:  ViewNight,
+      day:    ViewDay,
+      vote:   ViewVote,
+      end:    ViewEnd,
     };
+  }
 
-    // View modules (setup by init())
-    let views = {};
+  function _setupStars() {
+    const starsEl = qs('#stars-layer');
+    if (starsEl) LoupGarouUtils.createStars(starsEl, 70);
+  }
 
-    // Callbacks for game.html integration
-    let onStateUpdate = null;
-    let onLog = null;
+  /* ──────────────────────────────────────────
+     WEBSOCKET
+     ────────────────────────────────────────── */
+  function _setupWS() {
+    _ws = createWebSocket('/loup_garou/ws', {
+      onMessage: _handleMessage,
+      onOpen:    _onWsOpen,
+      onClose:   _onWsClose,
+      onStatus:  _updateWsStatus,
+    });
+  }
 
-    // ============================================
-    // WebSocket
-    // ============================================
+  function _onWsOpen() {
+    // Request current state on connect
+    _ws.send({ type: 'get_state' });
+  }
 
-    function createConnection() {
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const url = `${protocol}//${location.host}/loup_garou/ws`;
-        const ws = new WebSocket(url);
+  function _onWsClose() { /* reconnect handled by utils */ }
 
-        ws.onopen = () => {
-            state.connected = true;
-            debugLog('[WS] Connected', 'info');
-            updateStatusBar('status.connected');
-            sendMessage('get_state', {});
-        };
+  function _updateWsStatus(status) {
+    const dot = qs('#ws-status');
+    if (!dot) return;
+    dot.className = `ws-status ${status}`;
+    const label = qs('#ws-label');
+    if (label) label.textContent = t(`app.${status}`) || status;
+  }
 
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                handleMessage(data);
-            } catch (e) {
-                debugLog('[WS] Parse error: ' + e, 'error');
-            }
-        };
+  function _send(msg) {
+    if (!_ws.isConnected()) {
+      showToast(t('app.disconnected'), { type: 'error' });
+      return false;
+    }
+    return _ws.send(msg);
+  }
 
-        ws.onerror = (err) => {
-            debugLog('[WS] Error', 'error');
-            updateStatusBar('status.error');
-        };
+  /* ──────────────────────────────────────────
+     MESSAGE HANDLER
+     ────────────────────────────────────────── */
+  function _handleMessage(msg) {
+    debugLog('WS message', msg);
 
-        ws.onclose = () => {
-            state.connected = false;
-            debugLog('[WS] Disconnected', 'info');
-            updateStatusBar('status.error');
-            setTimeout(createConnection, 3000);
-        };
-
-        state.ws = ws;
+    if (msg.type === 'error') {
+      showToast(msg.message || 'Erreur serveur', { type: 'error' });
+      return;
     }
 
-    function sendMessage(type, data = {}) {
-        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-            state.ws.send(JSON.stringify({ type, ...data }));
-        } else {
-            debugLog('[WS] Not connected, cannot send: ' + type, 'warn');
-        }
+    if (msg.type === 'state') {
+      _applyState(msg.data);
+      return;
+    }
+  }
+
+  function _applyState(newState) {
+    if (!newState) return;
+    const prevPhase = _state ? _state.phase : null;
+    _state = newState;
+
+    // Sync language
+    if (_state.language) {
+      setLanguage(_state.language);
     }
 
-    // ============================================
-    // Message Handlers
-    // ============================================
+    // Update header info
+    _updateHeader();
 
-    function handleMessage(data) {
-        debugLog('[WS] ← ' + data.type + ' ' + JSON.stringify(data.data || data.message || '').slice(0, 80), 'info');
-
-        switch (data.type) {
-            case 'state':
-                onStateReceived(data.data);
-                break;
-            case 'error':
-                onError(data);
-                break;
-            case 'connected':
-                state.connected = true;
-                updateStatusBar('status.connected');
-                break;
-            default:
-                debugLog('[WS] Unknown type: ' + data.type, 'warn');
-        }
+    // Update debug buttons
+    if (typeof window.updateDebugButtons === 'function') {
+      window.updateDebugButtons(_state.players);
     }
 
-    function onStateReceived(data) {
-        if (!data) return;
+    // Route to correct view
+    _renderCurrentView(prevPhase);
+  }
 
-        state.currentPhase = data.phase || 'setup';
-        state.round = data.round || 0;
-        state.players = data.players || [];
-        state.winner = data.winner || null;
-        state.language = data.language || 'fr';
-        state.revealIndex = data.reveal_index || 0;
-        state.revealTotal = data.reveal_total || 0;
-        state.nextRevealPlayer = data.next_reveal_player || null;
-        state.eliminatedThisRound = data.eliminated_this_round || [];
-        state.voteTallies = data.vote_tallies_count || {};
-        state.votesCast = data.votes_cast || 0;
-        state.aliveVoterCount = data.alive_voter_count || 0;
-        state.currentNightRole = data.current_night_role || null;
-        state.currentTargetId = data.current_target_id || null;
-        state.nightActionsCompleted = data.night_actions_completed || [];
+  /* ──────────────────────────────────────────
+     VIEW ROUTING
+     ────────────────────────────────────────── */
+  function _showView(viewName) {
+    // Hide all views
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
 
-        // Check winner
-        state.gameOver = (data.phase === 'game_over');
-        state.winner = data.winner || null;
+    const el = qs(`#view-${viewName}`);
+    if (el) el.classList.add('active');
 
-        // Update dead players
-        state.players.forEach(p => {
-            if (p.alive === false) {
-                if (!state.deadTonight.includes(p.name)) {
-                    state.deadTonight.push(p.name);
-                }
-            }
-        });
+    // Body phase class for ambient
+    document.body.className = document.body.className.replace(/phase-\w+/g, '').trim();
+    const phaseClass = {
+      setup:  'phase-setup',
+      reveal: 'phase-night',
+      night:  'phase-night',
+      day:    'phase-day',
+      vote:   'phase-vote',
+      end:    'phase-gameover',
+    }[viewName];
+    if (phaseClass) document.body.classList.add(phaseClass);
 
-        if (onStateUpdate) {
-            onStateUpdate(getState());
-        }
-
-        if (window.updateDebugButtons) {
-            window.updateDebugButtons(state.players);
-        }
-
-        renderCurrentView();
-        updatePhaseLabel();
+    // Stars visible at night
+    const starsEl = qs('#stars-layer');
+    if (starsEl) {
+      if (viewName === 'night' || viewName === 'reveal') {
+        starsEl.classList.add('visible');
+      } else {
+        starsEl.classList.remove('visible');
+      }
     }
+  }
 
-    function onError(data) {
-        debugLog('[Error] ' + (data.message || 'Unknown error'), 'err');
-        showError(data.message || 'Unknown error');
-        if (onLog) {
-            onLog(data.message || 'Unknown error', 'err');
-        }
+  function _renderCurrentView(prevPhase) {
+    if (!_state) return;
+    const phase    = _state.phase || 'setup';
+    const viewName = PHASE_VIEW_MAP[phase] || 'setup';
+
+    _showView(viewName);
+
+    switch (viewName) {
+      case 'setup':
+        _renderSetupView();
+        break;
+      case 'reveal':
+        _renderRevealView();
+        break;
+      case 'night':
+        _renderNightView();
+        break;
+      case 'day':
+        _renderDayView();
+        break;
+      case 'vote':
+        _renderVoteView();
+        break;
+      case 'end':
+        _renderEndView();
+        break;
     }
+  }
 
-    // ============================================
-    // View Rendering
-    // ============================================
-
-    function renderCurrentView() {
-        const phase = state.currentPhase;
-        debugLog('[View] Phase: ' + phase, 'info');
-
-        hideAllViews();
-
-        if (phase === 'setup' || phase === 'waiting_setup') {
-            if (views.setup) {
-                views.setup.show(getState());
-            }
-        } else if (phase === 'role_reveal') {
-            if (views.reveal) {
-                views.reveal.show(getState());
-            }
-        } else if (isNightPhase(phase)) {
-            if (views.night) {
-                views.night.show(getState());
-            }
-        } else if (phase === 'day' || phase === 'day_start' || phase === 'discussion') {
-            if (views.day) {
-                views.day.show(getState());
-            }
-        } else if (phase === 'vote' || phase === 'vote_start' || phase === 'vote_end') {
-            if (views.vote) {
-                views.vote.show(getState());
-            }
-        } else if (phase === 'game_over') {
-            if (views.end) {
-                views.end.show(getState());
-            }
-        } else {
-            debugLog('[View] Unknown phase: ' + phase, 'warn');
-        }
+  /* ──────────────────────────────────────────
+     HEADER
+     ────────────────────────────────────────── */
+  function _updateHeader() {
+    if (!_state) return;
+    const roundEl = qs('#header-round');
+    if (roundEl && _state.round > 0) {
+      roundEl.textContent = `${t('common.round')} ${_state.round}`;
     }
-
-    function isNightPhase(phase) {
-        return phase === 'night_start' ||
-            phase === 'night_seer_wake' ||
-            phase === 'night_seer_act' ||
-            phase === 'night_seer_sleep' ||
-            phase === 'night_wolf_wake' ||
-            phase === 'night_wolf_act' ||
-            phase === 'night_wolf_sleep';
+    const aliveEl = qs('#header-alive');
+    if (aliveEl && _state.alive_count != null) {
+      aliveEl.textContent = `${_state.alive_count} ${t('common.alive').toLowerCase()}`;
     }
+  }
 
-    function hideAllViews() {
-        if (views.setup) views.setup.hide();
-        if (views.reveal) views.reveal.hide();
-        if (views.night) views.night.hide();
-        if (views.day) views.day.hide();
-        if (views.vote) views.vote.hide();
-        if (views.end) views.end.hide();
-    }
+  /* ──────────────────────────────────────────
+     SETUP VIEW
+     ────────────────────────────────────────── */
+  function _renderSetupView() {
+    ViewSetup.render({
+      language: _state ? _state.language : 'fr',
+      onStart: (payload) => {
+        _send({ type: 'start_game', ...payload });
+      }
+    });
+  }
 
-    function updatePhaseLabel() {
-        const labelEl = $('phase-label');
-        if (labelEl) {
-            const key = 'phase.' + state.currentPhase;
-            labelEl.textContent = t(key, { phase: state.currentPhase });
-        }
-    }
+  /* ──────────────────────────────────────────
+     REVEAL VIEW
+     ────────────────────────────────────────── */
+  function _renderRevealView() {
+    ViewReveal.render(_state, {
+      onConfirm: (playerId) => {
+        _send({ type: 'confirm_role_seen', player_id: playerId });
+      }
+    });
+  }
 
-    function updateStatusBar(key) {
-        const statusEl = $('status-bar');
-        if (statusEl && key) {
-            statusEl.textContent = t(key);
-            statusEl.classList.toggle('error', key === 'status.error');
-        }
-    }
+  /* ──────────────────────────────────────────
+     NIGHT VIEW
+     ────────────────────────────────────────── */
+  function _renderNightView() {
+    const phase = _state.phase || '';
+    ViewNight.render(_state, {
+      onNextPhase: () => {
+        _send({ type: 'next_phase' });
+      },
+      onAction: (actionType, targetId) => {
+        _send({ type: 'night_action', action_type: actionType, target_id: targetId });
+      },
+      onSkip: (actionType) => {
+        _send({ type: 'skip_action', action_type: actionType });
+      }
+    });
+  }
 
-    // ============================================
-    // Transitions & Animations
-    // ============================================
+  /* ──────────────────────────────────────────
+     DAY VIEW
+     ────────────────────────────────────────── */
+  function _renderDayView() {
+    ViewDay.render(_state, {
+      onGoVote: () => {
+        _send({ type: 'begin_vote' });
+      },
+      onSkipVote: () => {
+        _send({ type: 'next_phase' });
+      }
+    });
+  }
 
-    function playPhaseTransition(phase) {
-        const overlay = $('phase-overlay');
-        if (!overlay) return;
+  /* ──────────────────────────────────────────
+     VOTE VIEW
+     ────────────────────────────────────────── */
+  function _renderVoteView() {
+    ViewVote.render(_state, {
+      onVote: (voterId, targetId) => {
+        _send({ type: 'submit_vote', voter_id: voterId, target_id: targetId });
+      },
+      onResolve: () => {
+        _send({ type: 'resolve_votes' });
+      },
+      onCancel: () => {
+        _send({ type: 'next_phase' });
+      }
+    });
+  }
 
-        overlay.classList.remove('hidden');
+/* ──────────────────────────────────────────
+      END VIEW
+      ────────────────────────────────────────── */
+  function _renderEndView() {
+    ViewEnd.render(_state, {
+      onPlayAgain: () => {
+        _send({ type: 'reset' });
+      }
+    });
+  }
 
-        if (isNightPhase(phase)) {
-            overlay.style.background = 'rgba(0, 0, 20, 0.95)';
-        } else if (phase === 'day' || phase.startsWith('vote')) {
-            overlay.style.background = 'rgba(255, 200, 100, 0.4)';
-        } else {
-            overlay.style.background = 'rgba(0, 0, 20, 0.9)';
-        }
+  /* ──────────────────────────────────────────
+     DEBUG ACTIONS
+     ────────────────────────────────────────── */
+  function resetGame() {
+    _send({ type: 'reset' });
+  }
 
-        const textEl = overlay.querySelector('.phase-overlay__text');
-        if (textEl) {
-            textEl.textContent = t('phase.' + phase, { phase });
-        }
+  function debugNextPhase() {
+    _send({ type: 'next_phase' });
+  }
 
-        setTimeout(() => {
-            overlay.classList.add('hidden');
-        }, 2000);
-    }
+  function debugBeginVote() {
+    _send({ type: 'begin_vote' });
+  }
 
-    // ============================================
-    // Error Handling
-    // ============================================
+  function debugResolveVotes() {
+    _send({ type: 'resolve_votes' });
+  }
 
-    function showError(message) {
-        const errorEl = $('error-message');
-        if (errorEl) {
-            errorEl.textContent = message;
-            errorEl.classList.remove('hidden');
-            setTimeout(() => errorEl.classList.add('hidden'), 5000);
-        }
-    }
+  function debugWolfKill(targetId) {
+    _send({ type: 'night_action', action_type: 'werewolf_kill', target_id: targetId });
+    debugNextPhase();
+  }
 
-    // ============================================
-    // Game Actions (send to server)
-    // ============================================
+  function debugSeerInvestigate(targetId) {
+    _send({ type: 'night_action', action_type: 'seer_investigate', target_id: targetId });
+    debugNextPhase();
+  }
 
-    function startGame() {
-        const playerNames = state.players.map(p => p.name);
-        if (playerNames.length < 5) {
-            showError(t('setup.error_min_players'));
-            return;
-        }
+  function debugEliminate(playerId) {
+    _send({ type: 'eliminate_player', player_id: playerId });
+  }
 
-        const totalRoles = Object.values(state.roles).reduce((a, b) => a + b, 0);
-        if (totalRoles !== playerNames.length) {
-            showError(t('setup.error_role_mismatch', {
-                roles: totalRoles,
-                players: playerNames.length
-            }));
-            return;
-        }
-
-        sendMessage('start_game', {
-            player_names: playerNames,
-            role_config: {
-                villagers: state.roles.villagers,
-                werewolves: state.roles.werewolves,
-                seers: state.roles.seers,
-            }
-        });
-    }
-
-    function confirmRoleSeen() {
-        sendMessage('confirm_role_seen', {});
-    }
-
-    function selectTarget(targetId) {
-        sendMessage('select_target', { target_id: targetId });
-    }
-
-    function submitNightAction(actionType, targetId) {
-        sendMessage('night_action', {
-            action_type: actionType,
-            target_id: targetId
-        });
-    }
-
-    function skipAction() {
-        sendMessage('skip_action', {});
-    }
-
-    function nextPhase() {
-        sendMessage('next_phase', {});
-    }
-
-    function beginVote() {
-        sendMessage('begin_vote', {});
-    }
-
-    function submitVote(voterId, targetId) {
-        sendMessage('submit_vote', {
-            voter_id: voterId,
-            target_id: targetId
-        });
-    }
-
-    function resolveVote() {
-        sendMessage('resolve_votes', {});
-    }
-
-    function eliminatePlayer(playerId, cause) {
-        sendMessage('eliminate_player', {
-            player_id: playerId,
-            cause: cause || 'village_vote'
-        });
-    }
-
-    function resetGame() {
-        sendMessage('reset', {});
-        state.gameOver = false;
-        state.winner = null;
-        state.currentPhase = 'setup';
-        state.round = 0;
-        state.players = [];
-        state.deadTonight = [];
-        state.seerReveals = [];
-    }
-
-    // ============================================
-    // Debug Actions
-    // ============================================
-
-    function debugNextPhase() {
-        sendMessage('next_phase', {});
-    }
-
-    function debugBeginVote() {
-        sendMessage('begin_vote', {});
-    }
-
-    function debugResolveVotes() {
-        sendMessage('resolve_votes', {});
-    }
-
-    function debugWolfKill(targetId) {
-        submitNightAction('wolf_kill', targetId);
-    }
-
-    function debugSeerInvestigate(targetId) {
-        submitNightAction('seer_investigate', targetId);
-    }
-
-    function debugEliminate(playerId) {
-        eliminatePlayer(playerId, 'village_vote');
-    }
-
-    // ============================================
-    // Public API
-    // ============================================
-
-    function init(options = {}) {
-        views = options.views || {};
-
-        createConnection();
-
-        if (options.onStateUpdate) {
-            onStateUpdate = options.onStateUpdate;
-        }
-        if (options.onLog) {
-            onLog = options.onLog;
-        }
-
-        debugLog('[Core] Initialized', 'info');
-        return {
-            getState,
-            startGame,
-            confirmRoleSeen,
-            selectTarget,
-            submitNightAction,
-            skipAction,
-            nextPhase,
-            beginVote,
-            submitVote,
-            resolveVote,
-            eliminatePlayer,
-            resetGame,
-            debugNextPhase,
-            debugBeginVote,
-            debugResolveVotes,
-            debugWolfKill,
-            debugSeerInvestigate,
-            debugEliminate,
-        };
-    }
-
-    function getState() {
-        return {
-            phase: state.currentPhase,
-            round: state.round,
-            players: state.players,
-            winner: state.winner,
-            language: state.language,
-            revealIndex: state.revealIndex,
-            revealTotal: state.revealTotal,
-            nextRevealPlayer: state.nextRevealPlayer,
-            eliminatedThisRound: state.eliminatedThisRound,
-            voteTallies: state.voteTallies,
-            votesCast: state.votesCast,
-            aliveVoterCount: state.aliveVoterCount,
-            currentNightRole: state.currentNightRole,
-            currentTargetId: state.currentTargetId,
-            nightActions: state.nightActions,
-            nightActionsCompleted: state.nightActionsCompleted,
-            deadTonight: state.deadTonight,
-            gameOver: state.gameOver,
-            connected: state.connected,
-        };
-    }
-
-    return {
-        init,
-        getState,
-        getRawState: () => ({ ...state }),
-        startGame,
-        confirmRoleSeen,
-        selectTarget,
-        submitNightAction,
-        skipAction,
-        nextPhase,
-        beginVote,
-        submitVote,
-        resolveVote,
-        eliminatePlayer,
-        resetGame,
-        debugNextPhase,
-        debugBeginVote,
-        debugResolveVotes,
-        debugWolfKill,
-        debugSeerInvestigate,
-        debugEliminate,
-        updateDebugButtons: null,
-    };
+  /* ──────────────────────────────────────────
+     PUBLIC
+     ────────────────────────────────────────── */
+  return {
+    init,
+    resetGame,
+    debugNextPhase,
+    debugBeginVote,
+    debugResolveVotes,
+    debugWolfKill,
+    debugSeerInvestigate,
+    debugEliminate
+  };
 })();
 
-// Global alias for game.html compatibility
-window.LoupGarouCore = LoupGarouCore;
+// Boot on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', LoupGarouCore.init);
+} else {
+  LoupGarouCore.init();
+}

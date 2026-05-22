@@ -1,311 +1,427 @@
-/**
- * i18n.js - Internationalization Module
- *
- * Handles translations for the Loup Garou UI.
- * Supports lazy-loaded language files.
- */
+/* ═══════════════════════════════════════════
+   LOUP GAROU — i18n
+   FR/EN Embedded Translations
+   ═══════════════════════════════════════════ */
 
-const LoupGarouI18n = (function() {
-    'use strict';
+const LoupGarouI18n = (() => {
+  const TRANSLATIONS = {
+    fr: {
+      app: {
+        title: "Loup Garou",
+        subtitle: "Maître du Jeu",
+        connecting: "Connexion…",
+        connected: "Connecté",
+        disconnected: "Déconnecté",
+        reconnecting: "Reconnexion…",
+        error: "Erreur"
+      },
+      setup: {
+        title: "Nouvelle Partie",
+        subtitle: "Configuration",
+        players_title: "Joueurs",
+        add_player: "Ajouter un joueur",
+        remove_player: "Retirer",
+        player_placeholder: "Nom du joueur",
+        roles_title: "Rôles",
+        preset_title: "Préréglages",
+        language: "Langue",
+        start_game: "Commencer la Partie",
+        players_min: "Minimum {n} joueurs requis",
+        players_names: "Tous les joueurs doivent avoir un nom",
+        roles_mismatch: "Le nombre de rôles doit correspondre aux joueurs ({n})",
+        preset_small: "Petite",
+        preset_medium: "Moyenne",
+        preset_large: "Grande",
+        preset_chaos: "Chaos",
+        preset_small_detail: "6 joueurs • 1 Loup",
+        preset_medium_detail: "9 joueurs • 3 Loups",
+        preset_large_detail: "13 joueurs • 4 Loups",
+        preset_chaos_detail: "10 joueurs • Rôles spéciaux",
+        preset_custom: "Personnalisé",
+        or_preset: "Ou choisir un préréglage",
+        custom_roles: "Configuration personnalisée",
+        role_villager: "Villageois",
+        role_werewolf: "Loup-Garou",
+        role_seer: "Voyante",
+        role_doctor: "Docteur",
+        role_hunter: "Chasseur",
+        role_witch: "Sorcière",
+        role_bodyguard: "Garde du Corps",
+        role_cupid: "Cupidon",
+        role_alpha_wolf: "Loup Alpha",
+        role_minion: "Serviteur",
+        role_serial_killer: "Tueur en Série",
+        role_jester: "Bouffon",
+        total: "Total : {n} joueurs"
+      },
+      reveal: {
+        title: "Révélation des Rôles",
+        instruction: "Passez l'écran à {name}",
+        tap_to_reveal: "Appuyez pour révéler votre rôle",
+        tap_to_hide: "Appuyez pour masquer",
+        seen: "J'ai vu mon rôle",
+        progress: "{current}/{total} joueurs",
+        your_role: "Votre rôle",
+        team_village: "Équipe Village",
+        team_wolf: "Camp des Loups",
+        team_solo: "Solo"
+      },
+      night: {
+        title: "Nuit",
+        subtitle: "Round {n}",
+        village_sleeps: "Le village s'endort…",
+        seer_wake: "Voyante, ouvrez les yeux",
+        seer_instruction: "Choisissez un joueur à observer",
+        seer_result_wolf: "🐺 Ce joueur est un Loup-Garou !",
+        seer_result_village: "✨ Ce joueur est du côté du Village.",
+        wolves_wake: "Loups-Garous, ouvrez les yeux",
+        wolves_instruction: "Choisissez votre victime en silence",
+        wolves_skip: "Passer (pas de victime)",
+        action_confirm: "Confirmer",
+        action_skip: "Passer",
+        next_phase: "Continuer",
+        select_target: "Sélectionnez une cible",
+        investigating: "Observation en cours…",
+        kill_confirmed: "Victime désignée",
+        no_kill: "Les loups ne tuent personne",
+        phase_seer: "Voyante",
+        phase_wolves: "Loups-Garous",
+        phase_night_start: "Début de Nuit"
+      },
+      day: {
+        title: "Jour",
+        subtitle: "Round {n}",
+        dawn: "L'aube se lève…",
+        no_deaths: "La nuit fut calme. Aucun mort.",
+        deaths_title: "Cette nuit, il s'est passé…",
+        death_by_wolves: "Dévoré par les loups",
+        death_by_vote: "Éliminé par vote",
+        death_by_hunter: "Tué par le Chasseur",
+        death_by_witch: "Victime de la Sorcière",
+        death_unknown: "Cause inconnue",
+        discussion: "Discussion",
+        discussion_subtitle: "Débattez et trouvez les loups",
+        go_to_vote: "Passer au Vote",
+        skip_vote: "Pas de vote ce round"
+      },
+      vote: {
+        title: "Vote",
+        subtitle: "Éliminez un joueur suspect",
+        instruction: "Chacun vote pour un joueur",
+        vote_for: "Voter contre",
+        votes_cast: "{n}/{total} votes",
+        resolve: "Résoudre le Vote",
+        tallies: "Décompte des votes",
+        eliminated: "{name} est éliminé·e !",
+        tied: "Égalité — personne n'est éliminé",
+        no_votes: "Aucun vote",
+        cancel_vote: "Annuler le vote"
+      },
+      end: {
+        title: "Fin de Partie",
+        wolves_win: "Les Loups ont Gagné !",
+        village_win: "Le Village a Gagné !",
+        solo_win: "{name} a Gagné !",
+        survivors: "Survivants",
+        fallen: "Morts",
+        play_again: "Rejouer",
+        roles_revealed: "Rôles Révélés",
+        rounds_played: "{n} rounds joués"
+      },
+      roles: {
+        Villager:      { name: "Villageois",      desc: "Trouvez et éliminez les loups." },
+        Werewolf:      { name: "Loup-Garou",      desc: "Éliminez les villageois la nuit." },
+        Seer:          { name: "Voyante",          desc: "Chaque nuit, découvrez le rôle d'un joueur." },
+        Doctor:        { name: "Docteur",          desc: "Protégez un joueur chaque nuit." },
+        Hunter:        { name: "Chasseur",         desc: "À votre mort, éliminez un joueur de votre choix." },
+        Witch:         { name: "Sorcière",         desc: "Possédez une potion de vie et une de mort." },
+        Bodyguard:     { name: "Garde du Corps",   desc: "Protégez un joueur ; mourez à sa place." },
+        Cupid:         { name: "Cupidon",          desc: "Liez deux joueurs : si l'un meurt, l'autre aussi." },
+        "Alpha Wolf":  { name: "Loup Alpha",       desc: "Peut convertir un villageois en loup." },
+        Minion:        { name: "Serviteur",        desc: "Connaît les loups. Gagne avec eux." },
+        "Serial Killer":{ name: "Tueur en Série", desc: "Tue seul chaque nuit. Gagne seul." },
+        Jester:        { name: "Bouffon",          desc: "Gagne si le village vous élimine par vote." }
+      },
+      common: {
+        confirm: "Confirmer",
+        cancel: "Annuler",
+        skip: "Passer",
+        next: "Suivant",
+        back: "Retour",
+        loading: "Chargement…",
+        round: "Round",
+        alive: "Vivants",
+        dead: "Morts",
+        players: "joueurs",
+        unknown: "Inconnu"
+      }
+    },
 
-    // ============================================
-    // State
-    // ============================================
+    en: {
+      app: {
+        title: "Werewolves",
+        subtitle: "Game Master",
+        connecting: "Connecting…",
+        connected: "Connected",
+        disconnected: "Disconnected",
+        reconnecting: "Reconnecting…",
+        error: "Error"
+      },
+      setup: {
+        title: "New Game",
+        subtitle: "Configuration",
+        players_title: "Players",
+        add_player: "Add player",
+        remove_player: "Remove",
+        player_placeholder: "Player name",
+        roles_title: "Roles",
+        preset_title: "Presets",
+        language: "Language",
+        start_game: "Start Game",
+        players_min: "Minimum {n} players required",
+        players_names: "All players must have a name",
+        roles_mismatch: "Role count must match players ({n})",
+        preset_small: "Small",
+        preset_medium: "Medium",
+        preset_large: "Large",
+        preset_chaos: "Chaos",
+        preset_small_detail: "6 players • 1 Wolf",
+        preset_medium_detail: "9 players • 3 Wolves",
+        preset_large_detail: "13 players • 4 Wolves",
+        preset_chaos_detail: "10 players • Special roles",
+        preset_custom: "Custom",
+        or_preset: "Or choose a preset",
+        custom_roles: "Custom configuration",
+        role_villager: "Villager",
+        role_werewolf: "Werewolf",
+        role_seer: "Seer",
+        role_doctor: "Doctor",
+        role_hunter: "Hunter",
+        role_witch: "Witch",
+        role_bodyguard: "Bodyguard",
+        role_cupid: "Cupid",
+        role_alpha_wolf: "Alpha Wolf",
+        role_minion: "Minion",
+        role_serial_killer: "Serial Killer",
+        role_jester: "Jester",
+        total: "Total: {n} players"
+      },
+      reveal: {
+        title: "Role Reveal",
+        instruction: "Pass the screen to {name}",
+        tap_to_reveal: "Tap to reveal your role",
+        tap_to_hide: "Tap to hide",
+        seen: "I've seen my role",
+        progress: "{current}/{total} players",
+        your_role: "Your role",
+        team_village: "Village Team",
+        team_wolf: "Wolf Pack",
+        team_solo: "Solo"
+      },
+      night: {
+        title: "Night",
+        subtitle: "Round {n}",
+        village_sleeps: "The village falls asleep…",
+        seer_wake: "Seer, open your eyes",
+        seer_instruction: "Choose a player to investigate",
+        seer_result_wolf: "🐺 This player is a Werewolf!",
+        seer_result_village: "✨ This player is on the Village side.",
+        wolves_wake: "Werewolves, open your eyes",
+        wolves_instruction: "Choose your victim silently",
+        wolves_skip: "Skip (no victim)",
+        action_confirm: "Confirm",
+        action_skip: "Skip",
+        next_phase: "Continue",
+        select_target: "Select a target",
+        investigating: "Investigating…",
+        kill_confirmed: "Victim chosen",
+        no_kill: "The wolves spare everyone",
+        phase_seer: "Seer",
+        phase_wolves: "Werewolves",
+        phase_night_start: "Night Begins"
+      },
+      day: {
+        title: "Day",
+        subtitle: "Round {n}",
+        dawn: "Dawn breaks…",
+        no_deaths: "The night was quiet. No deaths.",
+        deaths_title: "Last night…",
+        death_by_wolves: "Devoured by wolves",
+        death_by_vote: "Eliminated by vote",
+        death_by_hunter: "Killed by the Hunter",
+        death_by_witch: "Victim of the Witch",
+        death_unknown: "Unknown cause",
+        discussion: "Discussion",
+        discussion_subtitle: "Debate and find the wolves",
+        go_to_vote: "Proceed to Vote",
+        skip_vote: "No vote this round"
+      },
+      vote: {
+        title: "Vote",
+        subtitle: "Eliminate a suspected player",
+        instruction: "Each player votes for a suspect",
+        vote_for: "Vote against",
+        votes_cast: "{n}/{total} votes",
+        resolve: "Resolve Vote",
+        tallies: "Vote tally",
+        eliminated: "{name} is eliminated!",
+        tied: "Tied — nobody is eliminated",
+        no_votes: "No votes",
+        cancel_vote: "Cancel vote"
+      },
+      end: {
+        title: "Game Over",
+        wolves_win: "The Wolves Win!",
+        village_win: "The Village Wins!",
+        solo_win: "{name} Wins!",
+        survivors: "Survivors",
+        fallen: "Fallen",
+        play_again: "Play Again",
+        roles_revealed: "Revealed Roles",
+        rounds_played: "{n} rounds played"
+      },
+      roles: {
+        Villager:      { name: "Villager",      desc: "Find and eliminate the werewolves." },
+        Werewolf:      { name: "Werewolf",      desc: "Eliminate villagers each night." },
+        Seer:          { name: "Seer",          desc: "Each night, learn one player's role." },
+        Doctor:        { name: "Doctor",        desc: "Protect one player each night." },
+        Hunter:        { name: "Hunter",        desc: "On death, take one player with you." },
+        Witch:         { name: "Witch",         desc: "Hold one life potion and one death potion." },
+        Bodyguard:     { name: "Bodyguard",     desc: "Protect a player; die in their place." },
+        Cupid:         { name: "Cupid",         desc: "Link two players: if one dies, so does the other." },
+        "Alpha Wolf":  { name: "Alpha Wolf",    desc: "Can convert a villager into a wolf." },
+        Minion:        { name: "Minion",        desc: "Knows the wolves. Wins with them." },
+        "Serial Killer":{ name: "Serial Killer",desc: "Kills alone each night. Wins alone." },
+        Jester:        { name: "Jester",        desc: "Win by being voted out by the village." }
+      },
+      common: {
+        confirm: "Confirm",
+        cancel: "Cancel",
+        skip: "Skip",
+        next: "Next",
+        back: "Back",
+        loading: "Loading…",
+        round: "Round",
+        alive: "Alive",
+        dead: "Dead",
+        players: "players",
+        unknown: "Unknown"
+      }
+    }
+  };
 
-    let translations = {};
-    let currentLang = 'fr';
-    const availableLangs = ['fr', 'en'];
+  let _lang = 'fr';
 
-    // ============================================
-    // Translation Data (Embedded for simplicity)
-    // ============================================
+  function setLanguage(lang) {
+    if (TRANSLATIONS[lang]) {
+      _lang = lang;
+    }
+  }
 
-    const embeddedTranslations = {
-        fr: {
-            // General
-            'app.title': 'Loup Garou',
-            'status.connecting': 'Connexion en cours...',
-            'status.connected': 'Connecté',
-            'status.error': 'Erreur de connexion',
-            'status.waiting_setup': 'En attente de configuration',
-            'status.game_in_progress': 'Partie en cours',
+  function getLanguage() { return _lang; }
 
-            // Setup
-            'setup.title': 'Configuration de la partie',
-            'setup.players_label': 'Joueurs',
-            'setup.players_min': '{{count}}/5 min',
-            'setup.add_player_placeholder': 'Nom du joueur',
-            'setup.add_player_button': 'Ajouter',
-            'setup.roles_label': 'Distribution des rôles',
-            'setup.villagers': 'Villageois',
-            'setup.werewolves': 'Loups',
-            'setup.seers': 'Voyante',
-            'setup.start_button': 'Commencer la partie',
-            'setup.error_min_players': 'Il faut au moins 5 joueurs pour commencer',
-            'setup.error_role_mismatch': 'Le nombre de rôles ({{roles}}) doit correspondre au nombre de joueurs ({{players}})',
-            'setup.players_empty': 'Aucun joueur ajouté',
+  function t(key, vars = {}) {
+    const parts = key.split('.');
+    let val = TRANSLATIONS[_lang];
+    for (const part of parts) {
+      if (val == null) break;
+      val = val[part];
+    }
+    if (val == null) {
+      // Fallback to EN
+      val = TRANSLATIONS['en'];
+      for (const part of parts) {
+        if (val == null) break;
+        val = val[part];
+      }
+    }
+    if (val == null) return key;
+    if (typeof val !== 'string') return key;
+    // Interpolate {varName}
+    return val.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : `{${k}}`));
+  }
 
-            // Phases
-            'phase.setup': 'Configuration',
-            'phase.role_reveal': 'Distribution des rôles',
-            'phase.night_start': 'Nuit - Le village s\'endort',
-            'phase.night_seer_wake': 'Nuit - Réveil de la Voyante',
-            'phase.night_seer_act': 'Nuit - La Voyante observe',
-            'phase.night_seer_sleep': 'Nuit - La Voyante se rendort',
-            'phase.night_wolf_wake': 'Nuit - Réveil des Loups',
-            'phase.night_wolf_act': 'Nuit - Les Loups choisissent leur victime',
-            'phase.night_wolf_sleep': 'Nuit - Les Loups se rendorment',
-            'phase.day': 'Jour',
-            'phase.vote': 'Vote',
-            'phase.discussion': 'Discussion',
-            'phase.game_over': 'Fin de partie',
+  function getRoleName(roleKey) {
+    return t(`roles.${roleKey}.name`) || roleKey;
+  }
 
-            // Role Reveal
-            'reveal.banner': '{{player}} doit voir son rôle',
-            'reveal.progress': '{{current}}/{{total}}',
-            'reveal.confirm_button': 'J\'ai vu mon rôle',
+  function getRoleDesc(roleKey) {
+    return t(`roles.${roleKey}.desc`) || '';
+  }
 
-            // Night Actions
-            'night.seer_turn': 'Tour de la {{role}}',
-            'night.wolf_turn': 'Tour des {{role}}',
-            'night.seer_action': 'observer le joueur choisi',
-            'night.wolf_action': 'tuer le joueur choisi',
-            'night.skip': 'Passer (ne rien faire)',
-            'night.continue': 'Continuer',
-            'night.seer_investigate': 'Observer le joueur choisi',
-            'night.start_night': 'Commencer la nuit',
-            'night.hint_select': 'Sélectionnez un joueur pour l\'observer',
-            'night.hint_select_kill': 'Sélectionnez un joueur (non-loup) pour le tuer',
-            'night.hint_wait': 'Attendez...',
-            'night.hint_wait_wake': 'Attendez que la scène se termine...',
-            'actions.investigate_result': '{{name}} est {{allegiance}}',
-            'actions.investigate_wolf': 'un Loup-Garou',
-            'actions.investigate_not_wolf': 'pas un Loup-Garou',
-            'day.no_deaths': 'Miraculeusement, personne n\'est mort cette nuit.',
-            'night.hint_select_kill': 'Sélectionnez un joueur (non-loup) pour le tuer',
-            'night.hint_wait': 'Attendez...',
-            'night.hint_wait_wake': 'Attendez que la scène se termine...',
-
-            // Day Actions
-            'day.start_vote': 'Commencer le vote',
-            'day.skip_vote': 'Passer (sans vote)',
-            'day.skip_to_night': 'Commencer la nuit',
-
-            // Vote
-            'vote.start': 'Commencer le vote',
-            'vote.resolve': 'Terminer le vote',
-            'vote.cast': 'Votes: {{count}}/{{total}}',
-
-            // Game Over
-            'game_over.wolves_win': 'Les Loups-Garous ont gagné !',
-            'game_over.villagers_win': 'Le Village a gagné !',
-            'game_over.new_game': 'Nouvelle partie',
-
-            // Debug Panel
-            'debug.title': 'Panneau de test',
-            'debug.navigation': 'Navigation',
-            'debug.elimination': 'Élimination',
-            'debug.night_action': 'Action nuit',
-            'debug.log': 'Log',
-
-            // Roles
-            'role.villager': 'Villageois',
-            'role.werewolf': 'Loup-Garou',
-            'role.seer': 'Voyante',
-            'role.doctor': 'Docteur',
-            'role.hunter': 'Chasseur',
-            'role.witch': 'Sorcière',
-            'role.cupid': 'Cupidon',
-            'role.serial_killer': 'Tueur en série',
-            'role.jester': 'Bouffon',
-        },
-
-        en: {
-            // General
-            'app.title': 'Werewolf',
-            'status.connecting': 'Connecting...',
-            'status.connected': 'Connected',
-            'status.error': 'Connection error',
-            'status.waiting_setup': 'Waiting for setup',
-            'status.game_in_progress': 'Game in progress',
-
-            // Setup
-            'setup.title': 'Game Configuration',
-            'setup.players_label': 'Players',
-            'setup.players_min': '{{count}}/5 min',
-            'setup.add_player_placeholder': 'Player name',
-            'setup.add_player_button': 'Add',
-            'setup.roles_label': 'Role Distribution',
-            'setup.villagers': 'Villagers',
-            'setup.werewolves': 'Werewolves',
-            'setup.seers': 'Seer',
-            'setup.start_button': 'Start Game',
-            'setup.error_min_players': 'At least 5 players required',
-            'setup.error_role_mismatch': 'Role count ({{roles}}) must match player count ({{players}})',
-
-            // Phases
-            'phase.setup': 'Setup',
-            'phase.role_reveal': 'Role Distribution',
-            'phase.night_start': 'Night - Village sleeps',
-            'phase.night_seer_wake': 'Night - Seer Awakens',
-            'phase.night_seer_act': 'Night - Seer Observes',
-            'phase.night_seer_sleep': 'Night - Seer Sleeps',
-            'phase.night_wolf_wake': 'Night - Wolves Awake',
-            'phase.night_wolf_act': 'Night - Wolves Choose Victim',
-            'phase.night_wolf_sleep': 'Night - Wolves Sleep',
-            'phase.day': 'Day',
-            'phase.vote': 'Vote',
-            'phase.discussion': 'Discussion',
-            'phase.game_over': 'Game Over',
-
-            // Role Reveal
-            'reveal.banner': '{{player}} doit voir son rôle',
-            'reveal.progress': '{{current}}/{{total}}',
-            'reveal.confirm_button': 'I\'ve seen my role',
-
-            // Night Actions
-            'night.seer_turn': '{{role}}\'s Turn',
-            'night.wolf_turn': '{{role}}\'s Turn',
-            'night.seer_action': 'Observe chosen player',
-            'night.wolf_action': 'Kill chosen player',
-            'night.skip': 'Skip (do nothing)',
-            'night.continue': 'Continue',
-            'night.seer_investigate': 'Observe chosen player',
-            'night.start_night': 'Start Night',
-            'night.hint_select': 'Select a player to observe',
-            'night.hint_select_kill': 'Select a player (non-wolf) to kill',
-            'night.hint_wait': 'Please wait...',
-            'night.hint_wait_wake': 'Wait for scene to end...',
-            'actions.investigate_result': '{{name}} is {{allegiance}}',
-            'actions.investigate_wolf': 'a Werewolf',
-            'actions.investigate_not_wolf': 'not a Werewolf',
-            'day.no_deaths': 'Miraculously, no one died last night.',
-
-            // Day Actions
-            'day.start_vote': 'Start Vote',
-            'day.skip_vote': 'Skip (no vote)',
-            'day.skip_to_night': 'Start Night',
-
-            // Vote
-            'vote.start': 'Start Vote',
-            'vote.resolve': 'End Vote',
-            'vote.cast': 'Votes: {{count}}/{{total}}',
-
-            // Game Over
-            'game_over.wolves_win': 'The Werewolves Win!',
-            'game_over.villagers_win': 'The Village Wins!',
-            'game_over.new_game': 'New Game',
-
-            // Debug Panel
-            'debug.title': 'Debug Panel',
-            'debug.navigation': 'Navigation',
-            'debug.elimination': 'Elimination',
-            'debug.night_action': 'Night Action',
-            'debug.log': 'Log',
-
-            // Roles
-            'role.villager': 'Villager',
-            'role.werewolf': 'Werewolf',
-            'role.seer': 'Seer',
-            'role.doctor': 'Doctor',
-            'role.hunter': 'Hunter',
-            'role.witch': 'Witch',
-            'role.cupid': 'Cupid',
-            'role.serial_killer': 'Serial Killer',
-            'role.jester': 'Jester',
-        }
+  function getRoleColor(roleKey) {
+    const colors = {
+      'Werewolf':      'var(--color-wolf)',
+      'Alpha Wolf':    'var(--color-wolf)',
+      'Minion':        'var(--color-wolf)',
+      'Seer':          'var(--color-seer)',
+      'Doctor':        'var(--color-doctor)',
+      'Bodyguard':     'var(--color-hunter)',
+      'Hunter':        'var(--color-hunter)',
+      'Witch':         'var(--color-witch)',
+      'Cupid':         'var(--color-jester)',
+      'Villager':      'var(--color-village)',
+      'Serial Killer': 'var(--color-serial)',
+      'Jester':        'var(--color-jester)',
     };
+    return colors[roleKey] || 'var(--color-pale)';
+  }
 
-    // ============================================
-    // Functions
-    // ============================================
-
-    /**
-     * Set the current language
-     * @param {string} lang - Language code (e.g., 'fr', 'en')
-     */
-    function setLanguage(lang) {
-        if (availableLangs.includes(lang)) {
-            currentLang = lang;
-            translations = embeddedTranslations[lang];
-        }
-    }
-
-    /**
-     * Get the current language
-     * @returns {string} Current language code
-     */
-    function getLanguage() {
-        return currentLang;
-    }
-
-    /**
-     * Get available languages
-     * @returns {string[]} Array of language codes
-     */
-    function getAvailableLanguages() {
-        return [...availableLangs];
-    }
-
-    /**
-     * Translation function
-     * @param {string} key - Translation key
-     * @param {Object|undefined} params - Interpolation parameters
-     * @returns {string} Translated string or key as fallback
-     */
-    function t(key, params) {
-        let text = translations[key] || embeddedTranslations.fr[key] || key;
-
-        if (params) {
-            Object.keys(params).forEach(param => {
-                text = text.replace(new RegExp('\\{' + param + '\\}', 'g'), params[param]);
-            });
-        }
-
-        return text;
-    }
-
-    /**
-     * Check if a translation key exists
-     * @param {string} key - Translation key
-     * @returns {boolean}
-     */
-    function hasKey(key) {
-        return translations[key] !== undefined || embeddedTranslations.fr[key] !== undefined;
-    }
-
-    /**
-     * Detect browser language
-     * @returns {string} Detected language code
-     */
-    function detectLanguage() {
-        const browserLang = navigator.language.split('-')[0];
-        return availableLangs.includes(browserLang) ? browserLang : 'fr';
-    }
-
-    // ============================================
-    // Initialize
-    // ============================================
-
-    // Auto-detect language on load
-    setLanguage(detectLanguage());
-
-    // ============================================
-    // Public API
-    // ============================================
-
-    return {
-        setLanguage,
-        getLanguage,
-        getAvailableLanguages,
-        t,
-        hasKey,
-        detectLanguage,
-        translations: embeddedTranslations
+  function getRoleGlow(roleKey) {
+    const glows = {
+      'Werewolf':   'var(--color-wolf-glow)',
+      'Alpha Wolf': 'var(--color-wolf-glow)',
+      'Minion':     'var(--color-wolf-glow)',
+      'Seer':       'var(--color-seer-glow)',
     };
+    return glows[roleKey] || 'rgba(255,255,255,0.15)';
+  }
+
+  function getRoleTeam(roleKey) {
+    const teams = {
+      'Werewolf': 'wolf', 'Alpha Wolf': 'wolf', 'Minion': 'wolf',
+      'Serial Killer': 'solo', 'Jester': 'solo',
+    };
+    return teams[roleKey] || 'village';
+  }
+
+  function getRoleSymbol(roleKey) {
+    const symbols = {
+      'Werewolf':      '🐺',
+      'Alpha Wolf':    '🐺',
+      'Minion':        '🩸',
+      'Seer':          '🔮',
+      'Doctor':        '💊',
+      'Bodyguard':     '🛡️',
+      'Hunter':        '🏹',
+      'Witch':         '🧪',
+      'Cupid':         '💘',
+      'Villager':      '🏡',
+      'Serial Killer': '🔪',
+      'Jester':        '🎭',
+    };
+    return symbols[roleKey] || '❓';
+  }
+
+  function getTeamLabel(team) {
+    if (team === 'wolf')    return t('reveal.team_wolf');
+    if (team === 'solo')    return t('reveal.team_solo');
+    return t('reveal.team_village');
+  }
+
+  return {
+    setLanguage,
+    getLanguage,
+    t,
+    getRoleName,
+    getRoleDesc,
+    getRoleColor,
+    getRoleGlow,
+    getRoleTeam,
+    getRoleSymbol,
+    getTeamLabel
+  };
 })();
 
-// Export for ES modules (if supported)
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = LoupGarouI18n;
-}
+// Export for module systems
+if (typeof module !== 'undefined') module.exports = LoupGarouI18n;

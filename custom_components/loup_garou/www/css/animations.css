@@ -1,378 +1,364 @@
-/**
- * animations.css - Transition Effects
- *
- * Night/day transitions and phase change animations.
- */
+/* ═══════════════════════════════════════════
+   LOUP GAROU — Animations
+   Phase Transitions, Night/Day, Effects
+   ═══════════════════════════════════════════ */
 
-/* ============================================
- * Phase Overlay (Full-screen transition)
- * ============================================ */
-
-#phase-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-modal);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
+/* ──────────────────────────────────────────
+   VIEW TRANSITIONS
+   ────────────────────────────────────────── */
+@keyframes view-enter {
+  from {
     opacity: 0;
-    transition: opacity 0.5s ease;
-}
-
-#phase-overlay.visible {
+    transform: translateY(12px);
+  }
+  to {
     opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.phase-overlay__bg {
-    position: absolute;
-    inset: 0;
-    background: inherit;
+@keyframes view-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
 }
 
-.phase-overlay__text {
-    position: relative;
-    z-index: 1;
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-/* ============================================
- * Night Transitions
- * ============================================ */
-
-@keyframes nightFadeIn {
-    from {
-        opacity: 0;
-        background-color: rgba(10, 10, 30, 0);
-    }
-    to {
-        opacity: 1;
-        background-color: rgba(10, 10, 30, 0.95);
-    }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.night-transition-enter {
-    animation: nightFadeIn 0.8s ease-out forwards;
+@keyframes fade-down {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Moon rising animation for werewolf turn */
-@keyframes moonRise {
-    0% {
-        transform: translateY(50px) scale(0.5);
-        opacity: 0;
-    }
-    50% {
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.88); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-.moon-icon {
-    font-size: var(--font-size-hero);
-    color: var(--color-werewolf);
-    animation: moonRise 1.2s ease-out;
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-/* ============================================
- * Day Transitions
- * ============================================ */
-
-@keyframes dayBreak {
-    0% {
-        opacity: 0;
-        transform: scale(1.2);
-        filter: brightness(2);
-    }
-    50% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1);
-        filter: brightness(1);
-    }
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-.day-transition-enter {
-    animation: dayBreak 1s ease-out forwards;
+/* ──────────────────────────────────────────
+   STAGGERED CHILDREN
+   ────────────────────────────────────────── */
+.stagger-children > * {
+  animation: fade-up var(--duration-slow) var(--ease-out) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 480ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 560ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 640ms; }
+.stagger-children > *:nth-child(n+10) { animation-delay: 720ms; }
+
+/* ──────────────────────────────────────────
+   GLOW PULSES
+   ────────────────────────────────────────── */
+@keyframes pulse-glow-wolf {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(233,69,96,0.3), 0 0 50px rgba(233,69,96,0.1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(233,69,96,0.55), 0 0 80px rgba(233,69,96,0.2);
+  }
 }
 
-.sun-icon {
-    font-size: var(--font-size-hero);
-    color: var(--color-accent-warning);
-    animation: dayBreak 1.2s ease-out;
+@keyframes pulse-glow-seer {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(157,78,221,0.3), 0 0 50px rgba(157,78,221,0.1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(157,78,221,0.55), 0 0 80px rgba(157,78,221,0.2);
+  }
 }
 
-/* ============================================
- * Role Reveal Animations
- * ============================================ */
-
-@keyframes cardFlip {
-    0% {
-        transform: rotateY(0deg);
-    }
-    50% {
-        transform: rotateY(90deg);
-    }
-    100% {
-        transform: rotateY(0deg);
-    }
+@keyframes pulse-glow-village {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(246,201,14,0.25), 0 0 50px rgba(246,201,14,0.08);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(246,201,14,0.45), 0 0 80px rgba(246,201,14,0.16);
+  }
 }
 
-.role-card-reveal {
-    animation: cardFlip 0.8s ease-in-out;
+/* ──────────────────────────────────────────
+   NIGHT / DAY PHASE OVERLAYS
+   ────────────────────────────────────────── */
+
+/* Moon that drifts in on night start */
+.moon-overlay {
+  position: fixed;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 180px;
+  height: 180px;
+  border-radius: var(--radius-full);
+  background: radial-gradient(circle at 38% 38%, #e8e4d4 0%, #c8c0a8 60%, #a09880 100%);
+  box-shadow:
+    0 0 40px rgba(200,190,160,0.25),
+    0 0 100px rgba(200,190,160,0.1),
+    inset -8px -8px 20px rgba(0,0,0,0.25);
+  pointer-events: none;
+  z-index: var(--z-base);
+  opacity: 0;
+  transition:
+    top 2s var(--ease-out),
+    opacity 1s var(--ease-out);
 }
 
-@keyframes maskDrop {
-    0% {
-        transform: translateY(-100%) rotate(-10deg);
-        opacity: 0;
-    }
-    60% {
-        transform: translateY(10%) rotate(2deg);
-    }
-    80% {
-        transform: translateY(-5%) rotate(-1deg);
-    }
-    100% {
-        transform: translateY(0) rotate(0deg);
-        opacity: 1;
-    }
+.moon-overlay.visible {
+  top: -60px;
+  opacity: 0.5;
 }
 
-.mask-reveal {
-    animation: maskDrop 0.6s ease-out;
+/* Stars background */
+.stars-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-base);
+  opacity: 0;
+  transition: opacity 2s ease;
 }
 
-/* ============================================
- * Player Card Animations
- * ============================================ */
+.stars-layer.visible { opacity: 1; }
 
-@keyframes playerEnter {
-    0% {
-        opacity: 0;
-        transform: scale(0.8) translateY(20px);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
+.stars-layer canvas {
+  width: 100%;
+  height: 100%;
 }
 
-.player-enter {
-    animation: playerEnter 0.4s ease-out forwards;
+/* ──────────────────────────────────────────
+   SPECIFIC PHASE TRANSITIONS
+   ────────────────────────────────────────── */
+
+/* Night phase fade — body darkens */
+.phase-transition-night {
+  animation: phase-to-night 1.5s var(--ease-inout) forwards;
 }
 
-@keyframes playerExit {
-    0% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: scale(0.8) translateY(-20px);
-    }
+@keyframes phase-to-night {
+  0%   { filter: brightness(1) saturate(1); }
+  100% { filter: brightness(0.85) saturate(0.7); }
 }
 
-.player-exit {
-    animation: playerExit 0.3s ease-in forwards;
+/* Dawn / day brightening */
+.phase-transition-day {
+  animation: phase-to-day 1.5s var(--ease-inout) forwards;
 }
 
-/* ============================================
- * Death Animation
- * ============================================ */
-
-@keyframes deathFade {
-    0% {
-        filter: grayscale(0) brightness(1);
-        transform: scale(1);
-    }
-    50% {
-        filter: grayscale(1) brightness(0.5);
-        transform: scale(1.1);
-    }
-    100% {
-        filter: grayscale(1) brightness(0.3);
-        transform: scale(0.9);
-    }
+@keyframes phase-to-day {
+  0%   { filter: brightness(0.85) saturate(0.7); }
+  100% { filter: brightness(1) saturate(1); }
 }
 
-.player-death {
-    animation: deathFade 1s ease-out forwards;
+/* ──────────────────────────────────────────
+   CARD ANIMATIONS
+   ────────────────────────────────────────── */
+
+/* Role card flip hint */
+@keyframes card-hint {
+  0%   { transform: rotateY(0deg); }
+  20%  { transform: rotateY(12deg); }
+  40%  { transform: rotateY(0deg); }
+  100% { transform: rotateY(0deg); }
 }
 
-/* ============================================
- * Seer Vision Animation
- * ============================================ */
-
-@keyframes eyeGlow {
-    0%, 100% {
-        box-shadow: 0 0 10px var(--color-seer-glow);
-    }
-    50% {
-        box-shadow: 0 0 30px var(--color-seer-glow), 0 0 50px var(--color-seer-glow);
-    }
+.role-card:not(.revealed):hover .role-card__inner {
+  animation: card-hint 0.6s var(--ease-out);
 }
 
-.seer-vision-active {
-    animation: eyeGlow 2s ease-in-out infinite;
+/* Player card selected pulse */
+@keyframes selected-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--role-color, var(--color-wolf)), 0 8px 32px rgba(0,0,0,0.6); }
+  50%       { box-shadow: 0 0 0 4px var(--role-color, var(--color-wolf)), 0 8px 40px rgba(0,0,0,0.7); }
 }
 
-@keyframes revealPulse {
-    0% {
-        transform: scale(1);
-        opacity: 0.8;
-    }
-    50% {
-        transform: scale(1.05);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 0.8;
-    }
+.player-card.selected {
+  animation: selected-pulse 1.5s var(--ease-inout) infinite;
 }
 
-.seer-reveal-result {
-    animation: revealPulse 1.5s ease-in-out infinite;
+/* Death animation */
+@keyframes player-death {
+  0%   { opacity: 1; transform: scale(1) rotate(0deg); filter: none; }
+  30%  { opacity: 0.8; transform: scale(1.05) rotate(-2deg); filter: brightness(2) saturate(0); }
+  60%  { opacity: 0.5; transform: scale(0.95) rotate(1deg); filter: brightness(0.5) saturate(0); }
+  100% { opacity: 0.38; transform: scale(1) rotate(0deg); filter: grayscale(0.7); }
 }
 
-/* ============================================
- * Werewolf Hunt Animation
- * ============================================ */
-
-@keyframes wolfGrowl {
-    0%, 100% {
-        transform: scale(1);
-        color: var(--color-werewolf);
-    }
-    25% {
-        transform: scale(1.1) rotate(-2deg);
-    }
-    75% {
-        transform: scale(1.1) rotate(2deg);
-    }
+.player-card.dying {
+  animation: player-death 1.2s var(--ease-out) forwards;
 }
 
-.wolf-attack-active {
-    animation: wolfGrowl 0.5s ease-in-out 3;
+/* ──────────────────────────────────────────
+   VOTE ANIMATIONS
+   ────────────────────────────────────────── */
+@keyframes vote-register {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.08); }
+  70%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
 }
 
-/* ============================================
- * Vote Animations
- * ============================================ */
+.vote-registered { animation: vote-register 0.4s var(--ease-spring); }
 
-@keyframes voteTick {
-    0% {
-        transform: scale(1);
-        color: var(--color-text-primary);
-    }
-    50% {
-        transform: scale(1.2);
-        color: var(--color-accent-warning);
-    }
-    100% {
-        transform: scale(1);
-        color: var(--color-text-primary);
-    }
+/* ──────────────────────────────────────────
+   GAME OVER
+   ────────────────────────────────────────── */
+@keyframes winner-reveal {
+  0%   { opacity: 0; transform: scale(0.6) translateY(30px); }
+  60%  { transform: scale(1.08) translateY(-6px); }
+  80%  { transform: scale(0.97) translateY(2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.vote-count-tick {
-    animation: voteTick 0.3s ease-out;
+.winner-emblem {
+  animation: winner-reveal 1s var(--ease-spring) 0.2s both;
 }
 
-@keyframes tallyMark {
-    0% {
-        height: 0;
-    }
-    100% {
-        height: 100%;
-    }
+.winner-title {
+  animation: fade-up var(--duration-slow) var(--ease-out) 0.5s both;
 }
 
-.tally-mark {
-    animation: tallyMark 0.2s ease-out forwards;
+/* Wolf win — strobe flash */
+@keyframes wolf-victory-flash {
+  0%, 100%  { background: rgba(233,69,96,0.0); }
+  10%, 30%, 50% { background: rgba(233,69,96,0.08); }
+  20%, 40%  { background: rgba(233,69,96,0.0); }
 }
 
-/* ============================================
- * Victory Animations
- * ============================================ */
-
-@keyframes victoryGlow {
-    0%, 100% {
-        box-shadow: 0 0 20px currentColor;
-    }
-    50% {
-        box-shadow: 0 0 50px currentColor, 0 0 80px currentColor;
-    }
+#view-end.wolves-win {
+  animation: wolf-victory-flash 2s ease 0.5s 3;
 }
 
-.victory-glow {
-    animation: victoryGlow 2s ease-in-out infinite;
+/* Village win — gentle sunrise */
+@keyframes village-victory-glow {
+  0%   { background-size: 100% 100%; }
+  100% { background-size: 160% 160%; }
 }
 
-@keyframes trophyBounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-15px);
-    }
+/* ──────────────────────────────────────────
+   LOADING SPINNER
+   ────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.trophy-bounce {
-    animation: trophyBounce 1s ease-in-out infinite;
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid rgba(255,255,255,0.08);
+  border-top-color: var(--color-seer);
+  border-radius: var(--radius-full);
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
 }
 
-/* ============================================
- * Stagger Animation Delays
- * ============================================ */
-
-.stagger-1 { animation-delay: 0.1s; }
-.stagger-2 { animation-delay: 0.2s; }
-.stagger-3 { animation-delay: 0.3s; }
-.stagger-4 { animation-delay: 0.4s; }
-.stagger-5 { animation-delay: 0.5s; }
-.stagger-6 { animation-delay: 0.6s; }
-.stagger-7 { animation-delay: 0.7s; }
-.stagger-8 { animation-delay: 0.8s; }
-
-/* ============================================
- * Utility Classes
- * ============================================ */
-
-.transition-phase {
-    transition: all 0.5s ease;
+.spinner-sm {
+  width: 18px; height: 18px;
+  border-width: 2px;
 }
 
-.transition-fade {
-    transition: opacity 0.3s ease;
+/* ──────────────────────────────────────────
+   RIPPLE EFFECT
+   ────────────────────────────────────────── */
+.btn {
+  overflow: hidden;
 }
 
-.transition-transform {
-    transition: transform 0.3s ease;
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transform: scale(0);
+  animation: ripple-expand 0.5s linear;
+  pointer-events: none;
 }
 
-.transition-scale {
-    transition: transform 0.2s ease;
+@keyframes ripple-expand {
+  to { transform: scale(4); opacity: 0; }
 }
 
-/* ============================================
- * Reduced Motion
- * ============================================ */
+/* ──────────────────────────────────────────
+   NIGHT STARS TWINKLE
+   ────────────────────────────────────────── */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.3); }
+}
 
+.star {
+  position: absolute;
+  width: 2px; height: 2px;
+  border-radius: 50%;
+  background: white;
+  animation: twinkle var(--twinkle-dur, 3s) ease-in-out infinite;
+  animation-delay: var(--twinkle-delay, 0s);
+}
+
+/* ──────────────────────────────────────────
+   TEXT ANIMATIONS
+   ────────────────────────────────────────── */
+@keyframes text-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--color-pale) 0%,
+    var(--color-white) 40%,
+    var(--color-pale) 80%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: text-shimmer 3s linear infinite;
+}
+
+/* ──────────────────────────────────────────
+   COUNTDOWN TIMER
+   ────────────────────────────────────────── */
+@keyframes countdown-tick {
+  0%   { transform: scale(1.15); opacity: 0.8; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+.countdown-tick { animation: countdown-tick 0.3s var(--ease-out); }
+
+/* ──────────────────────────────────────────
+   REDUCED MOTION SUPPORT
+   ────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-    }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

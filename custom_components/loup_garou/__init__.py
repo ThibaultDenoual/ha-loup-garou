@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 
 from .const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE
-from .core.game_engine import GameEngine
+from .core_game.io_adapters.ha_adapter import AsyncGameAdapter as GameEngine
 from .services.lights import LightController
 from .services.tts import TTSController
 from .services.phase_manager import PhaseManager

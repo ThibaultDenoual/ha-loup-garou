@@ -8,7 +8,7 @@ from ..const import NightActionType, EliminationCause
 
 if TYPE_CHECKING:
     from aiohttp import web
-    from ..core.adapter import AsyncGameAdapter as GameEngine
+    from ..core_game.io_adapters.ha_adapter import AsyncGameAdapter as GameEngine
     from ..services.phase_manager import PhaseManager
 
 _LOGGER = logging.getLogger(__name__)

@@ -6,12 +6,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent.resolve()
 
-if str(ROOT / "custom_components") not in sys.path:
-    sys.path.insert(0, str(ROOT / "custom_components"))
 if str(ROOT / "custom_components" / "loup_garou") not in sys.path:
     sys.path.insert(0, str(ROOT / "custom_components" / "loup_garou"))
-if str(ROOT / "custom_components" / "loup_garou" / "core_game") not in sys.path:
-    sys.path.insert(0, str(ROOT / "custom_components" / "loup_garou" / "core_game"))
 
 import pytest
 import asyncio
@@ -59,7 +55,7 @@ def mock_store():
 @pytest.fixture
 def mock_engine(mock_hass):
     """Create an AsyncGameAdapter (new engine wrapper)."""
-    from custom_components.loup_garou.core.adapter import AsyncGameAdapter
+    from custom_components.loup_garou.core_game.io_adapters.ha_adapter import AsyncGameAdapter
 
     engine = AsyncGameAdapter(hass=mock_hass, config_entry_id="test_entry")
     return engine

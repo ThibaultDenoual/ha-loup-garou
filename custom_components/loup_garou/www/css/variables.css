@@ -1,106 +1,142 @@
-/**
- * CSS Custom Properties (Variables)
- * Central design tokens for Loup Garou
- */
+/* ═══════════════════════════════════════════
+   LOUP GAROU — Design Tokens
+   Dark Occult / Gothic Tabletop Aesthetic
+   ═══════════════════════════════════════════ */
 
 :root {
-    /* Colors - Dark Theme */
-    --color-bg-primary: #1a1a2e;
-    --color-bg-secondary: #16213e;
-    --color-bg-tertiary: #0f3460;
-    --color-bg-dark: #0d1b2a;
+  /* ── Core Palette ── */
+  --color-void:        #07080a;
+  --color-abyss:       #0d0f14;
+  --color-shadow:      #12151d;
+  --color-dusk:        #1a1e2a;
+  --color-dusk-mid:    #222838;
+  --color-slate:       #2e3547;
+  --color-mist:        #4a5568;
+  --color-ash:         #718096;
+  --color-pale:        #a0aec0;
+  --color-ghost:       #cbd5e0;
+  --color-bone:        #e2e8f0;
+  --color-white:       #f7f8fa;
 
-    /* Accent Colors */
-    --color-accent-primary: #e94560;
-    --color-accent-secondary: #0f3460;
-    --color-accent-success: #4caf50;
-    --color-accent-warning: #ffc107;
-    --color-accent-danger: #dc3545;
-    --color-accent-info: #5b9bd5;
+  /* ── Role Colors ── */
+  --color-wolf:        #e94560;
+  --color-wolf-dark:   #9b1d30;
+  --color-wolf-glow:   rgba(233, 69, 96, 0.35);
+  --color-seer:        #9d4edd;
+  --color-seer-dark:   #5a2d82;
+  --color-seer-glow:   rgba(157, 78, 221, 0.35);
+  --color-village:     #f6c90e;
+  --color-village-dark:#9e7b00;
+  --color-village-glow:rgba(246, 201, 14, 0.30);
+  --color-hunter:      #e67e22;
+  --color-witch:       #1abc9c;
+  --color-doctor:      #3498db;
+  --color-serial:      #e74c3c;
+  --color-jester:      #fd79a8;
+  --color-neutral:     #74b9ff;
 
-    /* Role Colors */
-    --color-werewolf: #e94560;
-    --color-werewolf-glow: rgba(233, 69, 96, 0.4);
-    --color-seer: #9d4edd;
-    --color-seer-glow: rgba(157, 78, 221, 0.4);
-    --color-villager: #22c55e;
-    --color-villager-glow: rgba(34, 197, 94, 0.3);
+  /* ── Phase Accent Colors ── */
+  --color-night:       #1a1e2a;
+  --color-dawn:        #3d2b1f;
+  --color-day:         #2a2210;
+  --color-vote:        #2a1015;
 
-    /* Text Colors */
-    --color-text-primary: #eee;
-    --color-text-secondary: #b0b0b0;
-    --color-text-muted: #8b8b9e;
-    --color-text-inverse: #1a1a2e;
+  /* ── Surface Layers ── */
+  --surface-0:         var(--color-void);
+  --surface-1:         var(--color-abyss);
+  --surface-2:         var(--color-shadow);
+  --surface-3:         var(--color-dusk);
+  --surface-card:      rgba(26, 30, 42, 0.90);
+  --surface-glass:     rgba(255, 255, 255, 0.04);
+  --surface-glass-hover: rgba(255, 255, 255, 0.07);
 
-    /* Borders */
-    --color-border-default: #333;
-    --color-border-light: #444;
-    --color-border-focus: #5b9bd5;
+  /* ── Typography ── */
+  --font-display:      'Cinzel', 'Palatino Linotype', serif;
+  --font-body:         'Lato', 'Helvetica Neue', sans-serif;
+  --font-mono:         'JetBrains Mono', 'Courier New', monospace;
 
-    /* Typography */
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    --font-family-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  --text-xs:    0.70rem;
+  --text-sm:    0.825rem;
+  --text-base:  1rem;
+  --text-md:    1.125rem;
+  --text-lg:    1.25rem;
+  --text-xl:    1.5rem;
+  --text-2xl:   1.875rem;
+  --text-3xl:   2.25rem;
+  --text-4xl:   3rem;
+  --text-5xl:   4rem;
 
-    --font-size-xs: 11px;
-    --font-size-sm: 13px;
-    --font-size-base: 16px;
-    --font-size-lg: 18px;
-    --font-size-xl: 24px;
-    --font-size-2xl: 32px;
-    --font-size-hero: 48px;
+  --weight-light:  300;
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-bold:   700;
+  --weight-black:  900;
 
-    --font-weight-normal: 400;
-    --font-weight-medium: 500;
-    --font-weight-semibold: 600;
-    --font-weight-bold: 700;
+  --leading-tight:  1.2;
+  --leading-snug:   1.4;
+  --leading-normal: 1.6;
+  --leading-loose:  1.9;
 
-    --line-height-tight: 1.2;
-    --line-height-normal: 1.5;
-    --line-height-relaxed: 1.75;
+  --tracking-tight:  -0.02em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.08em;
+  --tracking-wider:   0.15em;
+  --tracking-widest:  0.25em;
 
-    /* Spacing */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
-    --spacing-2xl: 48px;
+  /* ── Spacing ── */
+  --sp-1:   0.25rem;
+  --sp-2:   0.5rem;
+  --sp-3:   0.75rem;
+  --sp-4:   1rem;
+  --sp-5:   1.25rem;
+  --sp-6:   1.5rem;
+  --sp-8:   2rem;
+  --sp-10:  2.5rem;
+  --sp-12:  3rem;
+  --sp-16:  4rem;
+  --sp-20:  5rem;
+  --sp-24:  6rem;
 
-    /* Border Radius */
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 14px;
-    --radius-round: 50%;
-    --radius-pill: 9999px;
+  /* ── Border & Radius ── */
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-full: 9999px;
 
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.4);
-    --shadow-glow: 0 0 20px var(--color-werewolf-glow);
+  --border-subtle:  1px solid rgba(255,255,255,0.06);
+  --border-muted:   1px solid rgba(255,255,255,0.10);
+  --border-visible: 1px solid rgba(255,255,255,0.18);
+  --border-accent:  1px solid var(--color-wolf);
 
-    /* Transitions */
-    --transition-fast: 0.15s ease;
-    --transition-normal: 0.25s ease;
-    --transition-slow: 0.4s ease;
+  /* ── Shadows & Glows ── */
+  --shadow-sm:   0 2px 8px rgba(0,0,0,0.5);
+  --shadow-md:   0 4px 20px rgba(0,0,0,0.6);
+  --shadow-lg:   0 8px 40px rgba(0,0,0,0.7);
+  --shadow-xl:   0 16px 64px rgba(0,0,0,0.8);
 
-    /* Z-index layers */
-    --z-base: 0;
-    --z-dropdown: 100;
-    --z-sticky: 200;
-    --z-modal: 300;
-    --z-toast: 400;
+  --glow-wolf:    0 0 24px var(--color-wolf-glow), 0 0 60px rgba(233,69,96,0.15);
+  --glow-seer:    0 0 24px var(--color-seer-glow), 0 0 60px rgba(157,78,221,0.15);
+  --glow-village: 0 0 24px var(--color-village-glow);
+  --glow-card:    0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
 
-    /* Layout */
-    --container-max-width: 800px;
-    --player-grid-min-width: 150px;
-}
+  /* ── Transitions ── */
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:    cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-snap:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
-/* Dark mode is default, but support light mode preference */
-@media (prefers-color-scheme: light) {
-    :root {
-        /* Light theme overrides can go here */
-        /* Currently keeping dark theme for game atmosphere */
-    }
+  --duration-fast:   150ms;
+  --duration-base:   250ms;
+  --duration-slow:   450ms;
+  --duration-xslow:  800ms;
+
+  /* ── Z-Index Layers ── */
+  --z-base:    0;
+  --z-raised:  10;
+  --z-float:   20;
+  --z-overlay: 50;
+  --z-modal:   100;
+  --z-toast:   200;
 }

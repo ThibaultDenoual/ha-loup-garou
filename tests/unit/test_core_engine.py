@@ -61,12 +61,12 @@ class TestEngineInitialization:
 
     def test_engine_requires_transitions(self):
         """Engine module should import successfully with transitions installed."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
         assert GameEngine is not None
 
     def test_engine_creation_basic(self):
         """Can create engine with basic parameters."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
         from core_game import Player, ROLE_REGISTRY
 
         io = MockIO()
@@ -82,7 +82,7 @@ class TestEngineInitialization:
 
     def test_engine_role_assignment(self):
         """Engine assigns correct number of each role."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
         from core_game import ROLE_REGISTRY
 
         io = MockIO()
@@ -101,7 +101,7 @@ class TestEngineInitialization:
 
     def test_engine_role_shuffle(self):
         """Engine shuffles roles for randomness."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io1 = MockIO()
         io2 = MockIO()
@@ -118,7 +118,7 @@ class TestEngineInitialization:
 
     def test_engine_explicit_roles(self):
         """Can specify explicit role names."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
         from core_game import ROLE_REGISTRY
 
         io = MockIO()
@@ -134,7 +134,7 @@ class TestEngineInitialization:
 
     def test_engine_role_count_mismatch_raises(self):
         """Engine raises if role count doesn't match player count."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         roles = ["Werewolf", "Seer"]
@@ -148,7 +148,7 @@ class TestEngineInitialization:
 
     def test_engine_preset_selection_small(self):
         """Engine picks 'small' preset for <= 6 players."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
         from core_game import PRESETS
 
         io = MockIO()
@@ -161,7 +161,7 @@ class TestEngineInitialization:
 
     def test_engine_player_links(self):
         """Players have their role.player reference set."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -179,7 +179,7 @@ class TestEngineFSM:
 
     def test_initial_state(self):
         """Engine starts in 'setup' state."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -192,7 +192,7 @@ class TestEngineFSM:
 
     def test_begin_game_exists_and_callable(self):
         """begin_game trigger exists and can be called."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -210,7 +210,7 @@ class TestEngineFSM:
 
     def test_start_night_exists_and_callable(self):
         """start_night trigger exists and can be called."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -226,7 +226,7 @@ class TestEngineFSM:
 
     def test_resolve_exists_and_callable(self):
         """resolve trigger exists and can be called."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -243,7 +243,7 @@ class TestEngineFSM:
 
     def test_dawn_exists_and_callable(self):
         """dawn trigger exists and can be called."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -261,7 +261,7 @@ class TestEngineFSM:
 
     def test_open_day_exists_and_callable(self):
         """open_day trigger exists and can be called."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -280,7 +280,7 @@ class TestEngineFSM:
 
     def test_call_vote_exists_and_callable(self):
         """call_vote trigger exists and can be called."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -300,7 +300,7 @@ class TestEngineFSM:
 
     def test_tally_exists_and_callable(self):
         """tally trigger exists and can be called."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -325,7 +325,7 @@ class TestEngineGuards:
 
     def test_game_continues_when_game_not_over(self):
         """game_continues returns True when no winner."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -338,7 +338,7 @@ class TestEngineGuards:
 
     def test_game_is_over_when_winner_set(self):
         """game_is_over returns True when winner is set."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -352,7 +352,7 @@ class TestEngineGuards:
 
     def test_next_round_fails_when_game_over(self):
         """next_round doesn't transition when game is over."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -375,7 +375,7 @@ class TestEngineWinConditions:
 
     def test_village_wins_when_no_werewolves(self):
         """Village wins when all werewolves eliminated."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -394,7 +394,7 @@ class TestEngineWinConditions:
 
     def test_werewolves_win_when_equal_count(self):
         """Werewolves win when count equals village count."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -411,7 +411,7 @@ class TestEngineWinConditions:
 
     def test_no_winner_when_balanced(self):
         """No winner when werewolves exist but are outnumbered."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -430,7 +430,7 @@ class TestEngineDeath:
 
     def test_kill_player_marks_dead(self):
         """_kill_player marks player as not alive."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -446,7 +446,7 @@ class TestEngineDeath:
 
     def test_kill_player_already_dead_ignores(self):
         """_kill_player ignores already dead player."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -465,7 +465,7 @@ class TestEngineDeath:
 
     def test_lover_dies_with_partner(self):
         """When a lover dies, their partner dies too."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -485,7 +485,7 @@ class TestEngineDeath:
 
     def test_log_on_death(self):
         """Death is logged to event log."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         engine = GameEngine(
@@ -507,7 +507,7 @@ class TestEnginePreset:
 
     def test_pick_preset_small(self):
         """_pick_preset returns 'small' for <= 6 players."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         assert GameEngine._pick_preset(6) == "small"
@@ -515,7 +515,7 @@ class TestEnginePreset:
 
     def test_pick_preset_medium(self):
         """_pick_preset returns 'medium' for 7-9 players."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         assert GameEngine._pick_preset(7) == "medium"
@@ -523,7 +523,7 @@ class TestEnginePreset:
 
     def test_pick_preset_large(self):
         """_pick_preset returns 'large' for 10-13 players."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         assert GameEngine._pick_preset(10) == "large"
@@ -531,7 +531,7 @@ class TestEnginePreset:
 
     def test_pick_preset_chaos(self):
         """_pick_preset returns 'chaos' for > 13 players."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
 
         io = MockIO()
         assert GameEngine._pick_preset(14) == "chaos"
@@ -542,7 +542,7 @@ class TestGameEvents:
 
     def test_events_on_night_resolved(self):
         """on_night_resolved is called when night actions complete."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
         from unittest.mock import MagicMock
 
         events = MagicMock()
@@ -563,7 +563,7 @@ class TestGameEvents:
 
     def test_events_on_player_eliminated(self):
         """on_player_eliminated is called when player dies."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
         from unittest.mock import MagicMock
 
         events = MagicMock()
@@ -583,7 +583,7 @@ class TestGameEvents:
 
     def test_events_on_game_over(self):
         """on_game_over is called when game ends."""
-        from engine import GameEngine
+        from core_game.engine import GameEngine
         from unittest.mock import MagicMock
 
         events = MagicMock()
