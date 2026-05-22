@@ -38,7 +38,8 @@ export function start(players) {
   _active = true;
   _players = players;
   _idx = 0;
-  _showCurrent();
+  // Brief pause so the game-start transition feels deliberate, not instant
+  setTimeout(_showCurrent, 900);
 }
 
 export function reset() {
@@ -80,6 +81,16 @@ function _onCardClick() {
 }
 
 function _onSeen() {
-  _idx++;
-  _showCurrent();
+  const card = document.getElementById('reveal-card');
+
+  // Flip the card back to front-face first — while the CURRENT role is still on the back.
+  // Only update the back face (new team color + role name) after the animation completes,
+  // so the next player's team is never visible during the flip.
+  card.classList.remove('flipped');
+  document.getElementById('btn-reveal-seen').style.display = 'none';
+
+  setTimeout(() => {
+    _idx++;
+    _showCurrent();
+  }, 650);  // slightly longer than the 600ms CSS transition
 }

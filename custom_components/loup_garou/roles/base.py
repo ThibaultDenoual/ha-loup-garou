@@ -137,6 +137,10 @@ class BaseRole:
     def get_public_state(self, ctx: RoleContext) -> dict:
         return {}
 
+    def should_wake(self, ctx: RoleContext) -> bool:
+        """Return False to skip this role's wake entirely for this night."""
+        return True
+
     def get_wake_data(self, ctx: RoleContext) -> dict:
         """Extra data to include in NIGHT_ROLE_WAKE payload. Roles override this."""
         return {}

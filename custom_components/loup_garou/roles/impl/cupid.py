@@ -8,6 +8,9 @@ class Cupid(BaseRole):
     night_priority = 5  # First role to act each game (night 1 only)
     has_night_action = True
 
+    def should_wake(self, ctx: RoleContext) -> bool:
+        return ctx.night_number == 1
+
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
         if ctx.night_number != 1:
             return

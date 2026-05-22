@@ -4,7 +4,6 @@ let _send;
 let _getState;
 let _toast;
 
-// Current night action state
 let _nightRole = null;
 let _naSelected = null;
 let _witchSaveTarget = null;
@@ -35,7 +34,7 @@ export function init(send, getState, toast) {
   });
 }
 
-// ── Public entry points ───────────────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────
 
 export function showSleeping(sleepText) {
   _setSection('sleeping');
@@ -70,7 +69,7 @@ export function onSleep() {
   showSleeping();
 }
 
-// ── Internal ──────────────────────────────────────────────────────────────────
+// ── Section switching ─────────────────────────────────────────────────────────
 
 function _setSection(which) {
   document.getElementById('night-sleeping').style.display = which === 'sleeping' ? '' : 'none';
@@ -79,33 +78,57 @@ function _setSection(which) {
 }
 
 function _setHalo(color) {
-  const view = document.getElementById('view-night');
-  view.style.setProperty('--role-halo', color || 'transparent');
+  document.getElementById('view-night').style.setProperty('--role-halo', color || 'transparent');
 }
+
+// ── Artifact helpers ──────────────────────────────────────────────────────────
+
+function _flash(type) {
+  const el = document.createElement('div');
+  el.className = `role-flash flash-${type}`;
+  document.body.appendChild(el);
+  // Remove after animation completes
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+}
+
+function _showArtifact(html) {
+  const el = document.getElementById('role-artifact');
+  el.innerHTML = html;
+  el.style.display = '';
+}
+
+function _hideArtifact() {
+  const el = document.getElementById('role-artifact');
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+function _seerOrbActivate() {
+  const orb = document.getElementById('seer-orb');
+  if (orb) orb.classList.add('active');
+}
+
+// ── Night action views ────────────────────────────────────────────────────────
 
 function _showNightAction(data) {
   const role = data.role;
   _naSelected = null;
   _cupidLovers = [];
 
+  _hideArtifact();
+
   document.getElementById('na-role-name').textContent = roleName(role);
   document.getElementById('na-prompt').textContent = t(`role.${role}.action_prompt`);
-
-  const victimBox = document.getElementById('na-victim');
-  victimBox.style.display = 'none';
-
-  const witchBox = document.getElementById('na-witch-potions');
-  witchBox.style.display = 'none';
+  document.getElementById('na-victim').style.display = 'none';
+  document.getElementById('na-witch-potions').style.display = 'none';
 
   const skip = document.getElementById('btn-na-skip');
   skip.style.display = '';
 
   const confirm = document.getElementById('btn-na-confirm');
   confirm.disabled = true;
+  confirm.className = 'primary';
   confirm.textContent = t('ui.vote.confirm') || 'Confirmer';
-
-  const grid = document.getElementById('na-grid');
-  grid.innerHTML = '';
 
   const state = _getState();
   const alive = state.players.filter(p => p.alive);
@@ -116,8 +139,23 @@ function _showNightAction(data) {
     _renderCupid(alive);
   } else if (role === 'alpha_wolf') {
     _renderAlphaWolf(alive);
+  } else if (role === 'seer') {
+    _showArtifact(`
+      <div class="seer-orb-wrap">
+        <div class="seer-orb" id="seer-orb"></div>
+      </div>`);
+    _renderTargetGrid(alive, 'selected', (pid) => {
+      _naSelected = pid;
+      confirm.disabled = false;
+      _seerOrbActivate();
+    });
+  } else if (role === 'werewolf') {
+    _renderTargetGrid(alive, 'wolf-locked', (pid) => {
+      _naSelected = pid;
+      confirm.disabled = false;
+    });
   } else {
-    _renderTargetGrid(alive, (pid) => {
+    _renderTargetGrid(alive, 'selected', (pid) => {
       _naSelected = pid;
       confirm.disabled = false;
     });
@@ -139,6 +177,14 @@ function _showSeerResult(data) {
   roleEl.textContent = roleName(roleId);
   roleEl.className = 'night-result-role ' + (isWolf ? 'team-wolf' : 'team-village');
 
+  // Apply reveal animation on the result box
+  const box = document.querySelector('#night-seer .night-result');
+  if (box) {
+    box.classList.remove('seer-reveal');
+    void box.offsetWidth; // force reflow to restart animation
+    box.classList.add('seer-reveal');
+  }
+
   document.getElementById('btn-seer-ack').textContent = t('ui.reveal.seen') || 'Compris';
   _setSection('seer');
 }
@@ -146,6 +192,8 @@ function _showSeerResult(data) {
 function _showHunterAction(data) {
   const hunterId = data.player_id;
   _naSelected = null;
+
+  _hideArtifact();
 
   document.getElementById('na-role-name').textContent = roleName('hunter');
   document.getElementById('na-prompt').textContent = t('role.hunter.death_prompt');
@@ -155,11 +203,12 @@ function _showHunterAction(data) {
 
   const confirm = document.getElementById('btn-na-confirm');
   confirm.disabled = true;
+  confirm.className = 'primary hunter-aim';
   confirm.textContent = '🔫 Tirer';
 
   const state = _getState();
   const targets = state.players.filter(p => p.alive && p.id !== hunterId);
-  _renderTargetGrid(targets, (pid) => {
+  _renderTargetGrid(targets, 'selected', (pid) => {
     _naSelected = pid;
     confirm.disabled = false;
   });
@@ -167,13 +216,18 @@ function _showHunterAction(data) {
   _setSection('action');
 }
 
-function _renderTargetGrid(players, onSelect) {
+// ── Grid renderers ────────────────────────────────────────────────────────────
+
+function _renderTargetGrid(players, selectionClass, onSelect) {
   const grid = document.getElementById('na-grid');
   grid.innerHTML = '';
   players.forEach(p => {
     const card = _makePlayerCard(p, () => {
-      grid.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
+      grid.querySelectorAll('.player-card').forEach(c => {
+        c.classList.remove('selected', 'wolf-locked', 'lover-pick');
+      });
       card.classList.add('selected');
+      if (selectionClass !== 'selected') card.classList.add(selectionClass);
       onSelect(p.id);
     });
     grid.appendChild(card);
@@ -204,7 +258,6 @@ function _renderWitch(data, alive) {
   const poisonBtn = document.getElementById('witch-poison-btn');
 
   if (_witchSaveAvail && victims.length) {
-    saveBtn.className = 'witch-toggle-btn secondary';
     saveBtn.disabled = false;
     saveBtn.onclick = () => {
       if (_witchSaveTarget) {
@@ -216,12 +269,11 @@ function _renderWitch(data, alive) {
       }
     };
   } else {
-    saveBtn.className = 'witch-toggle-btn secondary';
     saveBtn.disabled = true;
+    saveBtn.classList.remove('active');
   }
 
   if (_witchPoisonAvail) {
-    poisonBtn.className = 'witch-toggle-btn secondary';
     poisonBtn.disabled = false;
     poisonBtn.onclick = () => {
       if (poisonBtn.classList.contains('active')) {
@@ -235,11 +287,10 @@ function _renderWitch(data, alive) {
       }
     };
   } else {
-    poisonBtn.className = 'witch-toggle-btn secondary';
     poisonBtn.disabled = true;
+    poisonBtn.classList.remove('active');
   }
 
-  // Witch can always confirm (skip potions)
   document.getElementById('btn-na-confirm').disabled = false;
   document.getElementById('btn-na-skip').style.display = '';
 }
@@ -249,7 +300,7 @@ function _renderPoisonGrid(players) {
   grid.innerHTML = '';
   players.forEach(p => {
     const card = _makePlayerCard(p, () => {
-      grid.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected', 'targeted'));
+      grid.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected', 'wolf-locked', 'lover-pick', 'targeted'));
       card.classList.add('targeted');
       _witchPoisonTarget = p.id;
     });
@@ -266,10 +317,10 @@ function _renderCupid(alive) {
     const card = _makePlayerCard(p, () => {
       if (_cupidLovers.includes(p.id)) {
         _cupidLovers = _cupidLovers.filter(id => id !== p.id);
-        card.classList.remove('selected');
+        card.classList.remove('selected', 'lover-pick');
       } else if (_cupidLovers.length < 2) {
         _cupidLovers.push(p.id);
-        card.classList.add('selected');
+        card.classList.add('selected', 'lover-pick');
       }
       confirm.disabled = _cupidLovers.length !== 2;
     });
@@ -282,9 +333,7 @@ function _renderAlphaWolf(alive) {
   grid.innerHTML = '';
   const confirm = document.getElementById('btn-na-confirm');
 
-  // Exclude other wolves from conversion targets
   const targets = alive.filter(p => !['werewolf', 'alpha_wolf'].includes(p.role_id));
-
   if (targets.length === 0) {
     confirm.disabled = false;
     return;
@@ -298,17 +347,13 @@ function _renderAlphaWolf(alive) {
     });
     grid.appendChild(card);
   });
-  // Skip allowed — conversion is optional
 }
 
 // ── Button handlers ────────────────────────────────────────────────────────────
 
 function _onSkip() {
   if (_nightRole === 'witch') {
-    _send('submit_night_action', {
-      role: 'witch',
-      action: { player_id: _witchId },
-    });
+    _send('submit_night_action', { role: 'witch', action: { player_id: _witchId } });
   } else if (_nightRole === 'cupid') {
     _send('submit_night_action', { role: 'cupid', action: { lovers: [] } });
   } else if (_nightRole === 'alpha_wolf') {
@@ -339,7 +384,10 @@ function _onConfirm() {
   }
 
   if (_nightRole === 'hunter') {
-    if (_naSelected) _send('submit_pending_action', { role: 'hunter', action: { target: _naSelected } });
+    if (_naSelected) {
+      _flash('hunter');
+      _send('submit_pending_action', { role: 'hunter', action: { target: _naSelected } });
+    }
     return;
   }
 
@@ -352,6 +400,7 @@ function _onConfirm() {
   }
 
   if (_naSelected) {
+    if (_nightRole === 'werewolf') _flash('wolf');
     _send('submit_night_action', { role: _nightRole, action: { target: _naSelected } });
   }
 }

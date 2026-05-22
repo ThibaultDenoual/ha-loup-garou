@@ -103,6 +103,8 @@ class GameEngine:
         for role in self._night_roles():
             if not ctx.alive_players_by_role(role.id):
                 continue
+            if not role.should_wake(ctx):
+                continue
 
             wake_data = {"role": role.id}
             wake_data.update(role.get_wake_data(ctx))

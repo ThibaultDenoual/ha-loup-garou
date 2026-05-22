@@ -94,10 +94,12 @@ function onState(newState) {
       break;
 
     case 'day':
-      // Always transition to day when server says so
-      showView('day');
-      day.render(_nightDeaths);
-      _nightDeaths = [];
+      // Guard: PHASE_CHANGED(day) and DAY_STARTED both broadcast state — only render once.
+      if (currentView() !== 'view-day') {
+        showView('day');
+        day.render(_nightDeaths);
+        _nightDeaths = [];
+      }
       break;
 
     case 'vote':
