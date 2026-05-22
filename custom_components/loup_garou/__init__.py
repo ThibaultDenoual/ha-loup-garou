@@ -42,14 +42,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         language=conf.get(CONF_LANGUAGE, "fr"),
     )
 
-    engine = GameEngine(hass=hass, config_entry_id=entry.entry_id)
+    engine = GameEngine(
+        hass=hass,
+        config_entry_id=entry.entry_id,
+        tts_controller=speaker_controller,
+        light_controller=light_controller,
+    )
     #await engine.async_load()
 
     phase_manager = PhaseManager(
         hass=hass,
         engine=engine,
-        lights=light_controller,
-        speaker=speaker_controller,
+        io_interface=None,
         language=conf.get(CONF_LANGUAGE, "fr"),
     )
 

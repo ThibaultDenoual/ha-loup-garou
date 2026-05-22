@@ -3,5 +3,5 @@
   "render_readme": true,
   "homeassistant": ">=2024.1",
   "content_in_root": false,
-  "topics": ["home-assistant", "werewolf-game", "custom-integration", "smart-home", "party-game"]
+  "domains": ["loup_garou"]
 }

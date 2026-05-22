@@ -13,6 +13,7 @@ from ..const import (
     ROLE_ARTICLES_FR,
     TTS,
     EVENT_GAME_STATE_CHANGED,
+    EVENT_GAME_STARTED,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,65 +37,69 @@ class PhaseManager:
         self,
         hass,
         engine,
-        lights,
-        speaker,
-        language: str,
+        io_interface=None,
+        language: str = "fr",
     ) -> None:
         self._hass = hass
         self._engine = engine
-        self._lights = lights
-        self._speaker = speaker
+        self._io = io_interface
         self._lang = language
 
         hass.bus.async_listen(
             EVENT_GAME_STATE_CHANGED,
             self._handle_state_changed,
         )
-
-    async def on_game_started(self) -> None:
-        await self._speaker.async_speak(
-            _format_tts("roles_distributed", self._lang)
+        hass.bus.async_listen(
+            EVENT_GAME_STARTED,
+            self._handle_game_started,
         )
 
+    async def on_game_started(self) -> None:
+        if self._io:
+            self._io.speak(_format_tts("roles_distributed", self._lang))
+
     async def on_night_started(self) -> None:
-        await self._lights.async_set_scene("night")
-        await self._speaker.async_speak(_format_tts("night_start", self._lang))
+        if self._io:
+            self._io.set_scene("night")
+            self._io.speak(_format_tts("night_start", self._lang))
 
     async def on_phase_changed(self, phase: str) -> None:
         """Handle phase change events from the engine."""
+        if not self._io:
+            return
         if phase == Phase.NIGHT_START:
             await self.on_night_started()
         elif phase == Phase.NIGHT_SEER_WAKE:
-            await self._lights.async_set_scene("seer_wake")
-            await self._speaker.async_speak(_format_tts("seer_wake", self._lang))
+            self._io.set_scene("seer_wake")
+            self._io.speak(_format_tts("seer_wake", self._lang))
         elif phase == Phase.NIGHT_SEER_SLEEP:
-            await self._speaker.async_speak(_format_tts("seer_sleep", self._lang))
-            await self._lights.async_set_scene("night")
+            self._io.speak(_format_tts("seer_sleep", self._lang))
+            self._io.set_scene("night")
         elif phase == Phase.NIGHT_WOLF_WAKE:
-            await self._lights.async_set_scene("wolf_wake")
-            await self._speaker.async_speak(_format_tts("wolf_wake", self._lang))
+            self._io.set_scene("wolf_wake")
+            self._io.speak(_format_tts("wolf_wake", self._lang))
         elif phase == Phase.NIGHT_WOLF_SLEEP:
-            await self._speaker.async_speak(_format_tts("wolf_sleep", self._lang))
-            await self._lights.async_set_scene("night")
-        elif phase == Phase.DAY:
-            pass  # Handled by _handle_state_changed
-        elif phase == Phase.VOTE:
-            pass  # Handled by _handle_state_changed
+            self._io.speak(_format_tts("wolf_sleep", self._lang))
+            self._io.set_scene("night")
 
     async def on_role_wake(self, role: str) -> None:
         """Handle a role waking up - compatibility method for tests."""
+        if not self._io:
+            return
         if role == Role.SEER:
-            await self._lights.async_set_scene("seer_wake")
-            await self._speaker.async_speak(_format_tts("seer_wake", self._lang))
+            self._io.set_scene("seer_wake")
+            self._io.speak(_format_tts("seer_wake", self._lang))
         elif role == Role.WEREWOLF:
-            await self._lights.async_set_scene("wolf_wake")
-            await self._speaker.async_speak(_format_tts("wolf_wake", self._lang))
+            self._io.set_scene("wolf_wake")
+            self._io.speak(_format_tts("wolf_wake", self._lang))
 
     async def on_night_action_submitted(self, role: str) -> None:
         pass  # No longer needed - handled by phase events
 
     async def on_day_started(self, eliminated_player_id: str | None) -> None:
-        await self._lights.async_set_scene("day")
+        if not self._io:
+            return
+        self._io.set_scene("day")
 
         if eliminated_player_id:
             player = self._engine.state.players[eliminated_player_id]
@@ -113,23 +118,27 @@ class PhaseManager:
         else:
             text = _format_tts("day_start_no_death", self._lang)
 
-        await self._speaker.async_speak(text)
+        self._io.speak(text)
 
     async def on_vote_started(self) -> None:
-        await self._speaker.async_speak(_format_tts("vote_start", self._lang))
+        if self._io:
+            self._io.speak(_format_tts("vote_start", self._lang))
 
     async def on_vote_tie(self) -> None:
-        await self._speaker.async_speak(_format_tts("vote_tie", self._lang))
+        if self._io:
+            self._io.speak(_format_tts("vote_tie", self._lang))
 
     async def on_player_eliminated(
         self,
         player_id: str,
         cause: EliminationCause,
     ) -> None:
+        if not self._io:
+            return
         player = self._engine.state.players[player_id]
         role_name = _role_display(player.role, self._lang)
 
-        await self._lights.async_set_scene("death")
+        self._io.set_scene("death")
 
         if self._lang == "fr":
             article = ROLE_ARTICLES_FR.get(player.role, "un")
@@ -143,14 +152,16 @@ class PhaseManager:
                 name=player.name, role=role_name
             )
 
-        await self._speaker.async_speak(text)
+        self._io.speak(text)
 
     async def on_game_over(self, winner: WinCondition) -> None:
+        if not self._io:
+            return
         scene = "wolves_win" if winner == WinCondition.WOLVES else "village_win"
-        await self._lights.async_set_scene(scene)
+        self._io.set_scene(scene)
 
         tts_key = "wolves_win" if winner == WinCondition.WOLVES else "villagers_win"
-        await self._speaker.async_speak(_format_tts(tts_key, self._lang))
+        self._io.speak(_format_tts(tts_key, self._lang))
 
     async def _handle_state_changed(self, event) -> None:
         phase = event.data.get("phase", "")
@@ -165,5 +176,15 @@ class PhaseManager:
         elif phase == Phase.VOTE:
             await self.on_vote_started()
 
+    async def _handle_game_started(self, event) -> None:
+        io_interface = event.data.get("io")
+        if io_interface:
+            self._io = io_interface
+            await self.on_game_started()
+
     def set_language(self, lang: str) -> None:
         self._lang = lang
+
+    def set_io(self, io_interface) -> None:
+        """Set the IO interface (called when game starts)."""
+        self._io = io_interface
