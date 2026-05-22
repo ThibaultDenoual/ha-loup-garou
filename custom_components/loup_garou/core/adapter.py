@@ -104,7 +104,7 @@ class AsyncGameAdapter:
         """Initialize a new game with given players and roles."""
         role_cfg = role_config.get("preset") or "medium"
         role_names = CORE_PRESETS.get(role_cfg, CORE_PRESETS["small"])
-
+        _LOGGER.warning(f"Starting game with players: {player_names} and roles: {role_names}")
         if len(role_names) != len(player_names):
             raise ValueError(
                 f"Role count ({len(role_names)}) must match player count ({len(player_names)})"

@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ..game_state import Player
-    from ..io_interface import IOInterface
+
+from ..io_interface import IOInterface
 
 
 @dataclass
