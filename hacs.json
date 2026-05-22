@@ -1,0 +1,7 @@
+{
+  "name": "Loup Garou",
+  "render_readme": true,
+  "homeassistant": ">=2024.1",
+  "content_in_root": false,
+  "domains": ["loup_garou"]
+}

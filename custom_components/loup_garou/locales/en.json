@@ -1,0 +1,112 @@
+{
+  "_meta": {
+    "language": "en",
+    "version": "1.0"
+  },
+
+  "phase.night.start": "Night falls on the village. Everyone closes their eyes.",
+  "phase.day.start_with_death": "{name} was devoured last night. They were {article} {role}.",
+  "phase.day.start_no_death": "The village woke up peacefully. No one was killed last night.",
+  "phase.day.start_multi_death": "Last night was deadly. {names} have perished.",
+  "phase.vote.start": "The village must vote to eliminate a suspect.",
+  "phase.vote.tie": "The vote is tied. No one is eliminated.",
+  "phase.vote.result": "{name} was eliminated by the village. They were {article} {role}.",
+  "phase.game_over.wolves_win": "The werewolves have devoured the entire village. The wolves win!",
+  "phase.game_over.village_win": "All werewolves have been eliminated. The village wins!",
+  "phase.game_over.lovers_win": "The lovers have survived. Love triumphs!",
+  "phase.role_reveal.start": "Each player will now discover their role.",
+
+  "role.villager.name": "Villager",
+  "role.villager.description": "You are a simple villager. Sniff out the werewolves during the vote!",
+  "role.villager.team": "Village",
+
+  "role.werewolf.name": "Werewolf",
+  "role.werewolf.description": "You are a werewolf. Devour villagers at night without being unmasked.",
+  "role.werewolf.team": "Wolves",
+  "role.werewolf.wake": "The werewolves open their eyes.",
+  "role.werewolf.sleep": "The werewolves go back to sleep.",
+  "role.werewolf.action_prompt": "Designate your victim.",
+
+  "role.seer.name": "Seer",
+  "role.seer.description": "Each night, you can look into a player's eyes and discover if they are a werewolf.",
+  "role.seer.team": "Village",
+  "role.seer.wake": "The Seer opens her eyes.",
+  "role.seer.sleep": "The Seer goes back to sleep.",
+  "role.seer.action_prompt": "Designate a player to investigate.",
+  "role.seer.result": "{name} is {article} {role}.",
+  "role.seer.prompt_investigate": "Choose a player to reveal.",
+
+  "role.hunter.name": "Hunter",
+  "role.hunter.description": "If you are eliminated, you may take another player with you into death.",
+  "role.hunter.team": "Village",
+  "role.hunter.death_prompt": "You are dead! Designate a player to take with you.",
+
+  "role.elder.name": "Elder",
+  "role.elder.description": "You survive the first werewolf attack. The second will be fatal.",
+  "role.elder.team": "Village",
+
+  "role.scapegoat.name": "Scapegoat",
+  "role.scapegoat.description": "If the vote ends in a tie, you die instead.",
+  "role.scapegoat.team": "Village",
+
+  "role.little_girl.name": "Little Girl",
+  "role.little_girl.description": "At night, you can try to spy on the wolves. Be careful not to get caught!",
+  "role.little_girl.team": "Village",
+
+  "role.witch.name": "Witch",
+  "role.witch.description": "You have a healing potion and a poison, each usable only once.",
+  "role.witch.team": "Village",
+  "role.witch.wake": "The Witch opens her eyes.",
+  "role.witch.sleep": "The Witch goes back to sleep.",
+  "role.witch.save_prompt": "Do you want to use your healing potion to save {name}?",
+  "role.witch.poison_prompt": "Do you want to use your poison to kill someone?",
+  "role.witch.no_save_potion": "You have already used your healing potion.",
+  "role.witch.no_poison_potion": "You have already used your poison.",
+
+  "role.cupid.name": "Cupid",
+  "role.cupid.description": "On the first night, you link two players with love. If one dies, they both die.",
+  "role.cupid.team": "Village",
+  "role.cupid.wake": "Cupid opens his eyes.",
+  "role.cupid.sleep": "Cupid goes back to sleep.",
+  "role.cupid.action_prompt": "Designate the two lovers.",
+
+  "role.alpha_wolf.name": "Alpha Wolf",
+  "role.alpha_wolf.description": "Once per game, you can convert a villager into a werewolf.",
+  "role.alpha_wolf.team": "Wolves",
+  "role.alpha_wolf.wake": "The Alpha Wolf opens his eyes.",
+  "role.alpha_wolf.sleep": "The Alpha Wolf goes back to sleep.",
+  "role.alpha_wolf.action_prompt": "Designate a villager to convert (or skip).",
+
+  "role.minion.name": "Minion",
+  "role.minion.description": "You know the identity of the werewolves. You win if the wolves win.",
+  "role.minion.team": "Wolves",
+
+  "role.sheriff.name": "Sheriff",
+  "role.sheriff.description": "Your vote counts double. The sheriff is elected at the start of each day.",
+  "role.sheriff.team": "Village",
+
+  "elimination.wolf_kill": "{name} was killed last night. They were {article} {role}.",
+  "elimination.village_vote": "{name} was eliminated by the village. They were {article} {role}.",
+  "elimination.hunter_shot": "{name} takes {target} into death.",
+  "elimination.lover_grief": "{name} dies of grief.",
+  "elimination.witch_poison": "{name} was poisoned by the Witch. They were {article} {role}.",
+  "elimination.scapegoat": "{name} is the scapegoat of this tie. They were {article} {role}.",
+
+  "article.male": "a",
+  "article.female": "a",
+
+  "ui.setup.add_player": "Add player",
+  "ui.setup.start_game": "Start game",
+  "ui.setup.player_name_placeholder": "Player name",
+  "ui.setup.title": "New game",
+  "ui.reveal.tap_to_reveal": "Tap to reveal your role",
+  "ui.reveal.seen": "I have seen my role",
+  "ui.reveal.title": "Role Reveal",
+  "ui.vote.confirm": "Vote",
+  "ui.vote.title": "Village Vote",
+  "ui.vote.select_target": "Select a player to eliminate",
+  "ui.night.title": "Night",
+  "ui.day.title": "Day",
+  "ui.game_over.title": "Game Over",
+  "ui.game_over.restart": "New game"
+}

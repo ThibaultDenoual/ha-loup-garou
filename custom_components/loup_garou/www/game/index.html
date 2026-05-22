@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Loup Garou</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   LOUP GAROU — OCCULT GRIMOIRE THEME
+   void black · blood crimson · ancient gold · bone parchment
+═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --void:    #04020b;
+  --depth:   #080618;
+  --surface: #0d0921;
+  --surface2:#150d2e;
+  --border:  #211640;
+  --veil:    #3c2460;
+  --accent:  #bf3030;
+  --blood:   #6b0a12;
+  --blood-b: #9a1820;
+  --gold:    #c8a040;
+  --gold-b:  #e6c060;
+  --gold-d:  #6e5220;
+  --text:    #d4c5a9;
+  --muted:   #8a7a96;
+  --green:   #2a8a52;
+  --r: 3px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  background: var(--void);
+  color: var(--text);
+  font-family: 'IM Fell English', 'Palatino Linotype', Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+/* ── Atmospheric layers ──────────────────────────────────────────────── */
+#bg-canvas {
+  position: fixed; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% -5%,  rgba(48,10,96,0.7)   0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 95% 100%,  rgba(90,5,12,0.55)   0%, transparent 60%),
+    radial-gradient(ellipse 40% 35% at 5%  65%,   rgba(20,5,55,0.4)    0%, transparent 55%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 40%, rgba(0,0,0,0.65) 100%);
+  pointer-events: none; z-index: 1;
+}
+
+#app {
+  width: 100%; max-width: 560px; padding: 1rem;
+  flex: 1; display: flex; flex-direction: column;
+  position: relative; z-index: 2;
+  padding-top: 2.8rem;
+}
+
+/* ── Views ───────────────────────────────────────────────────────────── */
+.view { display: none; flex-direction: column; gap: 1rem; flex: 1; }
+.view.active { display: flex; }
+
+/* ── Typography ──────────────────────────────────────────────────────── */
+h1 {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: 1.75rem; font-weight: 700;
+  color: var(--gold); text-align: center;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 18px rgba(200,160,64,.55), 0 0 40px rgba(200,160,64,.25), 0 0 70px rgba(200,160,64,.1);
+  animation: aurum 5s ease-in-out infinite;
+}
+h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem; font-weight: 400;
+  color: var(--muted); text-align: center; letter-spacing: 0.14em;
+}
+.label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.68rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.14em;
+}
+.orn {
+  text-align: center; font-size: 0.62rem;
+  color: var(--gold-d); letter-spacing: 0.7em;
+  opacity: 0.55; user-select: none;
+}
+
+@keyframes aurum {
+  0%,100% { text-shadow: 0 0 18px rgba(200,160,64,.5), 0 0 40px rgba(200,160,64,.22); }
+  50%      { text-shadow: 0 0 28px rgba(200,160,64,.85), 0 0 60px rgba(200,160,64,.4), 0 0 90px rgba(200,160,64,.15); }
+}
+@keyframes breathe {
+  0%,100% { opacity: 0.38; }
+  50%      { opacity: 1; }
+}
+@keyframes luna {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-15px); }
+}
+@keyframes ringPulse {
+  0%,100% { opacity: 0.45; transform: translate(-50%,-50%) scale(1); }
+  50%      { opacity: 0.9;  transform: translate(-50%,-50%) scale(1.04); }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-130%) skewX(-18deg); }
+  100% { transform: translateX(220%)  skewX(-18deg); }
+}
+@keyframes bloodPulse {
+  0%,100% { box-shadow: 0 0 14px rgba(107,10,18,.4), inset 0 0 10px rgba(107,10,18,.08); }
+  50%      { box-shadow: 0 0 24px rgba(107,10,18,.7), inset 0 0 18px rgba(107,10,18,.15); }
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+button {
+  background: linear-gradient(160deg, #360808 0%, #540c0c 50%, #360808 100%);
+  color: var(--text);
+  border: 1px solid #581414;
+  border-radius: var(--r);
+  padding: 0.85rem 1.2rem;
+  font-family: 'Cinzel', serif;
+  font-size: 0.86rem; letter-spacing: 0.07em;
+  cursor: pointer; width: 100%;
+  transition: border-color .2s, box-shadow .2s, transform .15s, color .15s;
+  position: relative; overflow: hidden;
+}
+button::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.045) 0%, transparent 55%);
+  pointer-events: none;
+}
+button:hover:not(:disabled) {
+  border-color: var(--blood-b);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(107,10,18,.5), inset 0 0 14px rgba(107,10,18,.18);
+  transform: translateY(-1px);
+}
+button:active:not(:disabled) { transform: translateY(0); }
+
+button.secondary {
+  background: linear-gradient(160deg, #090618 0%, #110d28 100%);
+  border-color: var(--border); color: var(--muted);
+}
+button.secondary:hover:not(:disabled) {
+  border-color: var(--veil); color: var(--text);
+  box-shadow: 0 0 14px rgba(60,36,96,.4);
+}
+
+button.success {
+  background: linear-gradient(160deg, #0a2018 0%, #1a5c38 100%);
+  border-color: #285e40;
+}
+button.success:hover:not(:disabled) {
+  box-shadow: 0 0 18px rgba(26,92,58,.45);
+  border-color: var(--green);
+}
+
+button:disabled { opacity: .26; cursor: default; transform: none !important; box-shadow: none !important; }
+
+/* ── Inputs ──────────────────────────────────────────────────────────── */
+input, select {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: .65rem 1rem;
+  font-size: 1rem; font-family: 'IM Fell English', Georgia, serif;
+  width: 100%;
+  transition: border-color .2s, box-shadow .2s;
+}
+input:focus, select:focus {
+  outline: none; border-color: var(--veil);
+  box-shadow: 0 0 10px rgba(60,36,96,.4);
+}
+input::placeholder { color: var(--muted); opacity: 0.45; font-style: italic; }
+select option { background: var(--depth); }
+
+/* ── Cards ───────────────────────────────────────────────────────────── */
+.card {
+  background: linear-gradient(155deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--r); padding: 1rem;
+  position: relative;
+}
+.card::before, .card::after {
+  content: '✦';
+  position: absolute;
+  font-size: 0.48rem; color: var(--gold-d); opacity: 0.5;
+}
+.card::before { top: 6px;    left: 8px; }
+.card::after  { bottom: 6px; right: 8px; }
+
+.card.highlight {
+  border-color: var(--gold-d);
+  box-shadow: 0 0 22px rgba(200,160,64,.07), inset 0 0 18px rgba(200,160,64,.02);
+}
+
+/* ── Player grid ─────────────────────────────────────────────────────── */
+.pgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: .55rem;
+}
+.pcard {
+  background: linear-gradient(155deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: .7rem .5rem; text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+  user-select: none;
+}
+.pcard:hover:not(.dead) {
+  border-color: var(--veil);
+  box-shadow: 0 0 12px rgba(60,36,96,.3);
+  transform: translateY(-1px);
+}
+.pcard.dead {
+  opacity: .2; cursor: default; pointer-events: none;
+  filter: grayscale(0.5) brightness(0.65);
+}
+.pcard.selected {
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(200,160,64,.32), inset 0 0 10px rgba(200,160,64,.04);
+  transform: translateY(-1px);
+}
+.pcard.lover { border-color: #b0185a; box-shadow: 0 0 14px rgba(176,24,90,.32); }
+.pcard .pname { font-family: 'Cinzel', serif; font-size: .84rem; letter-spacing: 0.03em; }
+.pcard .prole { font-size: .68rem; color: var(--muted); margin-top: .25rem; font-style: italic; }
+
+/* ── Status bar ──────────────────────────────────────────────────────── */
+#status {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: rgba(4,2,11,0.94);
+  border-bottom: 1px solid var(--border);
+  padding: .3rem 1rem;
+  font-size: .7rem; color: var(--muted);
+  display: flex; justify-content: space-between; align-items: center;
+  z-index: 50;
+  font-family: 'Cinzel', serif; letter-spacing: 0.1em;
+  backdrop-filter: blur(12px);
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  background: var(--surface2);
+  border: 1px solid var(--veil); color: var(--text);
+  padding: .55rem 1.3rem; border-radius: 2rem;
+  font-size: .88rem; pointer-events: none; opacity: 0;
+  transition: opacity .3s;
+  max-width: 90%; text-align: center; z-index: 200;
+  box-shadow: 0 0 24px rgba(60,36,96,.45);
+}
+#toast.show { opacity: 1; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   SETUP
+══════════════════════════════════════════════════════════════════════ */
+#setup-players { display: flex; flex-direction: column; gap: .4rem; }
+.prow { display: flex; gap: .5rem; }
+.prow input { flex: 1; }
+.prow button { width: auto; padding: .5rem .75rem; font-size: .78rem; }
+#role-counters { display: flex; flex-direction: column; gap: .42rem; }
+.role-row { display: flex; align-items: center; gap: .5rem; }
+.role-row .rname { flex: 1; font-size: .95rem; }
+.role-row .rcount {
+  min-width: 2rem; text-align: center;
+  font-family: 'Cinzel', serif; color: var(--gold); font-size: 1rem;
+}
+.role-row button { width: 2rem; padding: .25rem; font-size: 1rem; }
+.count-label {
+  font-family: 'Cinzel', serif;
+  font-size: .72rem; color: var(--muted); text-align: right;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ROLE REVEAL
+══════════════════════════════════════════════════════════════════════ */
+.reveal-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.reveal-card {
+  flex: 1; width: 100%;
+  background: linear-gradient(160deg, #100828 0%, #080518 100%);
+  border: 1px solid var(--border); border-radius: var(--r);
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 1rem; cursor: pointer; min-height: 200px;
+  transition: border-color .35s, box-shadow .35s;
+  position: relative; overflow: hidden;
+}
+.reveal-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(108deg,
+    transparent 25%, rgba(200,160,64,.05) 50%, transparent 75%);
+  animation: shimmer 5s ease-in-out infinite;
+}
+.reveal-card::after {
+  content: '☽  ✦  ☾';
+  position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%);
+  font-size: .6rem; color: var(--gold-d);
+  letter-spacing: 0.9em; opacity: 0.4;
+}
+.reveal-card:active, .reveal-card.shown {
+  border-color: var(--gold-d);
+  box-shadow: 0 0 38px rgba(200,160,64,.12), inset 0 0 30px rgba(200,160,64,.03);
+}
+.reveal-role-name {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: 1.75rem; color: var(--gold); text-align: center;
+  text-shadow: 0 0 22px rgba(200,160,64,.65), 0 0 45px rgba(200,160,64,.3);
+  animation: aurum 3s ease-in-out infinite;
+}
+.reveal-role-desc {
+  font-size: .9rem; color: var(--muted);
+  text-align: center; max-width: 260px;
+  font-style: italic; line-height: 1.55;
+}
+.reveal-hint { font-size: .85rem; color: var(--muted); font-style: italic; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   NIGHT SLEEPING
+══════════════════════════════════════════════════════════════════════ */
+#view-night-sleep { justify-content: center; align-items: center; }
+
+.moon-icon { text-align: center; animation: luna 5s ease-in-out infinite; }
+
+.moon-orb {
+  width: 90px; height: 90px; border-radius: 50%;
+  background: radial-gradient(circle at 37% 34%,
+    #fff9d0 0%, #f0d868 18%, #c89038 45%, #8a5818 72%, #4a3008 100%);
+  box-shadow:
+    0 0  22px rgba(200,160,64,.95),
+    0 0  50px rgba(200,160,64,.6),
+    0 0  90px rgba(200,160,64,.35),
+    0 0 140px rgba(200,160,64,.15),
+    0 0  30px rgba(80,30,120,.35);
+  margin: 0 auto; position: relative;
+}
+.moon-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(200,160,64,.13);
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  animation: ringPulse 3.5s ease-in-out infinite;
+}
+.moon-ring:nth-child(1) { width: 118px; height: 118px; animation-delay: 0s; }
+.moon-ring:nth-child(2) { width: 148px; height: 148px; animation-delay: .45s; opacity: .6; }
+.moon-ring:nth-child(3) { width: 185px; height: 185px; animation-delay: .9s;  opacity: .35; }
+
+.sleep-text {
+  font-family: 'Cinzel', serif;
+  font-size: .88rem; color: var(--muted);
+  text-align: center; letter-spacing: 0.2em;
+  margin-top: 2.5rem;
+  animation: breathe 4s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   NIGHT ACTION
+══════════════════════════════════════════════════════════════════════ */
+.night-header { text-align: center; padding: .4rem 0; }
+.night-role-name {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: 1.45rem; color: var(--gold);
+  text-shadow: 0 0 16px rgba(200,160,64,.5);
+  letter-spacing: 0.04em;
+}
+.night-prompt { font-size: .9rem; color: var(--muted); margin-top: .4rem; font-style: italic; }
+
+.info-box {
+  background: linear-gradient(135deg, #160408 0%, #0d0920 100%);
+  border: 1px solid rgba(107,10,18,.4);
+  border-radius: var(--r); padding: .75rem 1rem; font-size: .9rem;
+}
+.info-box .label { margin-bottom: .3rem; }
+.info-box .victim { font-size: 1rem; color: var(--accent); font-family: 'Cinzel', serif; }
+
+.potions { display: flex; gap: .6rem; margin-top: .5rem; }
+.potion {
+  flex: 1;
+  background: linear-gradient(155deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: .6rem; text-align: center; font-size: .85rem;
+  cursor: pointer; transition: border-color .2s, box-shadow .2s;
+}
+.potion:hover { border-color: var(--veil); }
+.potion.selected {
+  border-color: var(--gold-d);
+  box-shadow: 0 0 12px rgba(200,160,64,.22);
+}
+.potion.used { opacity: .28; cursor: default; text-decoration: line-through; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   SEER RESULT
+══════════════════════════════════════════════════════════════════════ */
+#view-seer-result { justify-content: center; align-items: center; }
+.result-box {
+  width: 100%;
+  background: linear-gradient(160deg, #100828 0%, #080518 100%);
+  border: 1px solid var(--gold-d); border-radius: var(--r);
+  padding: 2rem; text-align: center;
+  display: flex; flex-direction: column; gap: 1rem;
+  box-shadow: 0 0 38px rgba(200,160,64,.08), inset 0 0 30px rgba(80,30,120,.04);
+  position: relative; overflow: hidden;
+}
+.result-box::before {
+  content: '◈  ◈  ◈';
+  position: absolute; top: .8rem; left: 50%; transform: translateX(-50%);
+  font-size: .55rem; color: var(--gold-d); letter-spacing: 0.6em; opacity: 0.5;
+}
+.result-name { font-family: 'Cinzel', serif; font-size: 1.3rem; }
+.result-role {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: 1.6rem; color: var(--gold);
+}
+.result-team-wolf {
+  color: var(--accent);
+  text-shadow: 0 0 18px rgba(191,48,48,.55);
+}
+.result-team-village {
+  color: #3aaa62;
+  text-shadow: 0 0 18px rgba(58,170,98,.5);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   DAY
+══════════════════════════════════════════════════════════════════════ */
+.announcement {
+  background: linear-gradient(155deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: 1rem; font-size: 1rem; text-align: center;
+  line-height: 1.7; font-style: italic;
+}
+.announcement.deaths {
+  border-color: rgba(107,10,18,.65);
+  box-shadow: 0 0 20px rgba(107,10,18,.12), inset 0 0 15px rgba(107,10,18,.03);
+}
+.announcement.peace {
+  border-color: rgba(30,92,62,.6);
+  box-shadow: 0 0 16px rgba(30,92,62,.1);
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   VOTE
+══════════════════════════════════════════════════════════════════════ */
+.voter-prompt {
+  background: linear-gradient(155deg, var(--surface2) 0%, var(--surface) 100%);
+  border: 1px solid var(--border); border-radius: var(--r);
+  padding: .75rem 1rem; text-align: center;
+}
+.voter-name { font-family: 'Cinzel', serif; font-size: 1.15rem; color: var(--gold); }
+.voter-sub  { font-size: .85rem; color: var(--muted); margin-top: .2rem; font-style: italic; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   GAME OVER
+══════════════════════════════════════════════════════════════════════ */
+.winner-msg {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: 1.5rem; text-align: center;
+  color: var(--gold); padding: 1rem 0;
+  text-shadow: 0 0 28px rgba(200,160,64,.55);
+  animation: aurum 4s ease-in-out infinite;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--void); }
+::-webkit-scrollbar-thumb { background: var(--veil); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div id="status">
+  <span id="st-phase">—</span>
+  <span id="st-conn" style="color:var(--accent)">Déconnecté</span>
+</div>
+
+<div id="toast"></div>
+
+<div id="app">
+
+<!-- ══ SETUP ═════════════════════════════════════════════════════════════ -->
+<div id="view-setup" class="view active">
+  <h1>☽ Loup Garou ☾</h1>
+  <div class="orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+
+  <div class="card">
+    <div class="label" style="margin-bottom:.6rem">Joueurs</div>
+    <div id="setup-players"></div>
+    <button id="btn-add-player" class="secondary" style="margin-top:.6rem">+ Ajouter un joueur</button>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.6rem">
+      <div class="label">Rôles</div>
+      <div id="role-total-label" class="count-label">0 / 0</div>
+    </div>
+    <div id="role-counters"></div>
+  </div>
+
+  <button id="btn-start-game" disabled>Commencer la partie</button>
+</div>
+
+<!-- ══ ROLE REVEAL ════════════════════════════════════════════════════════ -->
+<div id="view-reveal" class="view">
+  <h2 id="reveal-player-label"></h2>
+  <div class="reveal-wrap">
+    <div class="reveal-card" id="reveal-card">
+      <span class="reveal-hint" id="reveal-hint"></span>
+    </div>
+    <button id="btn-seen" style="display:none" class="success"></button>
+  </div>
+</div>
+
+<!-- ══ NIGHT SLEEPING ════════════════════════════════════════════════════ -->
+<div id="view-night-sleep" class="view">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:0">
+    <div class="moon-icon">
+      <div class="moon-orb">
+        <div class="moon-ring"></div>
+        <div class="moon-ring"></div>
+        <div class="moon-ring"></div>
+      </div>
+    </div>
+    <div class="sleep-text" id="sleep-text"></div>
+  </div>
+</div>
+
+<!-- ══ NIGHT ACTION ══════════════════════════════════════════════════════ -->
+<div id="view-night-action" class="view">
+  <div class="night-header">
+    <div class="night-role-name" id="na-role-name"></div>
+    <div class="night-prompt" id="na-prompt"></div>
+  </div>
+
+  <div id="na-victim-box" class="info-box" style="display:none">
+    <div class="label">Victime cette nuit</div>
+    <div class="victim" id="na-victim-names"></div>
+  </div>
+
+  <div id="na-witch-box" style="display:none">
+    <div class="label" style="margin-bottom:.4rem">Potions</div>
+    <div class="potions">
+      <div class="potion" id="potion-save">💊 Guérison</div>
+      <div class="potion" id="potion-poison">☠️ Poison</div>
+    </div>
+  </div>
+
+  <div id="na-cupid-note" style="display:none;font-size:.85rem;color:var(--muted);text-align:center"></div>
+
+  <div class="pgrid" id="na-grid"></div>
+
+  <button id="btn-na-skip" class="secondary">Passer</button>
+  <button id="btn-na-confirm" disabled></button>
+</div>
+
+<!-- ══ SEER RESULT ════════════════════════════════════════════════════════ -->
+<div id="view-seer-result" class="view">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center">
+    <div class="result-box">
+      <div class="label">🔮 Voyante</div>
+      <div class="result-name" id="sr-name"></div>
+      <div class="result-role" id="sr-role"></div>
+      <div id="sr-team"></div>
+    </div>
+  </div>
+  <button id="btn-sr-ack" class="success"></button>
+</div>
+
+<!-- ══ DAY ════════════════════════════════════════════════════════════════ -->
+<div id="view-day" class="view">
+  <h1>◈ Jour <span id="day-night-num"></span></h1>
+  <div class="announcement" id="day-announcement"></div>
+  <div class="pgrid" id="day-grid"></div>
+  <button id="btn-day-vote">Voter</button>
+  <button id="btn-day-night" class="secondary">Passer à la nuit</button>
+</div>
+
+<!-- ══ VOTE ════════════════════════════════════════════════════════════════ -->
+<div id="view-vote" class="view">
+  <h1>⚖ Vote</h1>
+  <div class="voter-prompt">
+    <div class="voter-name" id="vote-voter-name"></div>
+    <div class="voter-sub" id="vote-voter-sub"></div>
+  </div>
+  <div class="pgrid" id="vote-grid"></div>
+  <button id="btn-vote-confirm" disabled></button>
+  <div style="font-size:.78rem;color:var(--muted);text-align:center;font-family:'Cinzel',serif;letter-spacing:.08em" id="vote-progress"></div>
+</div>
+
+<!-- ══ GAME OVER ══════════════════════════════════════════════════════════ -->
+<div id="view-game-over" class="view">
+  <div class="winner-msg" id="go-msg"></div>
+  <div class="pgrid" id="go-grid"></div>
+  <button id="btn-restart">Nouvelle partie</button>
+</div>
+
+</div><!-- #app -->
+
+<script>
+'use strict';
+
+// ══ Starfield ══════════════════════════════════════════════════════════════════
+(function () {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars = [], shootingStar = null, shootTimer = 0;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+
+  function mkStars() {
+    stars = [];
+    const n = Math.floor(W * H / 6500);
+    for (let i = 0; i < n; i++) {
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.1 + 0.25,
+        a: Math.random() * 0.55 + 0.1,
+        sp: Math.random() * 0.007 + 0.002,
+        ph: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  let t = 0;
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    t += 0.016;
+    for (const s of stars) {
+      const a = s.a * (0.45 + 0.55 * Math.sin(t * s.sp * 60 + s.ph));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(215,205,245,${a})`;
+      ctx.fill();
+    }
+
+    // Occasional shooting star
+    shootTimer -= 0.016;
+    if (shootTimer <= 0) {
+      shootTimer = 8 + Math.random() * 14;
+      shootingStar = {
+        x: Math.random() * W * 0.7,
+        y: Math.random() * H * 0.4,
+        len: 90 + Math.random() * 80,
+        speed: 6 + Math.random() * 4,
+        alpha: 0.8, life: 1,
+      };
+    }
+    if (shootingStar) {
+      const s = shootingStar;
+      s.x += s.speed; s.y += s.speed * 0.45;
+      s.life -= 0.03;
+      s.alpha = Math.max(0, s.life);
+      const grd = ctx.createLinearGradient(s.x, s.y, s.x - s.len, s.y - s.len * 0.45);
+      grd.addColorStop(0, `rgba(230,210,100,${s.alpha})`);
+      grd.addColorStop(1, 'rgba(230,210,100,0)');
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(s.x - s.len, s.y - s.len * 0.45);
+      ctx.strokeStyle = grd;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      if (s.life <= 0) shootingStar = null;
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  resize(); mkStars(); draw();
+  window.addEventListener('resize', () => { resize(); mkStars(); });
+})();
+
+// ══ Globals ═══════════════════════════════════════════════════════════════════
+let ws = null;
+let locale = {};
+let state = { phase: 'setup', players: [], night_number: 0, winner: null };
+
+// Setup
+let setupNames = [];
+let roleConfig = {};
+const ROLE_ORDER = [
+  'villager','werewolf','seer','hunter','elder','scapegoat',
+  'little_girl','witch','cupid','alpha_wolf','minion','sheriff'
+];
+
+// Reveal
+let revealIdx = 0;
+let revealShown = false;
+
+// Night action
+let nightRole = null;
+let nightWitchId = null;
+let witchSaveTarget = null;
+let witchPoisonTarget = null;
+let witchSaveAvail = true;
+let witchPoisonAvail = true;
+let cupidLovers = [];
+let naSelected = null;
+
+// Vote
+let votes = {};
+let voterQueue = [];
+
+// ══ i18n ══════════════════════════════════════════════════════════════════════
+async function loadLocale(lang) {
+  const r = await fetch(`/loup_garou/locales/${lang}.json`);
+  locale = await r.json();
+}
+function t(key, vars = {}) {
+  let s = locale[key] || '';
+  for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
+  return s || key;
+}
+function roleName(roleId) { return t(`role.${roleId}.name`) || roleId; }
+function roleDesc(roleId)  { return t(`role.${roleId}.description`) || ''; }
+
+// ══ WebSocket ══════════════════════════════════════════════════════════════════
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/loup_garou/ws`);
+  ws.onopen = () => {
+    document.getElementById('st-conn').textContent = 'Connecté';
+    document.getElementById('st-conn').style.color = 'var(--green)';
+    send('get_state');
+  };
+  ws.onmessage = e => handleMsg(JSON.parse(e.data));
+  ws.onclose = () => {
+    document.getElementById('st-conn').textContent = 'Déconnecté';
+    document.getElementById('st-conn').style.color = 'var(--accent)';
+    setTimeout(connectWS, 2000);
+  };
+}
+function send(cmd, data = {}) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd, data }));
+}
+
+// ══ Message handling ═══════════════════════════════════════════════════════════
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'state':          onState(msg.state);           break;
+    case 'night_role_wake': onNightRoleWake(msg.data);   break;
+    case 'night_role_sleep': onNightRoleSleep(msg.data); break;
+    case 'player_eliminated': onPlayerEliminated(msg.data); break;
+    case 'error':          toast('⚠ ' + msg.msg);        break;
+  }
+}
+
+function onState(newState) {
+  state = newState;
+  document.getElementById('st-phase').textContent = newState.phase;
+
+  const activeView = document.querySelector('.view.active')?.id;
+  const nightViews = ['view-night-sleep','view-night-action','view-seer-result'];
+
+  if (newState.phase === 'role_reveal') {
+    if (activeView !== 'view-reveal') startReveal();
+  } else if (newState.phase === 'night') {
+    if (!nightViews.includes(activeView)) showView('night-sleep');
+  } else if (newState.phase === 'day') {
+    if (!nightViews.includes(activeView)) renderDay();
+  } else if (newState.phase === 'vote') {
+    if (activeView !== 'view-vote') startVote();
+  } else if (newState.phase === 'game_over') {
+    renderGameOver();
+  }
+}
+
+function onNightRoleWake(data) {
+  nightRole = data.role;
+  if (data.result) { showSeerResult(data.result); return; }
+  if (data.player_id) { showHunterAction(data.player_id); return; }
+  showNightAction(data);
+}
+
+function onNightRoleSleep(data) {
+  if (state.phase === 'day') {
+    renderDay();
+  } else if (state.phase === 'vote') {
+    startVote();
+  } else if (state.phase === 'game_over') {
+    renderGameOver();
+  } else {
+    showView('night-sleep');
+  }
+  nightRole = null;
+  naSelected = null;
+  witchSaveTarget = null;
+  witchPoisonTarget = null;
+  cupidLovers = [];
+}
+
+function onPlayerEliminated(data) {
+  const p = state.players.find(pl => pl.id === data.player_id);
+  if (p) p.alive = false;
+  const activeView = document.querySelector('.view.active')?.id;
+  if (activeView === 'view-day') renderDayGrid();
+  if (activeView === 'view-vote') renderVoteGrid();
+}
+
+// ══ View routing ═══════════════════════════════════════════════════════════════
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+}
+
+// ══ SETUP ══════════════════════════════════════════════════════════════════════
+function renderSetup() {
+  showView('setup');
+  renderSetupPlayers();
+  renderRoleCounters();
+  validateStart();
+}
+
+function renderSetupPlayers() {
+  const el = document.getElementById('setup-players');
+  el.innerHTML = '';
+  setupNames.forEach((name, i) => {
+    const row = document.createElement('div');
+    row.className = 'prow';
+    const inp = document.createElement('input');
+    inp.value = name;
+    inp.placeholder = 'Nom du joueur';
+    inp.oninput = e => { setupNames[i] = e.target.value; validateStart(); };
+    const del = document.createElement('button');
+    del.className = 'secondary';
+    del.textContent = '✕';
+    del.style.width = 'auto';
+    del.onclick = () => { setupNames.splice(i, 1); renderSetupPlayers(); validateStart(); };
+    row.append(inp, del);
+    el.appendChild(row);
+  });
+}
+
+function renderRoleCounters() {
+  const el = document.getElementById('role-counters');
+  el.innerHTML = '';
+  const totalRoles = Object.values(roleConfig).reduce((a, b) => a + b, 0);
+  document.getElementById('role-total-label').textContent = `${totalRoles} / ${setupNames.length}`;
+
+  ROLE_ORDER.forEach(rid => {
+    const cnt = roleConfig[rid] || 0;
+    const row = document.createElement('div');
+    row.className = 'role-row';
+    row.innerHTML = `
+      <span class="rname">${roleName(rid)}</span>
+      <button class="secondary" style="width:2rem;padding:.2rem" data-r="${rid}" data-d="-1">−</button>
+      <span class="rcount">${cnt}</span>
+      <button class="secondary" style="width:2rem;padding:.2rem" data-r="${rid}" data-d="1">+</button>`;
+    row.querySelectorAll('button').forEach(btn => {
+      btn.onclick = () => {
+        roleConfig[btn.dataset.r] = Math.max(0, (roleConfig[btn.dataset.r] || 0) + +btn.dataset.d);
+        renderRoleCounters();
+        validateStart();
+      };
+    });
+    el.appendChild(row);
+  });
+}
+
+function validateStart() {
+  const totalRoles = Object.values(roleConfig).reduce((a, b) => a + b, 0);
+  const ok = setupNames.length >= 3
+    && totalRoles === setupNames.length
+    && setupNames.every(n => n.trim());
+  document.getElementById('btn-start-game').disabled = !ok;
+}
+
+document.getElementById('btn-add-player').onclick = () => {
+  setupNames.push(''); renderSetupPlayers(); validateStart();
+};
+
+document.getElementById('btn-start-game').onclick = () => {
+  const roles = [];
+  ROLE_ORDER.forEach(rid => {
+    for (let i = 0; i < (roleConfig[rid] || 0); i++) roles.push(rid);
+  });
+  for (let i = roles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [roles[i], roles[j]] = [roles[j], roles[i]];
+  }
+  send('start_game', { players: setupNames.map(n => n.trim()), roles });
+};
+
+// ══ REVEAL ═════════════════════════════════════════════════════════════════════
+function startReveal() {
+  revealIdx = 0;
+  revealShown = false;
+  showNextReveal();
+}
+
+function showNextReveal() {
+  if (revealIdx >= state.players.length) {
+    send('begin_night');
+    return;
+  }
+  revealShown = false;
+  const p = state.players[revealIdx];
+  document.getElementById('reveal-player-label').textContent = p.name;
+  document.getElementById('reveal-hint').textContent = t('ui.reveal.tap_to_reveal');
+  const card = document.getElementById('reveal-card');
+  card.innerHTML = `<span class="reveal-hint">${t('ui.reveal.tap_to_reveal')}</span>`;
+  card.classList.remove('shown');
+  document.getElementById('btn-seen').style.display = 'none';
+  document.getElementById('btn-seen').textContent = t('ui.reveal.seen');
+  showView('reveal');
+}
+
+document.getElementById('reveal-card').onclick = () => {
+  if (revealShown) return;
+  revealShown = true;
+  const p = state.players[revealIdx];
+  const card = document.getElementById('reveal-card');
+  card.classList.add('shown');
+  card.innerHTML = `
+    <div class="reveal-role-name">${roleName(p.role_id)}</div>
+    <div class="reveal-role-desc">${roleDesc(p.role_id)}</div>`;
+  document.getElementById('btn-seen').style.display = '';
+};
+
+document.getElementById('btn-seen').onclick = () => {
+  revealIdx++;
+  showNextReveal();
+};
+
+// ══ NIGHT ACTION ═══════════════════════════════════════════════════════════════
+function showNightAction(data) {
+  const role = data.role;
+  naSelected = null;
+  witchSaveTarget = null;
+  witchPoisonTarget = null;
+  cupidLovers = [];
+
+  document.getElementById('na-role-name').textContent = roleName(role);
+  document.getElementById('na-prompt').textContent = t(`role.${role}.action_prompt`);
+  document.getElementById('na-victim-box').style.display = 'none';
+  document.getElementById('na-witch-box').style.display = 'none';
+  document.getElementById('na-cupid-note').style.display = 'none';
+  document.getElementById('btn-na-skip').style.display = '';
+  document.getElementById('btn-na-confirm').disabled = true;
+  document.getElementById('btn-na-confirm').textContent = t('ui.vote.confirm');
+
+  const alive = state.players.filter(p => p.alive);
+
+  if (role === 'witch') {
+    renderWitchNight(data, alive);
+  } else if (role === 'cupid') {
+    renderCupidNight(alive);
+  } else {
+    renderTargetGrid(alive);
+    document.getElementById('btn-na-confirm').onclick = () => {
+      if (naSelected) send('submit_night_action', { role, action: { target: naSelected } });
+    };
+  }
+
+  showView('night-action');
+}
+
+function renderTargetGrid(players) {
+  const grid = document.getElementById('na-grid');
+  grid.innerHTML = '';
+  players.forEach(p => {
+    const card = makePCard(p, false, () => {
+      grid.querySelectorAll('.pcard').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      naSelected = p.id;
+      document.getElementById('btn-na-confirm').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderWitchNight(data, alive) {
+  nightWitchId = data.witch_id || null;
+  witchSaveAvail = data.witch_save_available !== false;
+  witchPoisonAvail = data.witch_poison_available !== false;
+
+  const victims = data.pending_kill_players || [];
+  if (victims.length) {
+    document.getElementById('na-victim-box').style.display = '';
+    document.getElementById('na-victim-names').textContent = victims.map(p => p.name).join(', ');
+  }
+
+  document.getElementById('na-witch-box').style.display = '';
+  const pSave   = document.getElementById('potion-save');
+  const pPoison = document.getElementById('potion-poison');
+  pSave.className   = 'potion' + (witchSaveAvail ? '' : ' used');
+  pPoison.className = 'potion' + (witchPoisonAvail ? '' : ' used');
+
+  if (witchSaveAvail && victims.length) {
+    pSave.onclick = () => {
+      if (witchSaveTarget) {
+        witchSaveTarget = null;
+        pSave.classList.remove('selected');
+      } else {
+        witchSaveTarget = victims[0].id;
+        pSave.classList.add('selected');
+      }
+      document.getElementById('btn-na-confirm').disabled = false;
+    };
+  } else {
+    pSave.onclick = null;
+  }
+
+  const grid = document.getElementById('na-grid');
+  grid.innerHTML = '';
+  if (witchPoisonAvail) {
+    pPoison.onclick = () => {
+      if (pPoison.classList.contains('selected')) {
+        pPoison.classList.remove('selected');
+        witchPoisonTarget = null;
+        grid.innerHTML = '';
+      } else {
+        pPoison.classList.add('selected');
+        renderPoisonGrid(alive, victims.map(v => v.id));
+      }
+    };
+  } else {
+    pPoison.onclick = null;
+  }
+
+  document.getElementById('btn-na-confirm').disabled = false;
+  document.getElementById('btn-na-confirm').onclick = () => {
+    send('submit_night_action', {
+      role: 'witch',
+      action: {
+        player_id: nightWitchId,
+        save_target: witchSaveTarget || null,
+        poison_target: witchPoisonTarget || null,
+      },
+    });
+  };
+}
+
+function renderPoisonGrid(alive, excludeIds) {
+  const grid = document.getElementById('na-grid');
+  grid.innerHTML = '';
+  alive.filter(p => !excludeIds.includes(p.id)).forEach(p => {
+    const card = makePCard(p, false, () => {
+      grid.querySelectorAll('.pcard').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      witchPoisonTarget = p.id;
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderCupidNight(alive) {
+  document.getElementById('na-cupid-note').style.display = '';
+  document.getElementById('na-cupid-note').textContent = 'Choisissez 2 amoureux';
+  const grid = document.getElementById('na-grid');
+  grid.innerHTML = '';
+  alive.forEach(p => {
+    const card = makePCard(p, false, () => {
+      if (cupidLovers.includes(p.id)) {
+        cupidLovers = cupidLovers.filter(id => id !== p.id);
+        card.classList.remove('selected');
+      } else if (cupidLovers.length < 2) {
+        cupidLovers.push(p.id);
+        card.classList.add('selected');
+      }
+      document.getElementById('btn-na-confirm').disabled = cupidLovers.length !== 2;
+    });
+    grid.appendChild(card);
+  });
+  document.getElementById('btn-na-confirm').onclick = () => {
+    send('submit_night_action', { role: 'cupid', action: { lovers: cupidLovers } });
+  };
+}
+
+function showHunterAction(hunterPlayerId) {
+  nightRole = 'hunter';
+  naSelected = null;
+  document.getElementById('na-role-name').textContent = roleName('hunter');
+  document.getElementById('na-prompt').textContent = t('role.hunter.death_prompt');
+  document.getElementById('na-victim-box').style.display = 'none';
+  document.getElementById('na-witch-box').style.display = 'none';
+  document.getElementById('na-cupid-note').style.display = 'none';
+  document.getElementById('btn-na-skip').style.display = 'none';
+  document.getElementById('btn-na-confirm').disabled = true;
+  document.getElementById('btn-na-confirm').textContent = '🔫 Tirer';
+  document.getElementById('btn-na-confirm').onclick = () => {
+    if (naSelected) send('submit_pending_action', { role: 'hunter', action: { target: naSelected } });
+  };
+
+  const alive = state.players.filter(p => p.alive && p.id !== hunterPlayerId);
+  renderTargetGrid(alive);
+  showView('night-action');
+}
+
+document.getElementById('btn-na-skip').onclick = () => {
+  if (nightRole === 'cupid') {
+    send('submit_night_action', { role: 'cupid', action: { lovers: [] } });
+  } else if (nightRole === 'alpha_wolf') {
+    send('submit_night_action', { role: 'alpha_wolf', action: {} });
+  } else if (nightRole === 'witch') {
+    send('submit_night_action', { role: 'witch', action: { player_id: nightWitchId } });
+  } else {
+    send('submit_night_action', { role: nightRole, action: {} });
+  }
+};
+
+// ══ SEER RESULT ════════════════════════════════════════════════════════════════
+function showSeerResult(result) {
+  const targetId = result.player_id;
+  const targetRoleId = result.role_id;
+  const player = state.players.find(p => p.id === targetId);
+  const name = player ? player.name : '?';
+  const rn = roleName(targetRoleId);
+  const isWolf = ['werewolf', 'alpha_wolf'].includes(targetRoleId);
+  const teamColor = isWolf ? 'result-team-wolf' : 'result-team-village';
+
+  document.getElementById('sr-name').textContent = name;
+  document.getElementById('sr-role').textContent = rn;
+  document.getElementById('sr-role').className = `result-role ${teamColor}`;
+  document.getElementById('sr-team').textContent = isWolf ? '🐺' : '🏘️';
+  document.getElementById('btn-sr-ack').textContent = t('ui.reveal.seen') || 'Compris';
+  showView('seer-result');
+}
+
+document.getElementById('btn-sr-ack').onclick = () => {
+  send('submit_pending_action', { role: 'seer', action: {} });
+};
+
+// ══ DAY ════════════════════════════════════════════════════════════════════════
+function renderDay() {
+  document.getElementById('day-night-num').textContent = state.night_number;
+  renderDayGrid();
+  showView('day');
+}
+
+function renderDayGrid() {
+  const grid = document.getElementById('day-grid');
+  grid.innerHTML = '';
+  state.players.forEach(p => {
+    const card = makePCard(p, !p.alive, null);
+    if (!p.alive) {
+      card.querySelector('.prole').textContent = roleName(p.role_id);
+    }
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById('btn-day-vote').onclick = () => send('begin_vote');
+document.getElementById('btn-day-night').onclick = () => send('begin_night');
+
+// ══ VOTE ═══════════════════════════════════════════════════════════════════════
+function startVote() {
+  votes = {};
+  voterQueue = state.players.filter(p => p.alive).map(p => p.id);
+  showView('vote');
+  renderNextVoter();
+}
+
+function renderNextVoter() {
+  if (!voterQueue.length) {
+    send('resolve_vote', { votes });
+    return;
+  }
+
+  const voterId = voterQueue[0];
+  const voter = state.players.find(p => p.id === voterId);
+  naSelected = null;
+
+  document.getElementById('vote-voter-name').textContent = voter ? voter.name : '?';
+  document.getElementById('vote-voter-sub').textContent = 'Choisissez votre cible';
+  document.getElementById('btn-vote-confirm').disabled = true;
+  document.getElementById('btn-vote-confirm').textContent = t('ui.vote.confirm') || 'Voter';
+  const done = Object.keys(votes).length;
+  const total = state.players.filter(p => p.alive).length;
+  document.getElementById('vote-progress').textContent = `${done} / ${total} votes`;
+
+  renderVoteGrid(voterId);
+}
+
+function renderVoteGrid(excludeId) {
+  if (!excludeId) excludeId = voterQueue[0];
+  const grid = document.getElementById('vote-grid');
+  grid.innerHTML = '';
+  state.players.filter(p => p.alive && p.id !== excludeId).forEach(p => {
+    const card = makePCard(p, false, () => {
+      grid.querySelectorAll('.pcard').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      naSelected = p.id;
+      document.getElementById('btn-vote-confirm').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById('btn-vote-confirm').onclick = () => {
+  if (!naSelected) return;
+  const voterId = voterQueue.shift();
+  votes[voterId] = naSelected;
+  naSelected = null;
+  renderNextVoter();
+};
+
+// ══ GAME OVER ══════════════════════════════════════════════════════════════════
+function renderGameOver() {
+  const msgs = {
+    wolves: 'phase.game_over.wolves_win',
+    village: 'phase.game_over.village_win',
+    lovers: 'phase.game_over.lovers_win',
+  };
+  document.getElementById('go-msg').textContent = t(msgs[state.winner] || 'phase.game_over.village_win');
+
+  const grid = document.getElementById('go-grid');
+  grid.innerHTML = '';
+  state.players.forEach(p => {
+    const card = makePCard(p, !p.alive, null);
+    card.querySelector('.prole').textContent = roleName(p.role_id);
+    if (!p.alive) card.style.opacity = '0.35';
+    grid.appendChild(card);
+  });
+  showView('game-over');
+}
+
+document.getElementById('btn-restart').onclick = () => {
+  setupNames = []; roleConfig = {}; renderSetup();
+};
+
+// ══ Helpers ════════════════════════════════════════════════════════════════════
+function makePCard(player, isDead, onClick) {
+  const card = document.createElement('div');
+  card.className = 'pcard' + (isDead ? ' dead' : '');
+  card.innerHTML = `
+    <div class="pname">${player.name}</div>
+    <div class="prole">${isDead ? roleName(player.role_id) : '?'}</div>`;
+  if (onClick && !isDead) card.onclick = onClick;
+  return card;
+}
+
+function toast(msg, ms = 3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ══ Init ═══════════════════════════════════════════════════════════════════════
+(async () => {
+  const lang = document.documentElement.lang || 'fr';
+  await loadLocale(lang);
+  renderSetup();
+  connectWS();
+})();
+</script>
+</body>
+</html>

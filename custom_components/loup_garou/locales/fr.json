@@ -1,0 +1,112 @@
+{
+  "_meta": {
+    "language": "fr",
+    "version": "1.0"
+  },
+
+  "phase.night.start": "La nuit tombe sur le village. Tout le monde ferme les yeux.",
+  "phase.day.start_with_death": "{name} a été dévoré cette nuit. C'était {article} {role}.",
+  "phase.day.start_no_death": "Le village s'est réveillé paisiblement. Personne n'a été tué cette nuit.",
+  "phase.day.start_multi_death": "Cette nuit a été meurtrière. {names} ont péri.",
+  "phase.vote.start": "Le village doit voter pour éliminer un suspect.",
+  "phase.vote.tie": "Égalité des voix. Personne n'est éliminé.",
+  "phase.vote.result": "{name} a été éliminé par le village. C'était {article} {role}.",
+  "phase.game_over.wolves_win": "Les loups-garous ont dévoré tout le village. Les loups ont gagné !",
+  "phase.game_over.village_win": "Tous les loups ont été éliminés. Le village a gagné !",
+  "phase.game_over.lovers_win": "Les amoureux ont survécu. L'amour a triomphé !",
+  "phase.role_reveal.start": "Chaque joueur va découvrir son rôle.",
+
+  "role.villager.name": "Villageois",
+  "role.villager.description": "Vous êtes un simple villageois. Débusquez les loups-garous pendant le vote !",
+  "role.villager.team": "Village",
+
+  "role.werewolf.name": "Loup-Garou",
+  "role.werewolf.description": "Vous êtes un loup-garou. Dévorez les villageois la nuit sans vous faire démasquer.",
+  "role.werewolf.team": "Loups",
+  "role.werewolf.wake": "Les loups-garous ouvrent les yeux.",
+  "role.werewolf.sleep": "Les loups-garous se rendorment.",
+  "role.werewolf.action_prompt": "Désignez votre victime.",
+
+  "role.seer.name": "Voyante",
+  "role.seer.description": "Chaque nuit, vous pouvez regarder dans les yeux d'un joueur et découvrir s'il est loup-garou.",
+  "role.seer.team": "Village",
+  "role.seer.wake": "La Voyante ouvre les yeux.",
+  "role.seer.sleep": "La Voyante se rendort.",
+  "role.seer.action_prompt": "Désignez un joueur à investiguer.",
+  "role.seer.result": "{name} est {article} {role}.",
+  "role.seer.prompt_investigate": "Choisissez un joueur à révéler.",
+
+  "role.hunter.name": "Chasseur",
+  "role.hunter.description": "Si vous êtes éliminé, vous pouvez emmener un autre joueur avec vous dans la mort.",
+  "role.hunter.team": "Village",
+  "role.hunter.death_prompt": "Vous êtes mort ! Désignez un joueur à emporter avec vous.",
+
+  "role.elder.name": "Ancien",
+  "role.elder.description": "Vous survivez à la première attaque des loups-garous. La deuxième vous sera fatale.",
+  "role.elder.team": "Village",
+
+  "role.scapegoat.name": "Bouc Émissaire",
+  "role.scapegoat.description": "Si le vote se termine en égalité, vous mourrez à la place.",
+  "role.scapegoat.team": "Village",
+
+  "role.little_girl.name": "Petite Fille",
+  "role.little_girl.description": "La nuit, vous pouvez essayer d'espionner les loups. Attention à ne pas vous faire attraper !",
+  "role.little_girl.team": "Village",
+
+  "role.witch.name": "Sorcière",
+  "role.witch.description": "Vous possédez une potion de guérison et un poison, chacun utilisable une seule fois.",
+  "role.witch.team": "Village",
+  "role.witch.wake": "La Sorcière ouvre les yeux.",
+  "role.witch.sleep": "La Sorcière se rendort.",
+  "role.witch.save_prompt": "Voulez-vous utiliser votre potion de guérison pour sauver {name} ?",
+  "role.witch.poison_prompt": "Voulez-vous utiliser votre poison pour tuer quelqu'un ?",
+  "role.witch.no_save_potion": "Vous avez déjà utilisé votre potion de guérison.",
+  "role.witch.no_poison_potion": "Vous avez déjà utilisé votre poison.",
+
+  "role.cupid.name": "Cupidon",
+  "role.cupid.description": "La première nuit, vous liez deux joueurs par l'amour. S'ils meurent, ils meurent ensemble.",
+  "role.cupid.team": "Village",
+  "role.cupid.wake": "Cupidon ouvre les yeux.",
+  "role.cupid.sleep": "Cupidon se rendort.",
+  "role.cupid.action_prompt": "Désignez les deux amoureux.",
+
+  "role.alpha_wolf.name": "Grand Méchant Loup",
+  "role.alpha_wolf.description": "Une fois par partie, vous pouvez convertir un villageois en loup-garou.",
+  "role.alpha_wolf.team": "Loups",
+  "role.alpha_wolf.wake": "Le Grand Méchant Loup ouvre les yeux.",
+  "role.alpha_wolf.sleep": "Le Grand Méchant Loup se rendort.",
+  "role.alpha_wolf.action_prompt": "Désignez un villageois à convertir (ou passez).",
+
+  "role.minion.name": "Sbire",
+  "role.minion.description": "Vous connaissez l'identité des loups-garous. Vous gagnez si les loups gagnent.",
+  "role.minion.team": "Loups",
+
+  "role.sheriff.name": "Shérif",
+  "role.sheriff.description": "Votre vote compte double. Élisez le shérif en début de journée.",
+  "role.sheriff.team": "Village",
+
+  "elimination.wolf_kill": "{name} a été tué cette nuit. C'était {article} {role}.",
+  "elimination.village_vote": "{name} a été éliminé par le village. C'était {article} {role}.",
+  "elimination.hunter_shot": "{name} entraîne {target} dans la mort.",
+  "elimination.lover_grief": "{name} meurt de chagrin.",
+  "elimination.witch_poison": "{name} a été empoisonné par la Sorcière. C'était {article} {role}.",
+  "elimination.scapegoat": "{name} est le bouc émissaire de cette égalité. C'était {article} {role}.",
+
+  "article.male": "un",
+  "article.female": "une",
+
+  "ui.setup.add_player": "Ajouter un joueur",
+  "ui.setup.start_game": "Commencer la partie",
+  "ui.setup.player_name_placeholder": "Nom du joueur",
+  "ui.setup.title": "Nouvelle partie",
+  "ui.reveal.tap_to_reveal": "Touchez pour révéler votre rôle",
+  "ui.reveal.seen": "J'ai vu mon rôle",
+  "ui.reveal.title": "Révélation des rôles",
+  "ui.vote.confirm": "Voter",
+  "ui.vote.title": "Vote du village",
+  "ui.vote.select_target": "Désignez un joueur à éliminer",
+  "ui.night.title": "Nuit",
+  "ui.day.title": "Jour",
+  "ui.game_over.title": "Fin de partie",
+  "ui.game_over.restart": "Nouvelle partie"
+}

@@ -1,0 +1,7 @@
+*.pyc
+pycache/
+archive/
+
+# Private documentation
+*.md
+docs/

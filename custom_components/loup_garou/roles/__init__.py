@@ -1,0 +1,1 @@
+"""Role plugin system."""

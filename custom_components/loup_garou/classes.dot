@@ -1,0 +1,6 @@
+digraph "classes" {
+rankdir=BT
+charset="utf-8"
+"loup_garou.core_game.engine.GameEngine" [color="black", fontcolor="black", label=<{GameEngine|io : IOInterface<br ALIGN="LEFT"/>machine : Machine<br ALIGN="LEFT"/>state : GameState<br ALIGN="LEFT"/>|game_continues(): bool<br ALIGN="LEFT"/>game_is_over(): bool<br ALIGN="LEFT"/>run()<br ALIGN="LEFT"/>}>, shape="record", style="solid"];
+"loup_garou.core_game.engine.GameEvents" [color="black", fontcolor="black", label=<{GameEvents|<br ALIGN="LEFT"/>|<I>on_game_over</I>(winner: Optional[str]): None<br ALIGN="LEFT"/><I>on_night_resolved</I>(deaths: list[tuple[Player, str]], protections: set[Player]): None<br ALIGN="LEFT"/><I>on_phase_changed</I>(old_phase: str, new_phase: str): None<br ALIGN="LEFT"/><I>on_player_eliminated</I>(player: Player, cause: str): None<br ALIGN="LEFT"/>}>, shape="record", style="solid"];
+}
