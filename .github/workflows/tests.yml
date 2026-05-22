@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -23,15 +23,29 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements_test.txt
 
-      - name: Run tests
+      - name: Run tests with JUnit XML and coverage
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest
-                 
-      - name: Run tests with coverage
+          pytest \
+            --junitxml=report.xml \
+            --cov=custom_components/loup_garou \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --cov-fail-under=50
+
+      - name: Publish test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest --cov=custom_components/loup_garou \
-                 --cov-report=term-missing \
-                 --cov-fail-under=50
+        with:
+          files: report.xml
+          check_name: Test Results
+          comment_mode: always
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: htmlcov/
+          retention-days: 30
+          if-no-files-found: ignore
