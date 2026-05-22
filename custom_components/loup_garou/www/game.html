@@ -107,6 +107,15 @@
         <div class="debug-buttons" id="debug-seer-buttons"></div>
       </div>
       <div class="debug-section">
+        <h4 class="debug-section__title">TTS Test</h4>
+        <div class="debug-buttons">
+          <button class="btn-debug" id="debug-tts-test">TTS Test</button>
+        </div>
+        <div style="margin-top:8px">
+          <input type="text" id="debug-tts-input" placeholder="Message personnalisé..." style="width:150px;padding:4px;border:1px solid #444;background:#222;color:#ccc;font-size:12px;">
+        </div>
+      </div>
+      <div class="debug-section">
         <h4 class="debug-section__title" data-i18n="debug.log">Log</h4>
         <div id="log-area" class="log-area"></div>
       </div>
@@ -221,6 +230,14 @@
           } else {
             logMsg('WS not connected', 'error');
           }
+        });
+
+        // TTS test button
+        document.getElementById('debug-tts-test')?.addEventListener('click', () => {
+          const input = document.getElementById('debug-tts-input');
+          const msg = input?.value || 'Test de la synthèse vocale';
+          LoupGarouCore.debugTestTts(msg);
+          logMsg('TTS: ' + msg, 'info');
         });
       }
 

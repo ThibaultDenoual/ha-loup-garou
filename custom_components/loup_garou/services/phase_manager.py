@@ -44,6 +44,7 @@ class PhaseManager:
         self._engine = engine
         self._io = io_interface
         self._lang = language
+        self._pending_phase: str | None = None
 
         hass.bus.async_listen(
             EVENT_GAME_STATE_CHANGED,
@@ -167,6 +168,10 @@ class PhaseManager:
         phase = event.data.get("phase", "")
         _LOGGER.debug("PhaseManager received event phase: %s", phase)
 
+        if not self._io:
+            self._pending_phase = phase
+            return
+
         if Phase.is_night_subphase(phase):
             await self.on_phase_changed(phase)
         elif phase == Phase.DAY:
@@ -181,6 +186,12 @@ class PhaseManager:
         if io_interface:
             self._io = io_interface
             await self.on_game_started()
+            if self._pending_phase:
+                pending = self._pending_phase
+                self._pending_phase = None
+                _LOGGER.debug("Processing pending phase: %s", pending)
+                if Phase.is_night_subphase(pending):
+                    await self.on_phase_changed(pending)
 
     def set_language(self, lang: str) -> None:
         self._lang = lang

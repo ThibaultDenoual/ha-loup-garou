@@ -13,9 +13,11 @@ STORAGE_VERSION = 1
 CONF_SPEAKER = "speaker_entity"
 CONF_LIGHTS = "light_entities"
 CONF_LANGUAGE = "language"
+CONF_TTS_ENGINE = "tts_engine"
 
 LANGUAGES = ["fr", "en"]
 DEFAULT_LANGUAGE = "fr"
+DEFAULT_TTS_ENGINE = "tts.home_assistant_cloud"
 
 
 # ──────────────────────────────────────────────

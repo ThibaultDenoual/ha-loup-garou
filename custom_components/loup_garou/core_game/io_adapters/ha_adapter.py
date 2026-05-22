@@ -21,7 +21,7 @@ from .. import (
 )
 from ..io_adapters.ha_io import HomeAssistantIO
 from ..engine import GameEngine
-from ...const import EVENT_GAME_STARTED
+from ...const import EVENT_GAME_STARTED, EVENT_GAME_STATE_CHANGED
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -154,6 +154,9 @@ class AsyncGameAdapter:
         if self._hass:
             self._hass.bus.fire(EVENT_GAME_STARTED, {"io": self._io})
 
+        if self._hass:
+            self._hass.bus.fire(EVENT_GAME_STATE_CHANGED, {"phase": self._state.phase})
+
         return self.get_public_state()
 
     def _player_to_ha(self, player: Player) -> dict:
@@ -185,6 +188,9 @@ class AsyncGameAdapter:
             }
         else:
             self._state.phase = "role_reveal"
+
+        if self._hass:
+            self._hass.bus.fire(EVENT_GAME_STATE_CHANGED, {"phase": self._state.phase})
 
         return self.get_public_state()
 
@@ -313,6 +319,9 @@ class AsyncGameAdapter:
                 self._state.phase = "night_start"
         elif current == "game_over":
             pass
+
+        if self._hass:
+            self._hass.bus.fire(EVENT_GAME_STATE_CHANGED, {"phase": self._state.phase})
 
         return self.get_public_state()
 

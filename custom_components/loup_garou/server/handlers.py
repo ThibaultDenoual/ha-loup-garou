@@ -378,9 +378,35 @@ async def handle_get_debug_log(
         })
 
 
+async def handle_test_tts(
+    ws: web.WebSocketResponse,
+    data: dict,
+    engine: GameEngine,
+    phase_manager: PhaseManager | None,
+) -> None:
+    try:
+        message = data.get("message", "Test TTS")
+        add_debug_log(f"handle_test_tts: {message}", "info")
+        if engine._io:
+            engine._io.speak(message)
+        await ws.send_json({
+            "type": "state",
+            "data": engine.get_public_state(),
+            "callback_id": data.get("callback_id"),
+        })
+    except Exception as exc:
+        add_debug_log(f"handle_test_tts error: {exc}", "error")
+        await ws.send_json({
+            "type": "error",
+            "message": str(exc),
+            "callback_id": data.get("callback_id"),
+        })
+
+
 HANDLERS = {
     "get_state": handle_get_state,
     "start_game": handle_start_game,
+    "test_tts": handle_test_tts,
     "confirm_role_seen": handle_confirm_role_seen,
     "select_target": handle_select_target,
     "skip_action": handle_skip_action,

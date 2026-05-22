@@ -358,6 +358,10 @@ const LoupGarouCore = (() => {
     _send({ type: 'eliminate_player', player_id: playerId });
   }
 
+  function debugTestTts(message) {
+    _send({ type: 'test_tts', message: message || 'Test de la synthèse vocale' });
+  }
+
 /* ──────────────────────────────────────────
       PUBLIC
       ────────────────────────────────────────── */
@@ -370,6 +374,7 @@ const LoupGarouCore = (() => {
     debugWolfKill,
     debugSeerInvestigate,
     debugEliminate,
+    debugTestTts,
     get ws() { return _ws; },
   };
 })();
