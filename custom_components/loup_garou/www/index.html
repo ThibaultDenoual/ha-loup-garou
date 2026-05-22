@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loup Garou</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; padding: 20px; }
+        h1 { text-align: center; margin-bottom: 20px; font-size: 2em; }
+        h1 i { margin-right: 10px; color: #e94560; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .phase { font-size: 1.5em; text-align: center; padding: 20px; }
+        .night-role-label { font-size: 1.1em; text-align: center; color: #8b8b9e; margin-bottom: 10px; }
+        .players { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+        .player { background: #0f3460; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer; transition: transform 0.2s; border: 2px solid transparent; }
+        .player:hover { transform: scale(1.05); }
+        .player.selected { border-color: #ffc107; box-shadow: 0 0 12px rgba(255,193,7,0.4); }
+        .player.eliminated { opacity: 0.5; text-decoration: line-through; }
+        .player.wolf { border: 2px solid #e94560; }
+        .player.seer { border: 2px solid #9d4edd; }
+        .btn { background: #e94560; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px; }
+        .btn:hover { background: #d63850; }
+        .btn:disabled { background: #666; cursor: not-allowed; }
+        .btn-small { padding: 8px 16px; font-size: 14px; }
+        .btn-secondary { background: #0f3460; }
+        .btn-secondary:hover { background: #1a4a7a; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #1a1a2e; }
+        .btn-warning:hover { background: #e0a800; }
+        .status { text-align: center; padding: 10px; background: #0f3460; border-radius: 8px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #0f3460; color: white; }
+        .player-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+        .player-tag { background: #0f3460; padding: 8px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px; }
+        .player-tag button { background: none; border: none; color: #e94560; cursor: pointer; padding: 0; font-size: 14px; }
+        .role-config { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; }
+        .role-config input { text-align: center; }
+        .role-config i { display: block; margin-bottom: 5px; font-size: 24px; }
+        .error { color: #dc3545; margin-top: 10px; text-align: center; }
+        .setup-form { padding: 20px; }
+        .reveal-banner { background: #0f3460; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 15px; font-size: 1.2em; }
+        .reveal-banner i { margin-right: 8px; }
+        .action-hint { text-align: center; color: #8b8b9e; font-size: 14px; margin-top: 10px; }
+        .debug-panel { background: #0d1b2a; border: 1px dashed #444; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+        .debug-panel summary { cursor: pointer; color: #8b8b9e; font-size: 14px; }
+        .debug-panel summary:hover { color: #eee; }
+        .debug-section { margin: 10px 0; }
+        .debug-section h4 { color: #8b8b9e; font-size: 12px; text-transform: uppercase; margin-bottom: 8px; }
+        .debug-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+        .btn-debug { background: #1a1a2e; color: #8b8b9e; border: 1px solid #333; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .btn-debug:hover { background: #2a2a3e; color: #eee; border-color: #555; }
+        .btn-debug.danger { border-color: #5c1f2a; color: #e94560; }
+        .btn-debug.danger:hover { background: #2a1a24; }
+        .btn-debug.success { border-color: #1a5c2e; color: #4caf50; }
+        .btn-debug.success:hover { background: #1a3a24; }
+        .log-area { background: #0a0f1a; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 11px; max-height: 150px; overflow-y: auto; color: #7fba7f; margin-top: 10px; }
+        .log-entry { margin-bottom: 2px; }
+        .log-entry.err { color: #e94560; }
+        .log-entry.info { color: #5b9bd5; }
+        .game-over-banner { text-align: center; padding: 30px; }
+        .game-over-banner.wolves { color: #e94560; }
+        .game-over-banner.villagers { color: #4caf50; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-paw"></i>Loup Garou</h1>
+        <div id="status" class="status">Connexion en cours...</div>
+
+        <!-- Debug Panel -->
+        <details class="debug-panel" id="debug-panel">
+            <summary><i class="fas fa-bug"></i> Panneau de test</summary>
+            <div class="debug-section">
+                <h4>Navigation</h4>
+                <div class="debug-buttons">
+                    <button class="btn-debug danger" onclick="send('reset')">Reset</button>
+                    <button class="btn-debug" onclick="send('next_phase')">Phase suivante</button>
+                    <button class="btn-debug success" onclick="send('begin_vote')">Commencer vote</button>
+                    <button class="btn-debug" onclick="send('resolve_votes')">Resoudre votes</button>
+                </div>
+            </div>
+            <div class="debug-section">
+                <h4>Elimination</h4>
+                <div class="debug-buttons" id="elim-buttons"></div>
+            </div>
+            <div class="debug-section">
+                <h4>Action nuit</h4>
+                <div class="debug-buttons" id="wolf-kill-buttons"></div>
+                <div class="debug-buttons" id="seer-investigate-buttons"></div>
+            </div>
+            <div class="debug-section">
+                <h4>Log</h4>
+                <div id="log-area" class="log-area"></div>
+            </div>
+        </details>
+
+        <!-- Setup Form -->
+        <div id="setup" class="card" style="display: none;">
+            <h2 style="text-align: center; margin-bottom: 20px;">Configuration de la partie</h2>
+            <div class="setup-form">
+                <div class="form-group">
+                    <label>Joueurs (<span id="player-count">0</span>/5 min)</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="new-player-name" placeholder="Nom du joueur" onkeypress="if(event.key==='Enter')addPlayer()">
+                        <button class="btn btn-small" onclick="addPlayer()">Ajouter</button>
+                    </div>
+                    <div id="player-list" class="player-list"></div>
+                    <div id="player-error" class="error"></div>
+                </div>
+                <div class="form-group">
+                    <label>Distribution des roles</label>
+                    <div class="role-config">
+                        <div>
+                            <i class="fas fa-person" style="color: #17a2b8;"></i>
+                            <label>Villageois</label>
+                            <input type="number" id="role-villager" value="3" min="0">
+                        </div>
+                        <div>
+                            <i class="fas fa-wolf" style="color: #e94560;"></i>
+                            <label>Loups</label>
+                            <input type="number" id="role-wolf" value="1" min="1">
+                        </div>
+                        <div>
+                            <i class="fas fa-crystal-ball" style="color: #9d4edd;"></i>
+                            <label>Voyante</label>
+                            <input type="number" id="role-seer" value="1" min="0" max="1">
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <button class="btn" onclick="startGame()">Commencer la partie</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game View -->
+        <div id="game" class="card" style="display: none;">
+            <div id="phase" class="phase">En attente...</div>
+            <div id="night-role-label" class="night-role-label" style="display:none;"></div>
+            <div id="reveal-banner" class="reveal-banner" style="display:none;"></div>
+            <div id="players" class="players"></div>
+            <div id="actions" style="text-align: center; margin-top: 20px;"></div>
+            <div id="action-hint" class="action-hint"></div>
+            <div id="game-over-banner" class="game-over-banner" style="display:none;"></div>
+        </div>
+    </div>
+    <script>
+        const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/loup_garou/ws`);
+        let gameState = null;
+        let players = [];
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'state') {
+                gameState = data.data;
+                render();
+            } else if (data.type === 'error') {
+                logMsg('Erreur: ' + (data.message || 'Erreur inconnue'), 'err');
+                document.getElementById('status').textContent = 'Erreur: ' + (data.message || 'Erreur inconnue');
+            } else {
+                logMsg(JSON.stringify(data), 'info');
+            }
+        };
+
+        ws.onopen = () => {
+            document.getElementById('status').textContent = 'Connecte';
+            ws.send(JSON.stringify({ type: 'get_state' }));
+        };
+
+        ws.onerror = () => {
+            document.getElementById('status').textContent = 'Erreur de connexion';
+        };
+
+        function send(action, data) {
+            ws.send(JSON.stringify({ type: action, ...(data || {}) }));
+        }
+
+        function render() {
+            if (!gameState) return;
+            const phase = gameState.phase || 'setup';
+
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('game').style.display = 'none';
+            document.getElementById('game-over-banner').style.display = 'none';
+
+            if (phase === 'setup') {
+                document.getElementById('status').textContent = 'En attente de configuration';
+                document.getElementById('setup').style.display = 'block';
+                renderPlayerList();
+            } else {
+                document.getElementById('status').textContent = 'Partie en cours';
+                document.getElementById('game').style.display = 'block';
+                renderGame();
+            }
+            updateDebugButtons();
+        }
+
+        function renderPlayerList() {
+            const list = document.getElementById('player-list');
+            list.innerHTML = players.map((p, i) => `
+                <div class="player-tag">
+                    ${p}
+                    <button onclick="removePlayer(${i})"><i class="fas fa-times"></i></button>
+                </div>
+            `).join('');
+            document.getElementById('player-count').textContent = players.length;
+        }
+
+        function addPlayer() {
+            const input = document.getElementById('new-player-name');
+            const name = input.value.trim();
+            if (name) {
+                players.push(name);
+                input.value = '';
+                renderPlayerList();
+            }
+        }
+
+        function removePlayer(index) {
+            players.splice(index, 1);
+            renderPlayerList();
+        }
+
+        function startGame() {
+            const errorEl = document.getElementById('player-error');
+            if (players.length < 5) {
+                errorEl.textContent = 'Il faut au moins 5 joueurs pour commencer';
+                return;
+            }
+            errorEl.textContent = '';
+
+            const villagers = parseInt(document.getElementById('role-villager').value) || 0;
+            const wolves = parseInt(document.getElementById('role-wolf').value) || 1;
+            const seers = parseInt(document.getElementById('role-seer').value) || 0;
+
+            const totalRoles = villagers + wolves + seers;
+            if (totalRoles !== players.length) {
+                errorEl.textContent = `Le nombre de roles (${totalRoles}) doit correspondre au nombre de joueurs (${players.length})`;
+                return;
+            }
+
+            send('start_game', {
+                player_names: players,
+                role_config: {
+                    villagers: villagers,
+                    werewolves: wolves,
+                    seers: seers
+                }
+            });
+        }
+
+        function renderGame() {
+            const phase = gameState.phase || 'setup';
+            const roleLabels = { seer: 'Voyante', werewolf: 'Loup-Garou' };
+            const roleIcons = { seer: 'fa-crystal-ball', werewolf: 'fa-wolf' };
+            const phaseLabels = {
+                setup: 'Configuration',
+                role_reveal: 'Distribution des roles',
+                night: 'Nuit',
+                day: 'Jour',
+                vote: 'Vote',
+                game_over: 'Fin de partie'
+            };
+
+            document.getElementById('phase').textContent = phaseLabels[phase] || phase;
+
+            // Night role label
+            const nightRoleLabel = document.getElementById('night-role-label');
+            const nightRole = gameState.current_night_role;
+            if (phase === 'night' && nightRole) {
+                nightRoleLabel.style.display = 'block';
+                const iconClass = roleIcons[nightRole] || 'fa-moon';
+                nightRoleLabel.innerHTML = `<i class="fas ${iconClass}"></i> Tour de la <strong>${roleLabels[nightRole] || nightRole}</strong>`;
+            } else {
+                nightRoleLabel.style.display = 'none';
+            }
+
+            // Reveal banner
+            const revealBanner = document.getElementById('reveal-banner');
+            if (phase === 'role_reveal' && gameState.next_reveal_player) {
+                revealBanner.style.display = 'block';
+                revealBanner.innerHTML = `<i class="fas fa-eye"></i> ${gameState.next_reveal_player} doit voir son role <span style="color:#8b8b9e">(${gameState.reveal_index + 1}/${gameState.reveal_total})</span>`;
+            } else {
+                revealBanner.style.display = 'none';
+            }
+
+            // Player grid
+            const playersDiv = document.getElementById('players');
+            const gamePlayers = gameState.players || [];
+            const targetId = gameState.current_target_id;
+
+            if (gamePlayers.length === 0) {
+                playersDiv.innerHTML = '<p style="text-align: center;">Aucun joueur</p>';
+            } else {
+                const canSelect = (phase === 'night' && nightRole) || (phase === 'role_reveal');
+                playersDiv.innerHTML = gamePlayers.map(p => {
+                    const classes = ['player'];
+                    if (p.alive === false) classes.push('eliminated');
+                    if (p.role === 'werewolf') classes.push('wolf');
+                    if (p.role === 'seer') classes.push('seer');
+                    if (p.id === targetId) classes.push('selected');
+                    const onclick = canSelect ? `onclick="selectPlayer('${p.id}')"` : '';
+                    return `<div class="${classes.join(' ')}" ${onclick}>
+                        <div>${p.name}</div>
+                        ${p.alive === false ? '<i class="fas fa-skull"></i>' : ''}
+                        ${p.id === targetId ? '<i class="fas fa-crosshairs" style="color:#ffc107;margin-top:4px;"></i>' : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            // Actions
+            const actionsDiv = document.getElementById('actions');
+            const hintDiv = document.getElementById('action-hint');
+            actionsDiv.innerHTML = '';
+            hintDiv.textContent = '';
+
+            if (phase === 'role_reveal') {
+                actionsDiv.innerHTML = `<button class="btn" onclick="send('confirm_role_seen')">J'ai vu mon role</button>`;
+                hintDiv.textContent = 'Cliquez sur un joueur pour le selectionner, puis validez';
+            } else if (phase === 'night' && nightRole) {
+                if (nightRole === 'seer') {
+                    actionsDiv.innerHTML = `<button class="btn btn-warning" onclick="sendNightAction('seer_investigate')" ${!targetId ? 'disabled' : ''}>Observer le joueur choisi</button>
+                        <button class="btn btn-secondary" onclick="send('skip_action')">Passer (ne rien faire)</button>`;
+                    hintDiv.textContent = 'Selectionnez un joueur pour l\'observer';
+                } else if (nightRole === 'werewolf') {
+                    actionsDiv.innerHTML = `<button class="btn btn-danger" onclick="sendNightAction('wolf_kill')" ${!targetId ? 'disabled' : ''}>Tuer le joueur choisi</button>
+                        <button class="btn btn-secondary" onclick="send('skip_action')">Passer (ne rien faire)</button>`;
+                    hintDiv.textContent = 'Selectionnez un joueur (non-loup) pour le tuer';
+                }
+            } else if (phase === 'night') {
+                actionsDiv.innerHTML = `<button class="btn btn-secondary" onclick="send('next_phase')">Passer a la journee</button>`;
+            } else if (phase === 'day') {
+                actionsDiv.innerHTML = `<button class="btn btn-warning" onclick="send('begin_vote')">Commencer le vote</button>
+                    <button class="btn" onclick="send('next_phase')">Passer (sans vote)</button>`;
+            } else if (phase === 'vote') {
+                actionsDiv.innerHTML = `<button class="btn" onclick="send('resolve_votes')">Terminer le vote</button>`;
+                hintDiv.textContent = `Votes: ${gameState.votes_cast || 0} / ${gameState.alive_voter_count || 0}`;
+            } else if (phase === 'game_over') {
+                const banner = document.getElementById('game-over-banner');
+                banner.style.display = 'block';
+                if (gameState.winner === 'wolves') {
+                    banner.className = 'game-over-banner wolves';
+                    banner.innerHTML = '<i class="fas fa-skull" style="font-size:2em;margin-bottom:10px;display:block;"></i>Les Loups-Garous ont gagne !';
+                } else if (gameState.winner === 'villagers') {
+                    banner.className = 'game-over-banner villagers';
+                    banner.innerHTML = '<i class="fas fa-village" style="font-size:2em;margin-bottom:10px;display:block;"></i>Le Village a gagne !';
+                }
+                actionsDiv.innerHTML = `<button class="btn" onclick="send('reset')">Nouvelle partie</button>`;
+            }
+        }
+
+        function selectPlayer(id) {
+            send('select_target', { target_id: id });
+        }
+
+        function sendNightAction(actionType) {
+            const targetId = gameState.current_target_id;
+            if (!targetId) {
+                logMsg('Selectionnez d\'abord un joueur', 'err');
+                return;
+            }
+            send('night_action', { action_type: actionType, target_id: targetId });
+        }
+
+        function updateDebugButtons() {
+            const elimDiv = document.getElementById('elim-buttons');
+            const wolfDiv = document.getElementById('wolf-kill-buttons');
+            const seerDiv = document.getElementById('seer-investigate-buttons');
+            if (!gameState || !gameState.players) {
+                elimDiv.innerHTML = '';
+                wolfDiv.innerHTML = '';
+                seerDiv.innerHTML = '';
+                return;
+            }
+            const alive = gameState.players.filter(p => p.alive !== false);
+
+            elimDiv.innerHTML = alive.map(p =>
+                `<button class="btn-debug danger" onclick="debugEliminate('${p.id}')">Eliminer ${p.name}</button>`
+            ).join('');
+
+            const nonWolf = alive.filter(p => p.role !== 'werewolf');
+            wolfDiv.innerHTML = `<span style="color:#8b8b9e;font-size:11px;">Loups:</span> ` +
+                nonWolf.map(p =>
+                    `<button class="btn-debug" onclick="debugWolfKill('${p.id}')">Tuer ${p.name}</button>`
+                ).join('');
+
+            seerDiv.innerHTML = `<span style="color:#8b8b9e;font-size:11px;">Voyante:</span> ` +
+                alive.map(p =>
+                    `<button class="btn-debug" onclick="debugSeerInvestigate('${p.id}')">Observer ${p.name}</button>`
+                ).join('');
+        }
+
+        function debugEliminate(playerId) {
+            send('eliminate_player', { player_id: playerId, cause: 'village_vote' });
+        }
+
+        function debugWolfKill(targetId) {
+            send('night_action', { action_type: 'wolf_kill', target_id: targetId });
+        }
+
+        function debugSeerInvestigate(targetId) {
+            send('night_action', { action_type: 'seer_investigate', target_id: targetId });
+        }
+
+        function logMsg(msg, type) {
+            const area = document.getElementById('log-area');
+            const ts = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const div = document.createElement('div');
+            div.className = `log-entry ${type || ''}`;
+            div.textContent = `[${ts}] ${msg}`;
+            area.appendChild(div);
+            area.scrollTop = area.scrollHeight;
+        }
+    </script>
+</body>
+</html>
