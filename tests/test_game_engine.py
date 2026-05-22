@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from custom_components.loup_garou.game_engine import GameEngine
+from custom_components.loup_garou.core.engine import GameEngine
 from custom_components.loup_garou.const import (
     Phase,
     Role,
