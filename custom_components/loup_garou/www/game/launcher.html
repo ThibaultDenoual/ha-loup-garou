@@ -3,57 +3,285 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Loup Garou — Config</title>
+<title>Loup Garou — Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cinzel+Decorative:wght@900&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0d0d1a; --surface: #1a1a2e; --accent: #c0392b;
-    --gold: #f0c040; --text: #e8e8f0; --muted: #888;
-    --radius: 12px; --font: 'Georgia', serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--font);
-    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; }
-  h1 { color: var(--gold); font-size: 2rem; margin-bottom: 0.3rem; }
-  h2 { color: var(--muted); font-size: 1rem; margin-bottom: 2rem; }
-  .card { background: var(--surface); border-radius: var(--radius); padding: 1.5rem; width: 100%; max-width: 500px; margin-bottom: 1rem; }
-  .card h3 { color: var(--gold); margin-bottom: 1rem; }
-  a.btn {
-    display: block; background: var(--accent); color: #fff;
-    border-radius: var(--radius); padding: 0.9rem 1.4rem;
-    font-size: 1.1rem; text-align: center; text-decoration: none;
-    transition: opacity 0.2s; margin-top: 0.5rem;
-  }
-  a.btn:hover { opacity: 0.85; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-  td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #333; }
-  td:first-child { color: var(--muted); width: 40%; }
+:root {
+  --bg:          #0c0a08;
+  --bg-surface:  #161210;
+  --bg-elevated: #1e1a17;
+  --amber:       #d4862a;
+  --amber-dim:   #7a4a10;
+  --blood:       #8b1a1a;
+  --sage:        #4a7a4a;
+  --violet:      #7a3d9a;
+  --rose:        #8a3050;
+  --text:        #e8d8c0;
+  --text-muted:  #7a6a58;
+  --border:      1px solid rgba(212,134,42,0.12);
+  --radius:      8px;
+  --font-d:      'Cinzel', serif;
+  --font-deco:   'Cinzel Decorative', serif;
+  --font-b:      'Crimson Pro', serif;
+}
+*,*::before,*::after { box-sizing:border-box;margin:0;padding:0 }
+body {
+  background:var(--bg);color:var(--text);
+  font-family:var(--font-b);font-size:1.05rem;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:2rem 1rem 4rem;
+  -webkit-font-smoothing:antialiased;
+}
+h1 {
+  font-family:var(--font-deco);font-size:2rem;
+  color:var(--amber);text-align:center;margin-bottom:0.3rem;
+}
+.subtitle { color:var(--text-muted);font-family:var(--font-d);font-size:0.8rem;letter-spacing:0.15em;text-align:center;margin-bottom:2rem }
+
+.container { width:100%;max-width:520px }
+
+/* Tabs */
+.tabs { display:flex;border-bottom:1px solid rgba(212,134,42,0.15);margin-bottom:1.5rem }
+.tab-btn {
+  flex:1;background:none;border:none;color:var(--text-muted);
+  font-family:var(--font-d);font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;
+  padding:0.7rem 0.5rem;cursor:pointer;border-bottom:2px solid transparent;
+  transition:color 0.2s,border-color 0.2s;
+}
+.tab-btn.active { color:var(--amber);border-bottom-color:var(--amber) }
+.tab-content { display:none }
+.tab-content.active { display:block }
+
+/* Play tab */
+.play-card {
+  background:var(--bg-surface);border:var(--border);
+  border-radius:var(--radius);padding:2rem;text-align:center;
+  margin-bottom:1rem;
+}
+.play-card p { color:var(--text-muted);font-style:italic;margin-bottom:1.5rem;line-height:1.6 }
+a.btn-play {
+  display:block;background:var(--amber);color:#0c0a08;
+  font-family:var(--font-d);font-size:0.85rem;letter-spacing:0.12em;text-transform:uppercase;
+  padding:0.9rem;border-radius:var(--radius);text-decoration:none;
+  transition:opacity 0.15s;
+}
+a.btn-play:hover { opacity:0.85 }
+
+.ha-info {
+  background:var(--bg-surface);border:var(--border);
+  border-left:3px solid var(--amber-dim);border-radius:var(--radius);
+  padding:1rem 1.25rem;font-size:0.9rem;color:var(--text-muted);
+}
+.ha-info strong { color:var(--text);display:block;margin-bottom:0.4rem;font-family:var(--font-d);font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase }
+
+/* Rules tab */
+.rules-section { margin-bottom:1.5rem }
+.rules-title {
+  font-family:var(--font-d);font-size:0.8rem;letter-spacing:0.15em;text-transform:uppercase;
+  color:var(--amber-dim);margin-bottom:0.75rem;
+  display:flex;align-items:center;gap:0.6rem;
+}
+.rules-title::after { content:'';flex:1;height:1px;background:linear-gradient(to right,rgba(212,134,42,0.2),transparent) }
+.rules-body { font-size:1rem;color:var(--text-muted);line-height:1.75 }
+.rules-body li { margin-bottom:0.4rem }
+.rules-body ol,ul { padding-left:1.4rem }
+
+.role-grid { display:flex;flex-direction:column;gap:0;margin-top:0.5rem }
+.role-row {
+  display:flex;gap:0.75rem;align-items:baseline;
+  padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.04);
+  font-size:0.95rem;
+}
+.role-row:last-child { border-bottom:none }
+.role-name { font-family:var(--font-d);font-size:0.8rem;min-width:100px;color:var(--text) }
+.role-desc { color:var(--text-muted);font-style:italic;line-height:1.5 }
+.team-dot {
+  display:inline-block;width:6px;height:6px;border-radius:50%;
+  flex-shrink:0;margin-top:0.45rem;
+}
+.team-wolves   { background:var(--blood) }
+.team-village  { background:var(--sage) }
+.team-lovers   { background:var(--rose) }
+
+/* Config tab */
+.config-group { margin-bottom:1.5rem }
+.config-label {
+  font-family:var(--font-d);font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:0.5rem;display:block;
+}
+.config-value {
+  background:var(--bg-surface);border:var(--border);border-radius:var(--radius);
+  padding:0.6rem 1rem;font-size:0.95rem;color:var(--text);font-style:italic;
+  word-break:break-all;
+}
+.config-empty { color:var(--text-muted) }
+.config-tag {
+  display:inline-block;background:var(--bg-elevated);border:var(--border);
+  border-radius:4px;padding:0.2rem 0.5rem;font-size:0.85rem;
+  margin:0.15rem;font-style:normal;color:var(--text);
+}
 </style>
 </head>
 <body>
-<h1>🐺 Loup Garou</h1>
-<h2>Hub de configuration</h2>
 
-<div class="card">
-  <h3>Partie</h3>
-  <a href="/loup_garou/game/index.html" class="btn">Ouvrir le jeu</a>
-</div>
+<div class="container">
+  <h1>Loup Garou</h1>
+  <p class="subtitle">Hub de configuration</p>
 
-<div class="card">
-  <h3>Référence des rôles</h3>
-  <div id="role-ref">Chargement…</div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="play">Jouer</button>
+    <button class="tab-btn" data-tab="rules">Règles</button>
+    <button class="tab-btn" data-tab="config">Config HA</button>
+  </div>
+
+  <!-- ── PLAY TAB ─────────────────────────────────────────────────────────── -->
+  <div id="tab-play" class="tab-content active">
+    <div class="play-card">
+      <p>Rassemblez les joueurs autour d'un appareil. Le meneur de jeu gère l'interface pendant que les joueurs ferment les yeux.</p>
+      <a href="/loup_garou/game/index.html" class="btn-play">Ouvrir le jeu</a>
+    </div>
+
+    <div class="ha-info" id="ha-config-summary">
+      <strong>Configuration</strong>
+      <span id="config-summary-text">Chargement…</span>
+    </div>
+  </div>
+
+  <!-- ── RULES TAB ─────────────────────────────────────────────────────────── -->
+  <div id="tab-rules" class="tab-content">
+    <div class="rules-section">
+      <div class="rules-title">Principe</div>
+      <div class="rules-body">
+        <p>Loup-Garou est un jeu de rôle et de déduction sociale. Deux camps s'affrontent :</p>
+        <ul style="margin-top:0.5rem">
+          <li>Les <strong>Loups-Garous</strong> cherchent à éliminer tous les villageois.</li>
+          <li>Le <strong>Village</strong> cherche à identifier et éliminer tous les loups.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rules-section">
+      <div class="rules-title">Déroulement</div>
+      <div class="rules-body">
+        <ol>
+          <li>Chaque joueur reçoit un rôle secret.</li>
+          <li><strong>La Nuit</strong> — les rôles spéciaux agissent dans l'ordre (Cupidon → Voyante → Loups → Sorcière…).</li>
+          <li><strong>Le Jour</strong> — le village discute et vote pour éliminer un suspect.</li>
+          <li>On recommence jusqu'à la victoire d'un camp.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="rules-section">
+      <div class="rules-title">Victoire</div>
+      <div class="rules-body">
+        <ul>
+          <li><strong>Loups</strong> — Les loups sont en nombre ≥ aux villageois restants.</li>
+          <li><strong>Village</strong> — Tous les loups sont éliminés.</li>
+          <li><strong>Amoureux</strong> — Les deux amoureux sont les seuls survivants.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rules-section">
+      <div class="rules-title">Rôles</div>
+      <div id="role-ref" class="role-grid">Chargement…</div>
+    </div>
+  </div>
+
+  <!-- ── CONFIG TAB ─────────────────────────────────────────────────────────── -->
+  <div id="tab-config" class="tab-content">
+    <div class="config-group">
+      <span class="config-label">Langue</span>
+      <div class="config-value" id="cfg-language"><span class="config-empty">—</span></div>
+    </div>
+    <div class="config-group">
+      <span class="config-label">Haut-parleur (TTS)</span>
+      <div class="config-value" id="cfg-speaker"><span class="config-empty">Non configuré</span></div>
+    </div>
+    <div class="config-group">
+      <span class="config-label">Lumières d'ambiance</span>
+      <div class="config-value" id="cfg-lights"><span class="config-empty">Aucune</span></div>
+    </div>
+    <div class="config-group">
+      <span class="config-label">Moteur TTS</span>
+      <div class="config-value" id="cfg-tts-engine"><span class="config-empty">—</span></div>
+    </div>
+
+    <p style="font-size:0.85rem;color:var(--text-muted);font-style:italic;margin-top:1rem">
+      Ces paramètres sont définis dans la configuration de l'intégration Home Assistant. Pour les modifier, utilisez l'interface de configuration de l'intégration.
+    </p>
+  </div>
 </div>
 
 <script>
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+  });
+});
+
+const ROLES = ['villager','werewolf','seer','hunter','elder','scapegoat','little_girl','witch','cupid','alpha_wolf','minion','sheriff'];
+const TEAMS = {
+  werewolf:'wolves', alpha_wolf:'wolves', minion:'wolves',
+  cupid:'lovers',
+};
+function teamClass(id) {
+  const t = TEAMS[id];
+  if (t === 'wolves') return 'team-wolves';
+  if (t === 'lovers') return 'team-lovers';
+  return 'team-village';
+}
+
+// Connect WS to get config, load locale for roles
 (async () => {
-  const r = await fetch('/loup_garou/locales/fr.json');
-  const locale = await r.json();
-  const roles = ['villager','werewolf','seer','hunter','elder','scapegoat','little_girl','witch','cupid','alpha_wolf','minion','sheriff'];
+  const lang = document.documentElement.lang || 'fr';
+  const localeR = await fetch(`/loup_garou/locales/${lang}.json`);
+  const locale = await localeR.json();
+
+  // Role reference
   const el = document.getElementById('role-ref');
-  el.innerHTML = '<table>' + roles.map(id => `
-    <tr>
-      <td>${locale[`role.${id}.name`] || id}</td>
-      <td>${locale[`role.${id}.description`] || ''}</td>
-    </tr>`).join('') + '</table>';
+  el.innerHTML = ROLES.map(id => `
+    <div class="role-row">
+      <span class="team-dot ${teamClass(id)}"></span>
+      <span class="role-name">${locale[`role.${id}.name`] || id}</span>
+      <span class="role-desc">${locale[`role.${id}.description`] || ''}</span>
+    </div>`).join('');
+
+  // Load HA config via WS
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/loup_garou/ws`);
+  ws.onopen = () => ws.send(JSON.stringify({cmd:'get_config',data:{}}));
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type !== 'config') return;
+    ws.close();
+    const cfg = msg.config || {};
+
+    document.getElementById('cfg-language').textContent = cfg.language || '—';
+    document.getElementById('cfg-speaker').innerHTML = cfg.speaker
+      ? `<span class="config-tag">${cfg.speaker}</span>`
+      : '<span class="config-empty">Non configuré</span>';
+
+    const lights = cfg.lights || [];
+    document.getElementById('cfg-lights').innerHTML = lights.length
+      ? lights.map(l => `<span class="config-tag">${l}</span>`).join('')
+      : '<span class="config-empty">Aucune</span>';
+
+    document.getElementById('cfg-tts-engine').textContent = cfg.tts_engine || '—';
+
+    const parts = [];
+    if (cfg.language) parts.push(cfg.language.toUpperCase());
+    if (cfg.speaker) parts.push('🔊');
+    if (lights.length) parts.push(`💡×${lights.length}`);
+    document.getElementById('config-summary-text').textContent = parts.join('  ') || 'Aucune configuration';
+  };
 })();
 </script>
 </body>

@@ -33,7 +33,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     engine = GameEngine()
-    server = LoupGarouServer(engine)
+    server = LoupGarouServer(engine, config={
+        "language": language,
+        "speaker": conf.get(CONF_SPEAKER, ""),
+        "lights": conf.get(CONF_LIGHTS, []),
+        "tts_engine": conf.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE),
+    })
     server.wire_events()
 
     atmosphere = Atmosphere(

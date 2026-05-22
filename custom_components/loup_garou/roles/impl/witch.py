@@ -15,6 +15,18 @@ class Witch(BaseRole):
                 ctx.set_flag(p["id"], "witch_save_used", False)
                 ctx.set_flag(p["id"], "witch_poison_used", False)
 
+    def get_wake_data(self, ctx: RoleContext) -> dict:
+        witch_players = ctx.alive_players_by_role(self.id)
+        witch_id = witch_players[0]["id"] if witch_players else None
+        return {
+            "pending_kills": [
+                {"player_id": pid, "cause": cause}
+                for pid, cause in ctx._state.pending_kills
+            ],
+            "save_used": ctx.get_flag(witch_id, "witch_save_used", False) if witch_id else True,
+            "poison_used": ctx.get_flag(witch_id, "witch_poison_used", False) if witch_id else True,
+        }
+
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
         witch_id = action.get("player_id")
         if witch_id is None:

@@ -104,10 +104,9 @@ class GameEngine:
             if not ctx.alive_players_by_role(role.id):
                 continue
 
-            await self._emit(GameEvent.NIGHT_ROLE_WAKE, {
-                "role": role.id,
-                "pending_kills": [pid for pid, _ in self._state.pending_kills],
-            })
+            wake_data = {"role": role.id}
+            wake_data.update(role.get_wake_data(ctx))
+            await self._emit(GameEvent.NIGHT_ROLE_WAKE, wake_data)
             await role.on_night_start(ctx)
 
             loop = asyncio.get_event_loop()
@@ -188,8 +187,9 @@ class GameEngine:
         game_over = await self._do_elimination(target_id, "village_vote", ctx)
         await self._emit(GameEvent.VOTE_RESOLVED, {"eliminated": target_id, "tie": False})
         if not game_over:
-            self._state.phase = Phase.NIGHT
-            # Caller (server) should call begin_night()
+            self._state.phase = Phase.DAY
+            await self._emit(GameEvent.PHASE_CHANGED, {"phase": Phase.DAY})
+            await self._emit(GameEvent.DAY_STARTED, {"eliminated": [target_id]})
         return target_id
 
     # ── Internal helpers ──────────────────────────────────────────────────────

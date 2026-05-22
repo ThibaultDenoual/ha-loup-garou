@@ -136,3 +136,7 @@ class BaseRole:
 
     def get_public_state(self, ctx: RoleContext) -> dict:
         return {}
+
+    def get_wake_data(self, ctx: RoleContext) -> dict:
+        """Extra data to include in NIGHT_ROLE_WAKE payload. Roles override this."""
+        return {}

@@ -13,8 +13,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class LoupGarouServer:
-    def __init__(self, engine: GameEngine) -> None:
+    def __init__(self, engine: GameEngine, config: dict | None = None) -> None:
         self._engine = engine
+        self._config: dict = config or {}
         self._clients: set[web.WebSocketResponse] = set()
         self._night_task: asyncio.Task | None = None
 
@@ -76,6 +77,8 @@ class LoupGarouServer:
                 await self.broadcast({"type": "state", "state": self._engine.get_public_state()})
             elif cmd == "get_state":
                 await ws.send_json({"type": "state", "state": self._engine.get_public_state()})
+            elif cmd == "get_config":
+                await ws.send_json({"type": "config", "config": self._config})
             else:
                 await ws.send_json({"type": "error", "msg": f"unknown command: {cmd}"})
         except Exception as exc:
@@ -86,7 +89,7 @@ class LoupGarouServer:
         players = data["players"]
         role_ids = data["roles"]
         await self._engine.start_game(players, role_ids)
-        await self.broadcast({"type": "state", "state": self._engine.get_public_state()})
+        # Events (GAME_STARTED, PHASE_CHANGED) already broadcast state via wire_events
 
     async def _cmd_begin_night(self) -> None:
         if self._night_task and not self._night_task.done():
@@ -132,7 +135,11 @@ class LoupGarouServer:
             players_map = {p["id"]: p for p in pub["players"]}
 
             # Resolve pending_kill IDs → player objects the UI can display
-            kill_ids: list[str] = data.get("pending_kills", [])
+            # pending_kills may be [str, ...] or [{"player_id": str, "cause": str}, ...]
+            kill_entries = data.get("pending_kills", [])
+            kill_ids: list[str] = [
+                e["player_id"] if isinstance(e, dict) else e for e in kill_entries
+            ]
             if kill_ids:
                 enriched["pending_kill_players"] = [
                     players_map[pid] for pid in kill_ids if pid in players_map
