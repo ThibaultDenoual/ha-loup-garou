@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import pytest
 
+from core_game.roles import PRESETS
+
 
 class MockIO:
     """Mock IO for testing game engine."""
@@ -72,7 +74,7 @@ class TestEngineInitialization:
         io = MockIO()
         engine = GameEngine(
             player_names=["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
             seed=42,
         )
@@ -88,7 +90,7 @@ class TestEngineInitialization:
         io = MockIO()
         engine = GameEngine(
             player_names=["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
             seed=42,
         )
@@ -108,8 +110,8 @@ class TestEngineInitialization:
 
         names = ["A", "B", "C", "D", "E", "F"]
 
-        e1 = GameEngine(names, preset="small", io=io1, seed=1)
-        e2 = GameEngine(names, preset="small", io=io2, seed=2)
+        e1 = GameEngine(names, role_names=PRESETS["small"], io=io1, seed=1)
+        e2 = GameEngine(names, role_names=PRESETS["small"], io=io2, seed=2)
 
         r1 = [p.role.name for p in e1.state.players]
         r2 = [p.role.name for p in e2.state.players]
@@ -146,18 +148,17 @@ class TestEngineInitialization:
                 io=io,
             )
 
-    def test_engine_preset_selection_small(self):
-        """Engine picks 'small' preset for <= 6 players."""
+    def test_engine_requires_explicit_role_names(self):
+        """Engine requires explicit role_names, no auto-preset selection."""
         from core_game.engine import GameEngine
-        from core_game import PRESETS
+        import pytest
 
         io = MockIO()
-        engine = GameEngine(
-            player_names=["A", "B", "C", "D", "E", "F"],
-            io=io,
-        )
-
-        assert engine.state.players[0].role is not None
+        with pytest.raises(TypeError):
+            GameEngine(
+                player_names=["A", "B", "C", "D", "E", "F"],
+                io=io,
+            )
 
     def test_engine_player_links(self):
         """Players have their role.player reference set."""
@@ -166,7 +167,7 @@ class TestEngineInitialization:
         io = MockIO()
         engine = GameEngine(
             player_names=["Alice", "Bob", "Charlie", "Dave", "Eve", "Frank"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -184,7 +185,7 @@ class TestEngineFSM:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -197,7 +198,7 @@ class TestEngineFSM:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -215,7 +216,7 @@ class TestEngineFSM:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -231,7 +232,7 @@ class TestEngineFSM:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -248,7 +249,7 @@ class TestEngineFSM:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -266,7 +267,7 @@ class TestEngineFSM:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -285,7 +286,7 @@ class TestEngineFSM:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -305,7 +306,7 @@ class TestEngineFSM:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -330,7 +331,7 @@ class TestEngineGuards:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -343,7 +344,7 @@ class TestEngineGuards:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine.state.winner = "village"
@@ -357,7 +358,7 @@ class TestEngineGuards:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -435,7 +436,7 @@ class TestEngineDeath:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -451,7 +452,7 @@ class TestEngineDeath:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -470,7 +471,7 @@ class TestEngineDeath:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
 
@@ -490,7 +491,7 @@ class TestEngineDeath:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine.state.round_number = 1
@@ -500,41 +501,6 @@ class TestEngineDeath:
         engine._kill_player(player, cause="wolf_kill")
 
         assert any("died from wolf_kill" in log for log in engine.state.event_log)
-
-
-class TestEnginePreset:
-    """Test preset selection logic."""
-
-    def test_pick_preset_small(self):
-        """_pick_preset returns 'small' for <= 6 players."""
-        from core_game.engine import GameEngine
-
-        io = MockIO()
-        assert GameEngine._pick_preset(6) == "small"
-        assert GameEngine._pick_preset(5) == "small"
-
-    def test_pick_preset_medium(self):
-        """_pick_preset returns 'medium' for 7-9 players."""
-        from core_game.engine import GameEngine
-
-        io = MockIO()
-        assert GameEngine._pick_preset(7) == "medium"
-        assert GameEngine._pick_preset(9) == "medium"
-
-    def test_pick_preset_large(self):
-        """_pick_preset returns 'large' for 10-13 players."""
-        from core_game.engine import GameEngine
-
-        io = MockIO()
-        assert GameEngine._pick_preset(10) == "large"
-        assert GameEngine._pick_preset(13) == "large"
-
-    def test_pick_preset_chaos(self):
-        """_pick_preset returns 'chaos' for > 13 players."""
-        from core_game.engine import GameEngine
-
-        io = MockIO()
-        assert GameEngine._pick_preset(14) == "chaos"
 
 
 class TestGameEvents:
@@ -552,7 +518,7 @@ class TestGameEvents:
 
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
             events=events,
         )
@@ -571,7 +537,7 @@ class TestGameEvents:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
             events=events,
         )
@@ -591,7 +557,7 @@ class TestGameEvents:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
             events=events,
         )

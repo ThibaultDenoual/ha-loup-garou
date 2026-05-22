@@ -175,7 +175,7 @@ class TestRoleRevealPhase:
         assert is_revealed is True
         role_text = page.locator("#role-card-back .role-name")
         assert role_text.count() > 0
-        assert role_text.inner_text() == "Voyant"
+        assert role_text.inner_text() == "roles.seer.name"
 
     def test_reveal_completes_after_all_players(self, goto_reveal_phase):
         """After all players confirm, phase advances to next."""

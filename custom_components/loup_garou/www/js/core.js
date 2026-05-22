@@ -11,6 +11,8 @@ const LoupGarouCore = (() => {
   let _ws     = null;
   let _state  = null;  // Last known game state from server
   let _views  = {};
+  let _debugLogFetchTimer = null;
+  let _lastBackendLogCount = 0;
 
   // ── Phase → view mapping ──
   const PHASE_VIEW_MAP = {
@@ -73,6 +75,17 @@ const LoupGarouCore = (() => {
   function _onWsOpen() {
     // Request current state on connect
     _ws.send({ type: 'get_state' });
+    // Start polling for backend debug logs
+    _startDebugLogPoll();
+  }
+
+  function _startDebugLogPoll() {
+    if (_debugLogFetchTimer) clearInterval(_debugLogFetchTimer);
+    _debugLogFetchTimer = setInterval(() => {
+      if (_ws && _ws.isConnected()) {
+        _ws.send({ type: 'get_debug_log' });
+      }
+    }, 2000);
   }
 
   function _onWsClose() { /* reconnect handled by utils */ }
@@ -107,6 +120,26 @@ const LoupGarouCore = (() => {
     if (msg.type === 'state') {
       _applyState(msg.data);
       return;
+    }
+
+    if (msg.type === 'debug_log') {
+      _handleDebugLog(msg.data);
+      return;
+    }
+  }
+
+  function _handleDebugLog(logs) {
+    if (!logs || !Array.isArray(logs)) return;
+    // Only show new logs
+    if (logs.length > _lastBackendLogCount) {
+      const newLogs = logs.slice(_lastBackendLogCount);
+      for (const entry of newLogs) {
+        const type = entry.level === 'error' ? 'error' : entry.level === 'warn' ? 'warn' : '';
+        if (typeof window.logMsg === 'function') {
+          window.logMsg(`[BACKEND] ${entry.message}`, type);
+        }
+      }
+      _lastBackendLogCount = logs.length;
     }
   }
 
@@ -325,9 +358,9 @@ const LoupGarouCore = (() => {
     _send({ type: 'eliminate_player', player_id: playerId });
   }
 
-  /* ──────────────────────────────────────────
-     PUBLIC
-     ────────────────────────────────────────── */
+/* ──────────────────────────────────────────
+      PUBLIC
+      ────────────────────────────────────────── */
   return {
     init,
     resetGame,
@@ -336,7 +369,8 @@ const LoupGarouCore = (() => {
     debugResolveVotes,
     debugWolfKill,
     debugSeerInvestigate,
-    debugEliminate
+    debugEliminate,
+    get ws() { return _ws; },
   };
 })();
 

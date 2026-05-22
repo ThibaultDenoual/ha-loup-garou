@@ -331,24 +331,46 @@ class AsyncGameAdapter:
 
         next_reveal_player = None
         current_reveal_role = None
+        players_with_roles = []
+
         if (
             self._state.phase == "role_reveal"
             and self._state.reveal_index < len(self._state.reveal_order)
         ):
-            next_reveal_player = self._state.reveal_order[self._state.reveal_index]
-            core_player = self._get_core_player(next_reveal_player)
+            next_reveal_name = self._state.reveal_order[self._state.reveal_index]
+            core_player = self._get_core_player(next_reveal_name)
             if core_player:
                 current_reveal_role = core_player.role.name
+                next_reveal_player = {
+                    "id": core_player.name,
+                    "name": core_player.name,
+                    "role": core_player.role.name,
+                    "role_key": core_player.role.role_key,
+                    "team": core_player.role.team,
+                    "alive": core_player.alive,
+                }
+
+        for p in self._state.players:
+            player_data = {
+                "id": p["id"],
+                "name": p["name"],
+                "alive": p["alive"],
+                "role_seen": p.get("role_seen", False),
+            }
+            if self._state.phase == "role_reveal":
+                core_p = self._get_core_player(p["id"])
+                if core_p:
+                    player_data["role"] = core_p.role.name
+                    player_data["role_key"] = core_p.role.role_key
+                    player_data["team"] = core_p.role.team
+            players_with_roles.append(player_data)
 
         return {
             "phase": self._state.phase,
             "round": self._state.round,
             "language": self._state.language,
             "winner": self._state.winner,
-            "players": [
-                {"id": p["id"], "name": p["name"], "alive": p["alive"], "role_seen": p.get("role_seen", False)}
-                for p in self._state.players
-            ],
+            "players": players_with_roles,
             "current_reveal_role": current_reveal_role,
             "current_reveal_player": next_reveal_player,
             "alive_count": len(alive_players),

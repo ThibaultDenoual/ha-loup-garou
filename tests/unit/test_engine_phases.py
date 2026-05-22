@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 from core_game.engine import GameEngine
 from core_game import Player, ROLE_REGISTRY, NightAction
-from core_game.roles import WerewolfPackCoordinator
+from core_game.roles import WerewolfPackCoordinator, PRESETS
 
 
 class MockIO:
@@ -54,7 +54,7 @@ class TestEnginePhaseHandlers:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine._setup_phase()
@@ -64,7 +64,7 @@ class TestEnginePhaseHandlers:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine._reveal_roles_privately()
@@ -74,7 +74,7 @@ class TestEnginePhaseHandlers:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine._setup_phase()
@@ -87,7 +87,7 @@ class TestEnginePhaseHandlers:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine._setup_phase()
@@ -101,7 +101,7 @@ class TestEnginePhaseHandlers:
         io.vote_tally = {}
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine.begin_game()
@@ -165,7 +165,7 @@ class TestEnginePhaseHandlers:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine.state.round_number = 1
@@ -176,7 +176,7 @@ class TestEnginePhaseHandlers:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         player = engine.state.players[0]
@@ -187,7 +187,7 @@ class TestEnginePhaseHandlers:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine.state.winner = "village"
@@ -199,7 +199,7 @@ class TestEnginePhaseHandlers:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine.state.winner = "werewolf"
@@ -251,7 +251,7 @@ class TestEngineDayResolution:
         io.vote_tally = {}
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine._last_vote_tally = {}
@@ -263,7 +263,7 @@ class TestEngineDayResolution:
         io.vote_tally = {}
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         p1 = engine.state.players[0]
@@ -276,7 +276,7 @@ class TestEngineDayResolution:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         p1 = engine.state.players[0]
@@ -290,7 +290,7 @@ class TestEngineKillPlayer:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         player = engine.state.players[0]
@@ -314,7 +314,7 @@ class TestEngineRunDiscussion:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine.state.round_number = 1
@@ -328,7 +328,7 @@ class TestEngineRunVote:
         io.vote_tally = {}
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine._run_vote()
@@ -340,7 +340,7 @@ class TestEngineEnterDayStart:
         io = MockIO()
         engine = GameEngine(
             player_names=["A", "B", "C", "D", "E", "F"],
-            preset="small",
+            role_names=PRESETS["small"],
             io=io,
         )
         engine._enter_day_start()
