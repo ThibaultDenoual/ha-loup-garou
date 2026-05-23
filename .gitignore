@@ -4,4 +4,5 @@ archive/
 
 # Private documentation
 *.md
+!README.md
 docs/
