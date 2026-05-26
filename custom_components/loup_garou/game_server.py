@@ -18,6 +18,15 @@ class LoupGarouServer:
         self._config: dict = config or {}
         self._clients: set[web.WebSocketResponse] = set()
         self._night_task: asyncio.Task | None = None
+        self._tts_future: asyncio.Future | None = None
+        self._save_config_cb = None
+        self._get_entities_cb = None
+
+    def set_save_callback(self, fn) -> None:
+        self._save_config_cb = fn
+
+    def set_entities_callback(self, fn) -> None:
+        self._get_entities_cb = fn
 
     # ── aiohttp request handler ───────────────────────────────────────────────
 
@@ -39,7 +48,7 @@ class LoupGarouServer:
 
         return ws
 
-    # ── Broadcast ─────────────────────────────────────────────────────────────
+    # ── Broadcast + browser TTS ───────────────────────────────────────────────
 
     async def broadcast(self, message: dict) -> None:
         dead: set[web.WebSocketResponse] = set()
@@ -49,6 +58,25 @@ class LoupGarouServer:
             except Exception:
                 dead.add(ws)
         self._clients -= dead
+
+    async def narrate(self, text: str, lang: str) -> None:
+        """Broadcast a narration request and wait for the browser to confirm playback.
+
+        Blocks until any connected client sends tts_done, or until the 10-second
+        timeout fires so a disconnected client never stalls the game.
+        """
+        if not self._clients:
+            return
+        await self.broadcast({"type": "narrate", "data": {"text": text, "lang": lang}})
+        self._tts_future = asyncio.get_event_loop().create_future()
+        try:
+            await asyncio.wait_for(self._tts_future, timeout=10.0)
+        except asyncio.TimeoutError:
+            _LOGGER.warning("Browser TTS timed out after 10 s for: %.60s", text)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._tts_future = None
 
     # ── Command dispatch ──────────────────────────────────────────────────────
 
@@ -79,6 +107,16 @@ class LoupGarouServer:
                 await ws.send_json({"type": "state", "state": self._engine.get_public_state()})
             elif cmd == "get_config":
                 await ws.send_json({"type": "config", "config": self._config})
+            elif cmd == "tts_done":
+                if self._tts_future and not self._tts_future.done():
+                    self._tts_future.set_result(None)
+            elif cmd == "save_config":
+                if self._save_config_cb:
+                    await self._save_config_cb(data)
+                await self.broadcast({"type": "config", "config": self._config})
+            elif cmd == "get_entities":
+                entities = self._get_entities_cb() if self._get_entities_cb else {}
+                await ws.send_json({"type": "entities", "data": entities})
             else:
                 await ws.send_json({"type": "error", "msg": f"unknown command: {cmd}"})
         except Exception as exc:

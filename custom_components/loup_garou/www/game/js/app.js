@@ -1,5 +1,6 @@
 import { loadLocale, t } from './i18n.js';
 import { connect, send } from './ws.js';
+import * as tts from './tts.js';
 import * as setup from './views/setup.js';
 import * as reveal from './views/reveal.js';
 import * as night from './views/night.js';
@@ -64,6 +65,8 @@ function handleMessage(msg) {
     case 'night_role_wake':  onNightRoleWake(msg.data);       break;
     case 'night_role_sleep': onNightRoleSleep(msg.data);      break;
     case 'player_eliminated': onPlayerEliminated(msg.data);   break;
+    case 'narrate':          tts.speak(msg.data.text, msg.data.lang); break;
+    case 'config':           onConfig(msg.config);            break;
     case 'error':            toast('⚠ ' + msg.msg, 'death');  break;
   }
 }
@@ -134,6 +137,11 @@ function onNightRoleSleep(data) {
   // which drives the view transition. We stay in night-sleep until that state arrives.
 }
 
+function onConfig(cfg) {
+  const el = document.getElementById('version-footer');
+  if (el && cfg?.version) el.textContent = '#' + cfg.version;
+}
+
 function onPlayerEliminated(data) {
   // Accumulate night deaths for the day announcement
   if (_state.phase === 'night') {
@@ -157,6 +165,7 @@ async function init() {
   await loadLocale(lang);
 
   // Wire up all view modules
+  tts.init(send);
   setup.init(send);
   reveal.init(send);
   night.init(send, getState, toast);
@@ -169,8 +178,8 @@ async function init() {
   });
 
   connect(handleMessage, () => {
-    // On reconnect, request fresh state
     send('get_state');
+    send('get_config');
   });
 
   showView('setup');

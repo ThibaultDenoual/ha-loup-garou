@@ -106,21 +106,30 @@ a.btn-play:hover { opacity:0.85 }
 .team-lovers   { background:var(--rose) }
 
 /* Config tab */
-.config-group { margin-bottom:1.5rem }
+.config-group { margin-bottom:1.25rem }
 .config-label {
   font-family:var(--font-d);font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;
-  color:var(--text-muted);margin-bottom:0.5rem;display:block;
+  color:var(--text-muted);margin-bottom:0.4rem;display:block;
 }
-.config-value {
-  background:var(--bg-surface);border:var(--border);border-radius:var(--radius);
-  padding:0.6rem 1rem;font-size:0.95rem;color:var(--text);font-style:italic;
-  word-break:break-all;
+.config-select, .config-input {
+  width:100%;background:var(--bg-surface);border:var(--border);border-radius:var(--radius);
+  padding:0.55rem 0.85rem;font-size:0.95rem;color:var(--text);font-family:var(--font-b);
+  appearance:none;-webkit-appearance:none;cursor:pointer;
 }
-.config-empty { color:var(--text-muted) }
-.config-tag {
-  display:inline-block;background:var(--bg-elevated);border:var(--border);
-  border-radius:4px;padding:0.2rem 0.5rem;font-size:0.85rem;
-  margin:0.15rem;font-style:normal;color:var(--text);
+.config-select:focus, .config-input:focus { outline:1px solid var(--amber-dim) }
+select[multiple].config-select { height:auto;min-height:4.5rem }
+select[multiple].config-select option { padding:0.25rem 0.5rem }
+.config-hint { font-size:0.8rem;color:var(--text-muted);margin-top:0.3rem;font-style:italic }
+.btn-save {
+  width:100%;background:var(--amber);color:#0c0a08;
+  font-family:var(--font-d);font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;
+  padding:0.85rem;border:none;border-radius:var(--radius);cursor:pointer;
+  transition:opacity 0.15s;margin-top:0.5rem;
+}
+.btn-save:hover { opacity:0.85 }
+.save-feedback {
+  text-align:center;font-size:0.85rem;color:var(--sage);font-style:italic;
+  margin-top:0.6rem;min-height:1.2em;
 }
 </style>
 </head>
@@ -194,25 +203,44 @@ a.btn-play:hover { opacity:0.85 }
   <!-- ── CONFIG TAB ─────────────────────────────────────────────────────────── -->
   <div id="tab-config" class="tab-content">
     <div class="config-group">
-      <span class="config-label">Langue</span>
-      <div class="config-value" id="cfg-language"><span class="config-empty">—</span></div>
-    </div>
-    <div class="config-group">
-      <span class="config-label">Haut-parleur (TTS)</span>
-      <div class="config-value" id="cfg-speaker"><span class="config-empty">Non configuré</span></div>
-    </div>
-    <div class="config-group">
-      <span class="config-label">Lumières d'ambiance</span>
-      <div class="config-value" id="cfg-lights"><span class="config-empty">Aucune</span></div>
-    </div>
-    <div class="config-group">
-      <span class="config-label">Moteur TTS</span>
-      <div class="config-value" id="cfg-tts-engine"><span class="config-empty">—</span></div>
+      <label class="config-label" for="cfg-tts-mode">Mode TTS</label>
+      <select id="cfg-tts-mode" class="config-select">
+        <option value="ha">Home Assistant (media_player)</option>
+        <option value="browser">Navigateur (Web Speech API)</option>
+      </select>
     </div>
 
-    <p style="font-size:0.85rem;color:var(--text-muted);font-style:italic;margin-top:1rem">
-      Ces paramètres sont définis dans la configuration de l'intégration Home Assistant. Pour les modifier, utilisez l'interface de configuration de l'intégration.
-    </p>
+    <div id="cfg-ha-fields">
+      <div class="config-group">
+        <label class="config-label" for="cfg-speaker">Haut-parleur (media_player)</label>
+        <select id="cfg-speaker" class="config-select">
+          <option value="">— Aucun —</option>
+        </select>
+      </div>
+
+      <div class="config-group">
+        <label class="config-label" for="cfg-tts-engine">Moteur TTS</label>
+        <input id="cfg-tts-engine" class="config-input" type="text" placeholder="tts.home_assistant_cloud">
+      </div>
+    </div>
+
+    <div class="config-group">
+      <label class="config-label" for="cfg-lights">Lumières d'ambiance</label>
+      <select id="cfg-lights" class="config-select" multiple>
+      </select>
+      <div class="config-hint">Maintenez Ctrl / Cmd pour sélectionner plusieurs lumières.</div>
+    </div>
+
+    <div class="config-group">
+      <label class="config-label" for="cfg-language">Langue</label>
+      <select id="cfg-language" class="config-select">
+        <option value="fr">Français</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+
+    <button class="btn-save" id="btn-save-config">Enregistrer</button>
+    <div class="save-feedback" id="save-feedback"></div>
   </div>
 </div>
 
@@ -239,7 +267,16 @@ function teamClass(id) {
   return 'team-village';
 }
 
-// Connect WS to get config, load locale for roles
+// ── TTS mode toggle ───────────────────────────────────────────────────────────
+const ttsModeSelect = document.getElementById('cfg-tts-mode');
+const haFields = document.getElementById('cfg-ha-fields');
+function applyTtsModeVisibility() {
+  haFields.style.display = ttsModeSelect.value === 'ha' ? '' : 'none';
+}
+ttsModeSelect.addEventListener('change', applyTtsModeVisibility);
+applyTtsModeVisibility();
+
+// ── WebSocket + config form ───────────────────────────────────────────────────
 (async () => {
   const lang = document.documentElement.lang || 'fr';
   const localeR = await fetch(`/loup_garou/locales/${lang}.json`);
@@ -254,35 +291,93 @@ function teamClass(id) {
       <span class="role-desc">${locale[`role.${id}.description`] || ''}</span>
     </div>`).join('');
 
-  // Load HA config via WS
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(`${proto}//${location.host}/loup_garou/ws`);
-  ws.onopen = () => ws.send(JSON.stringify({cmd:'get_config',data:{}}));
-  ws.onmessage = e => {
-    const msg = JSON.parse(e.data);
-    if (msg.type !== 'config') return;
-    ws.close();
-    const cfg = msg.config || {};
 
-    document.getElementById('cfg-language').textContent = cfg.language || '—';
-    document.getElementById('cfg-speaker').innerHTML = cfg.speaker
-      ? `<span class="config-tag">${cfg.speaker}</span>`
-      : '<span class="config-empty">Non configuré</span>';
+  let _cfg = {};
+  let _entities = { speakers: [], lights: [] };
 
-    const lights = cfg.lights || [];
-    document.getElementById('cfg-lights').innerHTML = lights.length
-      ? lights.map(l => `<span class="config-tag">${l}</span>`).join('')
-      : '<span class="config-empty">Aucune</span>';
+  function populateSelect(selectId, options, selectedValues) {
+    const sel = document.getElementById(selectId);
+    const prev = Array.from(sel.options).map(o => o.value);
+    // Only rebuild if option list changed to avoid resetting user selection
+    const same = prev.length === options.length && options.every((o, i) => prev[i] === o);
+    if (!same) {
+      sel.innerHTML = options.map(o => `<option value="${o}">${o}</option>`).join('');
+    }
+    const vals = Array.isArray(selectedValues) ? selectedValues : [selectedValues];
+    Array.from(sel.options).forEach(o => { o.selected = vals.includes(o.value); });
+  }
 
-    document.getElementById('cfg-tts-engine').textContent = cfg.tts_engine || '—';
+  function applyConfig(cfg) {
+    _cfg = cfg;
+    ttsModeSelect.value = cfg.tts_mode || 'ha';
+    applyTtsModeVisibility();
+    document.getElementById('cfg-tts-engine').value = cfg.tts_engine || '';
+    document.getElementById('cfg-language').value = cfg.language || 'fr';
 
+    populateSelect('cfg-speaker',
+      ['', ..._entities.speakers],
+      cfg.speaker || '');
+    populateSelect('cfg-lights',
+      _entities.lights,
+      cfg.lights || []);
+
+    // Summary bar
     const parts = [];
     if (cfg.language) parts.push(cfg.language.toUpperCase());
     if (cfg.speaker) parts.push('🔊');
+    const lights = cfg.lights || [];
     if (lights.length) parts.push(`💡×${lights.length}`);
     document.getElementById('config-summary-text').textContent = parts.join('  ') || 'Aucune configuration';
+
+    const vf = document.getElementById('version-footer');
+    if (vf && cfg.version) vf.textContent = '#' + cfg.version;
+  }
+
+  function applyEntities(entities) {
+    _entities = entities;
+    populateSelect('cfg-speaker',
+      ['', ...(entities.speakers || [])],
+      _cfg.speaker || '');
+    populateSelect('cfg-lights',
+      entities.lights || [],
+      _cfg.lights || []);
+  }
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({cmd:'get_config', data:{}}));
+    ws.send(JSON.stringify({cmd:'get_entities', data:{}}));
   };
+
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'config') applyConfig(msg.config || {});
+    if (msg.type === 'entities') applyEntities(msg.data || {});
+    if (msg.type === 'config' && document.getElementById('save-feedback').dataset.pending) {
+      const fb = document.getElementById('save-feedback');
+      fb.textContent = 'Configuration enregistrée.';
+      fb.dataset.pending = '';
+      setTimeout(() => { fb.textContent = ''; }, 3000);
+    }
+  };
+
+  // ── Save button ─────────────────────────────────────────────────────────────
+  document.getElementById('btn-save-config').addEventListener('click', () => {
+    const lightsEl = document.getElementById('cfg-lights');
+    const selectedLights = Array.from(lightsEl.selectedOptions).map(o => o.value);
+    const payload = {
+      tts_mode:   ttsModeSelect.value,
+      speaker:    document.getElementById('cfg-speaker').value,
+      lights:     selectedLights,
+      language:   document.getElementById('cfg-language').value,
+      tts_engine: document.getElementById('cfg-tts-engine').value,
+    };
+    document.getElementById('save-feedback').dataset.pending = '1';
+    ws.send(JSON.stringify({cmd:'save_config', data: payload}));
+  });
 })();
 </script>
+<footer id="version-footer" style="position:fixed;bottom:6px;right:10px;font-size:0.65rem;color:var(--text-muted);font-family:monospace;pointer-events:none;letter-spacing:0.04em"></footer>
 </body>
 </html>

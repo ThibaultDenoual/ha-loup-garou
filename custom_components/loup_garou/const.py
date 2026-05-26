@@ -1,7 +1,21 @@
 """Constants for the Loup Garou integration — enums, validation, light scenes. No strings."""
 from __future__ import annotations
 
+import json as _json
 from enum import StrEnum
+from pathlib import Path as _Path
+
+
+def _read_version() -> str:
+    try:
+        return _json.loads(
+            (_Path(__file__).parent / "manifest.json").read_text()
+        ).get("version", "dev")
+    except Exception:
+        return "dev"
+
+
+VERSION: str = _read_version()
 
 DOMAIN = "loup_garou"
 
@@ -10,10 +24,27 @@ CONF_SPEAKER = "speaker_entity"
 CONF_LIGHTS = "light_entities"
 CONF_LANGUAGE = "language"
 CONF_TTS_ENGINE = "tts_engine"
+CONF_TTS_MODE = "tts_mode"
 
 LANGUAGES = ["fr", "en"]
 DEFAULT_LANGUAGE = "fr"
 DEFAULT_TTS_ENGINE = "tts.home_assistant_cloud"
+DEFAULT_TTS_MODE = "ha"  # "ha" = HA TTS service | "browser" = Web Speech API
+
+# Estimated post-TTS sleep durations (seconds) used in HA TTS mode so the
+# engine waits for narration to finish before advancing to the next event.
+# In browser mode these are ignored — the engine waits for the real tts_done signal.
+TTS_PHASE_DELAYS: dict[str, float] = {
+    "night_start":         4.0,
+    "role_wake":           2.5,
+    "role_sleep":          2.0,
+    "day_no_death":        3.0,
+    "day_with_death":      4.0,
+    "vote_start":          2.0,
+    "vote_result":         4.0,
+    "elimination_live":    3.5,
+    "game_over":           5.0,
+}
 
 
 # ── Game events (used by engine.on() / engine._emit()) ───────────────────────

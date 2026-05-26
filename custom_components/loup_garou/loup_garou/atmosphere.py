@@ -1,14 +1,22 @@
 """Atmosphere — subscribes to engine events → lights + TTS, in sync with the UI."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 
-from ..const import GameEvent, LIGHT_SCENES, ROLE_SCENE
-from ..game_engine import GameEngine
+from ..const import (
+    GameEvent, LIGHT_SCENES, ROLE_SCENE, TTS_PHASE_DELAYS,
+    CONF_TTS_MODE, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
+)
+
+if TYPE_CHECKING:
+    from ..game_server import LoupGarouServer
+    from ..game_engine import GameEngine
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,12 +28,14 @@ class Atmosphere:
     def __init__(
         self,
         hass: HomeAssistant,
-        engine: GameEngine,
+        engine: "GameEngine",
         light_entities: list[str],
         speaker_entity: str,
         tts_engine: str,
         language: str,
         locale: dict | None = None,
+        tts_mode: str = "ha",
+        server: "LoupGarouServer | None" = None,
     ) -> None:
         self._hass = hass
         self._engine = engine
@@ -35,6 +45,15 @@ class Atmosphere:
         self._language = language
         self._locale: dict = locale if locale is not None else self._load_locale(language)
         self._current_scene: str = "day"
+        self._tts_mode = tts_mode
+        self._server = server
+
+    def update_config(self, cfg: dict) -> None:
+        self._tts_mode   = cfg.get(CONF_TTS_MODE,   self._tts_mode)
+        self._speaker    = cfg.get(CONF_SPEAKER,     self._speaker)
+        self._lights     = cfg.get(CONF_LIGHTS,      self._lights)
+        self._language   = cfg.get(CONF_LANGUAGE,    self._language)
+        self._tts_engine = cfg.get(CONF_TTS_ENGINE,  self._tts_engine)
 
     # ── Locale ────────────────────────────────────────────────────────────────
 
@@ -82,7 +101,7 @@ class Atmosphere:
         phase = data.get("phase")
         if phase == "night":
             await self._set_lights("night")
-            await self.speak(self.t("phase.night.start"))
+            await self.speak(self.t("phase.night.start"), delay_key="night_start")
         # day and vote handled by their dedicated events
 
     async def _on_role_wake(self, data: dict) -> None:
@@ -90,13 +109,9 @@ class Atmosphere:
         result = data.get("result")
 
         if result:
-            # Seer investigation result — speak the finding
-            target_role = result.get("role_id", "")
-            role_name = self.t(f"role.{target_role}.name") or target_role
-            # Deliberately vague: TTS doesn't say the name aloud (seer reads screen)
+            # Seer investigation result — TTS deliberately omitted (seer reads screen)
             return
 
-        # Normal role wake: set lights and speak
         scene_key = ROLE_SCENE.get(role_id or "")
         if scene_key:
             self._current_scene = scene_key
@@ -104,14 +119,13 @@ class Atmosphere:
 
         wake_text = self.t(f"role.{role_id}.wake")
         if wake_text:
-            await self.speak(wake_text)
+            await self.speak(wake_text, delay_key="role_wake")
 
     async def _on_role_sleep(self, data: dict) -> None:
         role_id = data.get("role")
         sleep_text = self.t(f"role.{role_id}.sleep")
         if sleep_text:
-            await self.speak(sleep_text)
-        # Reset lights to night after any role goes back to sleep
+            await self.speak(sleep_text, delay_key="role_sleep")
         await self._set_lights("night")
         self._current_scene = "night"
 
@@ -123,7 +137,7 @@ class Atmosphere:
         players_by_id = {p["id"]: p for p in pub["players"]}
 
         if not eliminated_ids:
-            await self.speak(self.t("phase.day.start_no_death"))
+            await self.speak(self.t("phase.day.start_no_death"), delay_key="day_no_death")
             return
 
         for pid in eliminated_ids:
@@ -133,17 +147,18 @@ class Atmosphere:
             role_name = self.t(f"role.{role_id}.name") or role_id
             article = self._article(role_id)
             await self.speak(
-                self.t("phase.day.start_with_death", name=name, article=article, role=role_name)
+                self.t("phase.day.start_with_death", name=name, article=article, role=role_name),
+                delay_key="day_with_death",
             )
 
     async def _on_vote_started(self, data: dict) -> None:
-        await self.speak(self.t("phase.vote.start"))
+        await self.speak(self.t("phase.vote.start"), delay_key="vote_start")
 
     async def _on_vote_resolved(self, data: dict) -> None:
         eliminated_id = data.get("eliminated")
         is_tie = data.get("tie", False)
         if is_tie and not eliminated_id:
-            await self.speak(self.t("phase.vote.tie"))
+            await self.speak(self.t("phase.vote.tie"), delay_key="vote_result")
             return
         if eliminated_id:
             pub = self._engine.get_public_state()
@@ -154,7 +169,8 @@ class Atmosphere:
             role_name = self.t(f"role.{role_id}.name") or role_id
             article = self._article(role_id)
             await self.speak(
-                self.t("phase.vote.result", name=name, article=article, role=role_name)
+                self.t("phase.vote.result", name=name, article=article, role=role_name),
+                delay_key="vote_result",
             )
 
     async def _on_player_eliminated(self, data: dict) -> None:
@@ -164,11 +180,14 @@ class Atmosphere:
         if cause == "hunter_shot":
             name = data.get("name", "?")
             target = data.get("name", "?")
-            await self.speak(self.t("elimination.hunter_shot", name=name, target=target))
+            await self.speak(
+                self.t("elimination.hunter_shot", name=name, target=target),
+                delay_key="elimination_live",
+            )
             await self._set_lights("death")
         elif cause == "lover_grief":
             name = data.get("name", "?")
-            await self.speak(self.t("elimination.lover_grief", name=name))
+            await self.speak(self.t("elimination.lover_grief", name=name), delay_key="elimination_live")
             await self._set_lights("death")
         elif cause == "scapegoat":
             name = data.get("name", "?")
@@ -176,7 +195,8 @@ class Atmosphere:
             role_name = self.t(f"role.{role_id}.name") or role_id
             article = self._article(role_id)
             await self.speak(
-                self.t("elimination.scapegoat", name=name, article=article, role=role_name)
+                self.t("elimination.scapegoat", name=name, article=article, role=role_name),
+                delay_key="elimination_live",
             )
             await self._set_lights("death")
 
@@ -193,7 +213,7 @@ class Atmosphere:
             await self._set_lights(scene_key)
         msg_key = msg_map.get(winner or "")
         if msg_key:
-            await self.speak(self.t(msg_key))
+            await self.speak(self.t(msg_key), delay_key="game_over")
 
     # ── HA service calls ──────────────────────────────────────────────────────
 
@@ -212,8 +232,24 @@ class Atmosphere:
             except Exception:
                 _LOGGER.exception("Failed to set light scene %s on %s", scene_key, entity_id)
 
-    async def speak(self, text: str) -> None:
-        if not self._speaker or not text:
+    async def speak(self, text: str, delay_key: str = "role_wake") -> None:
+        """Speak narration text and wait for completion.
+
+        In browser mode: delegates to server.narrate() which blocks until
+        the browser sends tts_done (or times out after 10 s).
+        In HA mode: fires TTS to HA then sleeps for an estimated duration so
+        the engine doesn't race ahead while narration is still playing.
+        """
+        if not text:
+            return
+
+        if self._tts_mode == "browser":
+            if self._server is not None:
+                await self._server.narrate(text, self._language)
+            return
+
+        # HA TTS mode
+        if not self._speaker:
             return
         try:
             await self._hass.services.async_call(
@@ -229,3 +265,5 @@ class Atmosphere:
             )
         except Exception:
             _LOGGER.exception("Failed to speak: %s", text)
+
+        await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))
