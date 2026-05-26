@@ -1,5 +1,6 @@
 import { loadLocale, t } from './i18n.js';
 import { connect, send } from './ws.js';
+import * as tts from './tts.js';
 import * as setup from './views/setup.js';
 import * as reveal from './views/reveal.js';
 import * as night from './views/night.js';
@@ -64,6 +65,7 @@ function handleMessage(msg) {
     case 'night_role_wake':  onNightRoleWake(msg.data);       break;
     case 'night_role_sleep': onNightRoleSleep(msg.data);      break;
     case 'player_eliminated': onPlayerEliminated(msg.data);   break;
+    case 'narrate':          tts.speak(msg.data.text, msg.data.lang); break;
     case 'error':            toast('⚠ ' + msg.msg, 'death');  break;
   }
 }
@@ -157,6 +159,7 @@ async function init() {
   await loadLocale(lang);
 
   // Wire up all view modules
+  tts.init(send);
   setup.init(send);
   reveal.init(send);
   night.init(send, getState, toast);

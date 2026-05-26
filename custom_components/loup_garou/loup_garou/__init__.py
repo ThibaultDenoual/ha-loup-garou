@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import HomeAssistantView
 
-from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE
+from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_MODE, DEFAULT_TTS_ENGINE, DEFAULT_TTS_MODE
 from ..game_engine import GameEngine
 from ..game_server import LoupGarouServer
 from ..roles.loader import load_roles
@@ -22,6 +22,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     conf = entry.data
     language = conf.get(CONF_LANGUAGE, "fr")
+    tts_mode = conf.get(CONF_TTS_MODE, DEFAULT_TTS_MODE)
 
     # pkgutil.iter_modules + importlib.import_module are blocking — pre-warm in executor
     await hass.async_add_executor_job(load_roles)
@@ -35,6 +36,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     engine = GameEngine()
     server = LoupGarouServer(engine, config={
         "language": language,
+        "tts_mode": tts_mode,
         "speaker": conf.get(CONF_SPEAKER, ""),
         "lights": conf.get(CONF_LIGHTS, []),
         "tts_engine": conf.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE),
@@ -49,6 +51,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         tts_engine=conf.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE),
         language=language,
         locale=_locale,
+        tts_mode=tts_mode,
+        server=server,
     )
     atmosphere.wire_events()
 

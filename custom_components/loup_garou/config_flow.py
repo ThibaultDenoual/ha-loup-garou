@@ -14,14 +14,17 @@ from .const import (
     CONF_LIGHTS,
     CONF_LANGUAGE,
     CONF_TTS_ENGINE,
+    CONF_TTS_MODE,
     DEFAULT_TTS_ENGINE,
+    DEFAULT_TTS_MODE,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_SPEAKER): str,
+        vol.Optional(CONF_TTS_MODE, default=DEFAULT_TTS_MODE): vol.In(["ha", "browser"]),
+        vol.Optional(CONF_SPEAKER, default=""): str,
         vol.Optional(CONF_LIGHTS, default=""): str,
         vol.Optional(CONF_LANGUAGE, default="fr"): vol.In(["fr", "en"]),
         vol.Optional(CONF_TTS_ENGINE, default=DEFAULT_TTS_ENGINE): str,
@@ -41,15 +44,17 @@ class LoupGarouConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="single_instance_allowed")
 
         if user_input is not None:
+            tts_mode = user_input.get(CONF_TTS_MODE, DEFAULT_TTS_MODE)
             speaker = user_input.get(CONF_SPEAKER, "")
             lights_raw = user_input.get(CONF_LIGHTS, "")
             lights = [li.strip() for li in lights_raw.split(",") if li.strip()]
-            if not speaker:
+            if tts_mode == "ha" and not speaker:
                 errors[CONF_SPEAKER] = "no_speaker"
             else:
                 return self.async_create_entry(
                     title="Loup Garou",
                     data={
+                        CONF_TTS_MODE: tts_mode,
                         CONF_SPEAKER: speaker,
                         CONF_LIGHTS: lights,
                         CONF_LANGUAGE: user_input.get(CONF_LANGUAGE, "fr"),
@@ -89,7 +94,8 @@ class LoupGarouOptionsFlow(config_entries.OptionsFlow):
         lights_default = ",".join(current.get(CONF_LIGHTS, []))
         schema = vol.Schema(
             {
-                vol.Required(CONF_SPEAKER, default=current.get(CONF_SPEAKER, "")): str,
+                vol.Optional(CONF_TTS_MODE, default=current.get(CONF_TTS_MODE, DEFAULT_TTS_MODE)): vol.In(["ha", "browser"]),
+                vol.Optional(CONF_SPEAKER, default=current.get(CONF_SPEAKER, "")): str,
                 vol.Optional(CONF_LIGHTS, default=lights_default): str,
                 vol.Optional(CONF_LANGUAGE, default=current.get(CONF_LANGUAGE, "fr")): vol.In(["fr", "en"]),
                 vol.Optional(CONF_TTS_ENGINE, default=current.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE)): str,
