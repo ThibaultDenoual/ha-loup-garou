@@ -1,24 +1,21 @@
 """Constants for the Loup Garou integration — enums, validation, light scenes. No strings."""
 from __future__ import annotations
 
-import subprocess as _subprocess
+import json as _json
 from enum import StrEnum
 from pathlib import Path as _Path
 
 
-def _get_git_hash() -> str:
+def _read_version() -> str:
     try:
-        return _subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(_Path(__file__).parent),
-            stderr=_subprocess.DEVNULL,
-            text=True,
-        ).strip()
+        return _json.loads(
+            (_Path(__file__).parent / "manifest.json").read_text()
+        ).get("version", "dev")
     except Exception:
         return "dev"
 
 
-GIT_HASH: str = _get_git_hash()
+VERSION: str = _read_version()
 
 DOMAIN = "loup_garou"
 

@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import HomeAssistantView
 
-from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_MODE, DEFAULT_TTS_ENGINE, DEFAULT_TTS_MODE, GIT_HASH
+from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_MODE, DEFAULT_TTS_ENGINE, DEFAULT_TTS_MODE, VERSION
 from ..game_engine import GameEngine
 from ..game_server import LoupGarouServer
 from ..roles.loader import load_roles
@@ -19,10 +19,19 @@ from .atmosphere import Atmosphere
 _LOGGER = logging.getLogger(__name__)
 
 
+DEFAULTS = {
+    CONF_TTS_MODE:   DEFAULT_TTS_MODE,
+    CONF_SPEAKER:    "",
+    CONF_LIGHTS:     [],
+    CONF_LANGUAGE:   "fr",
+    CONF_TTS_ENGINE: DEFAULT_TTS_ENGINE,
+}
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    conf = entry.data
-    language = conf.get(CONF_LANGUAGE, "fr")
-    tts_mode = conf.get(CONF_TTS_MODE, DEFAULT_TTS_MODE)
+    conf = {**DEFAULTS, **entry.data}
+    language = conf[CONF_LANGUAGE]
+    tts_mode = conf[CONF_TTS_MODE]
 
     # pkgutil.iter_modules + importlib.import_module are blocking — pre-warm in executor
     await hass.async_add_executor_job(load_roles)
@@ -37,19 +46,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     server = LoupGarouServer(engine, config={
         "language": language,
         "tts_mode": tts_mode,
-        "speaker": conf.get(CONF_SPEAKER, ""),
-        "lights": conf.get(CONF_LIGHTS, []),
-        "tts_engine": conf.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE),
-        "version": GIT_HASH,
+        "speaker": conf[CONF_SPEAKER],
+        "lights": conf[CONF_LIGHTS],
+        "tts_engine": conf[CONF_TTS_ENGINE],
+        "version": VERSION,
     })
     server.wire_events()
 
     atmosphere = Atmosphere(
         hass=hass,
         engine=engine,
-        light_entities=conf.get(CONF_LIGHTS, []),
-        speaker_entity=conf.get(CONF_SPEAKER, ""),
-        tts_engine=conf.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE),
+        light_entities=conf[CONF_LIGHTS],
+        speaker_entity=conf[CONF_SPEAKER],
+        tts_engine=conf[CONF_TTS_ENGINE],
         language=language,
         locale=_locale,
         tts_mode=tts_mode,
@@ -62,6 +71,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "server": server,
         "atmosphere": atmosphere,
     }
+
+    async def _save_config(new_config: dict) -> None:
+        merged = {**DEFAULTS, **entry.data, **new_config}
+        hass.config_entries.async_update_entry(entry, data=merged)
+        server._config.update({"version": VERSION, **merged})
+        atmosphere.update_config(merged)
+
+    def _get_entities() -> dict:
+        return {
+            "speakers": hass.states.async_entity_ids("media_player"),
+            "lights":   hass.states.async_entity_ids("light"),
+        }
+
+    server.set_save_callback(_save_config)
+    server.set_entities_callback(_get_entities)
 
     hass.http.register_view(_WebSocketView(server))
 
@@ -77,7 +101,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         require_admin=False,
     )
 
-    entry.async_on_unload(entry.add_update_listener(_async_update_options))
     _LOGGER.info("Loup Garou loaded (entry: %s)", entry.entry_id)
     return True
 
@@ -86,10 +109,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN].pop(entry.entry_id, None)
     async_remove_panel(hass, "loup_garou")
     return True
-
-
-async def _async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def _register_static_paths(hass: HomeAssistant) -> None:

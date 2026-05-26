@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Loup Garou",
+        "description": "L'intégration sera configurée depuis la page Lanceur."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Une seule instance de Loup Garou est autorisée."
+    }
+  }
+}

@@ -19,6 +19,14 @@ class LoupGarouServer:
         self._clients: set[web.WebSocketResponse] = set()
         self._night_task: asyncio.Task | None = None
         self._tts_future: asyncio.Future | None = None
+        self._save_config_cb = None
+        self._get_entities_cb = None
+
+    def set_save_callback(self, fn) -> None:
+        self._save_config_cb = fn
+
+    def set_entities_callback(self, fn) -> None:
+        self._get_entities_cb = fn
 
     # ── aiohttp request handler ───────────────────────────────────────────────
 
@@ -102,6 +110,13 @@ class LoupGarouServer:
             elif cmd == "tts_done":
                 if self._tts_future and not self._tts_future.done():
                     self._tts_future.set_result(None)
+            elif cmd == "save_config":
+                if self._save_config_cb:
+                    await self._save_config_cb(data)
+                await self.broadcast({"type": "config", "config": self._config})
+            elif cmd == "get_entities":
+                entities = self._get_entities_cb() if self._get_entities_cb else {}
+                await ws.send_json({"type": "entities", "data": entities})
             else:
                 await ws.send_json({"type": "error", "msg": f"unknown command: {cmd}"})
         except Exception as exc:

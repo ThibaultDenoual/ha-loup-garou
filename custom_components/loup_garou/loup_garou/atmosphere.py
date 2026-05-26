@@ -9,7 +9,10 @@ from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 
-from ..const import GameEvent, LIGHT_SCENES, ROLE_SCENE, TTS_PHASE_DELAYS
+from ..const import (
+    GameEvent, LIGHT_SCENES, ROLE_SCENE, TTS_PHASE_DELAYS,
+    CONF_TTS_MODE, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
+)
 
 if TYPE_CHECKING:
     from ..game_server import LoupGarouServer
@@ -44,6 +47,13 @@ class Atmosphere:
         self._current_scene: str = "day"
         self._tts_mode = tts_mode
         self._server = server
+
+    def update_config(self, cfg: dict) -> None:
+        self._tts_mode   = cfg.get(CONF_TTS_MODE,   self._tts_mode)
+        self._speaker    = cfg.get(CONF_SPEAKER,     self._speaker)
+        self._lights     = cfg.get(CONF_LIGHTS,      self._lights)
+        self._language   = cfg.get(CONF_LANGUAGE,    self._language)
+        self._tts_engine = cfg.get(CONF_TTS_ENGINE,  self._tts_engine)
 
     # ── Locale ────────────────────────────────────────────────────────────────
 
