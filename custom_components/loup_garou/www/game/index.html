@@ -67,16 +67,73 @@
 
   <!-- Sleeping -->
   <div id="night-sleeping">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2rem;padding:3rem 0">
-      <div style="position:relative;width:90px;height:90px">
-        <div style="
-          width:90px;height:90px;border-radius:50%;
-          background:radial-gradient(circle at 37% 34%,#fff9d0 0%,#f0d868 18%,#c89038 45%,#8a5818 72%,#4a3008 100%);
-          box-shadow:0 0 22px rgba(200,160,64,.95),0 0 55px rgba(200,160,64,.6),0 0 90px rgba(200,160,64,.3),0 0 30px rgba(80,30,120,.35);
-          animation:moonFloat 5s ease-in-out infinite"></div>
-        <div style="position:absolute;inset:-14px;border-radius:50%;border:1px solid rgba(200,160,64,.15);animation:moonRing 3.5s ease-in-out infinite"></div>
-        <div style="position:absolute;inset:-28px;border-radius:50%;border:1px solid rgba(200,160,64,.08);animation:moonRing 3.5s ease-in-out infinite 0.45s"></div>
-      </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:1.5rem;padding:2rem 0 1.5rem">
+      <svg viewBox="0 0 400 280" style="width:100%;max-width:380px;display:block;overflow:hidden;border-radius:8px" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="nightSkyBg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0c0820"/>
+            <stop offset="100%" stop-color="#060410"/>
+          </linearGradient>
+          <linearGradient id="duskOverlay" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c45020"/>
+            <stop offset="45%" stop-color="#7a1a8a"/>
+            <stop offset="100%" stop-color="#1a0840"/>
+          </linearGradient>
+          <radialGradient id="moonGrad" cx="38%" cy="35%" r="55%">
+            <stop offset="0%" stop-color="#fff9e0"/>
+            <stop offset="40%" stop-color="#f0e080"/>
+            <stop offset="100%" stop-color="#d0b050"/>
+          </radialGradient>
+        </defs>
+
+        <!-- Night sky background -->
+        <rect width="400" height="280" fill="url(#nightSkyBg)"/>
+
+        <!-- Dusk overlay — fades out to reveal night -->
+        <rect width="400" height="280" fill="url(#duskOverlay)" style="animation:duskFade 6s ease-in 0.5s forwards"/>
+
+        <!-- Stars -->
+        <circle cx="22"  cy="28"  r="1.0" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 3.2s forwards"/>
+        <circle cx="68"  cy="14"  r="1.3" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 3.8s forwards"/>
+        <circle cx="105" cy="38"  r="0.9" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 4.5s forwards"/>
+        <circle cx="145" cy="18"  r="1.1" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 4.1s forwards"/>
+        <circle cx="175" cy="48"  r="0.8" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 5.2s forwards"/>
+        <circle cx="210" cy="22"  r="1.4" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 3.5s forwards"/>
+        <circle cx="240" cy="55"  r="0.9" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 5.8s forwards"/>
+        <circle cx="268" cy="30"  r="1.2" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 4.8s forwards"/>
+        <circle cx="52"  cy="62"  r="1.1" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 6.2s forwards"/>
+        <circle cx="88"  cy="80"  r="0.8" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 6.8s forwards"/>
+        <circle cx="130" cy="70"  r="1.0" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 5.5s forwards"/>
+        <circle cx="160" cy="90"  r="0.9" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 7.2s forwards"/>
+        <circle cx="195" cy="72"  r="1.3" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 6.5s forwards"/>
+        <circle cx="228" cy="88"  r="0.8" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 7.8s forwards"/>
+        <circle cx="35"  cy="105" r="1.0" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 7.5s forwards"/>
+        <circle cx="78"  cy="118" r="1.2" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 8.2s forwards"/>
+        <circle cx="118" cy="110" r="0.9" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 6.0s forwards"/>
+        <circle cx="155" cy="128" r="1.1" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 8.8s forwards"/>
+        <circle cx="200" cy="115" r="0.8" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 7.0s forwards"/>
+        <circle cx="360" cy="42"  r="1.3" fill="rgba(215,205,245,1)" opacity="0" style="animation:starAppear 0.7s ease-out 4.2s forwards"/>
+
+        <!-- Moon — rises from below horizon -->
+        <circle cx="310" cy="295" r="22" fill="url(#moonGrad)"
+          style="filter:drop-shadow(0 0 8px rgba(200,168,80,0.9)) drop-shadow(0 0 20px rgba(200,168,80,0.4));animation:moonRise 7s ease-out 1.5s forwards"/>
+
+        <!-- Village + forest silhouette -->
+        <path d="
+          M0,280 L0,218
+          L18,218 L18,200 L36,186 L54,200 L54,218
+          L62,218 L62,195 L70,195 L70,188 L78,188 L78,195 L86,195 L86,175 L98,162 L110,175 L110,218
+          L122,218 L122,205 L134,192 L146,205 L146,218
+          L155,205 L165,182 L175,205
+          L185,205 L195,185 L205,205
+          L215,218 L228,218 L228,200 L240,190 L252,200 L252,218
+          L262,205 L272,180 L282,205
+          L292,218 L304,218 L304,202 L312,193 L320,202 L320,218
+          L332,218 L332,198 L344,185 L356,198 L356,218
+          L368,205 L378,185 L388,205
+          L400,218 L400,280 Z"
+          fill="#08060e"/>
+      </svg>
       <div id="sleep-text" style="
         font-family:var(--font-display);font-size:0.85rem;
         color:var(--text-muted);letter-spacing:0.2em;text-transform:uppercase;
@@ -163,14 +220,9 @@
 </div><!-- #app -->
 
 <style>
-@keyframes moonFloat {
-  0%,100% { transform:translateY(0) }
-  50%      { transform:translateY(-12px) }
-}
-@keyframes moonRing {
-  0%,100% { opacity:0.4;transform:scale(1) }
-  50%      { opacity:0.85;transform:scale(1.04) }
-}
+@keyframes duskFade   { to { opacity:0 } }
+@keyframes moonRise   { to { transform:translateY(-185px) } }
+@keyframes starAppear { from { opacity:0 } to { opacity:1 } }
 @keyframes breathe {
   0%,100% { opacity:0.35 }
   50%      { opacity:1 }
