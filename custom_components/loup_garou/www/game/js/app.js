@@ -66,6 +66,7 @@ function handleMessage(msg) {
     case 'night_role_sleep': onNightRoleSleep(msg.data);      break;
     case 'player_eliminated': onPlayerEliminated(msg.data);   break;
     case 'narrate':          tts.speak(msg.data.text, msg.data.lang); break;
+    case 'config':           onConfig(msg.config);            break;
     case 'error':            toast('⚠ ' + msg.msg, 'death');  break;
   }
 }
@@ -136,6 +137,11 @@ function onNightRoleSleep(data) {
   // which drives the view transition. We stay in night-sleep until that state arrives.
 }
 
+function onConfig(cfg) {
+  const el = document.getElementById('version-footer');
+  if (el && cfg?.version) el.textContent = '#' + cfg.version;
+}
+
 function onPlayerEliminated(data) {
   // Accumulate night deaths for the day announcement
   if (_state.phase === 'night') {
@@ -172,8 +178,8 @@ async function init() {
   });
 
   connect(handleMessage, () => {
-    // On reconnect, request fresh state
     send('get_state');
+    send('get_config');
   });
 
   showView('setup');

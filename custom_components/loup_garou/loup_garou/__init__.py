@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import HomeAssistantView
 
-from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_MODE, DEFAULT_TTS_ENGINE, DEFAULT_TTS_MODE
+from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_MODE, DEFAULT_TTS_ENGINE, DEFAULT_TTS_MODE, GIT_HASH
 from ..game_engine import GameEngine
 from ..game_server import LoupGarouServer
 from ..roles.loader import load_roles
@@ -40,6 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "speaker": conf.get(CONF_SPEAKER, ""),
         "lights": conf.get(CONF_LIGHTS, []),
         "tts_engine": conf.get(CONF_TTS_ENGINE, DEFAULT_TTS_ENGINE),
+        "version": GIT_HASH,
     })
     server.wire_events()
 
