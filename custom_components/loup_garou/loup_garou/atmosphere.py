@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 
 from ..const import (
     GameEvent, LIGHT_SCENES, ROLE_SCENE, TTS_PHASE_DELAYS,
-    CONF_TTS_MODE, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
+    CONF_TTS_MODE, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_DELAYS,
 )
 
 if TYPE_CHECKING:
@@ -36,6 +36,7 @@ class Atmosphere:
         locale: dict | None = None,
         tts_mode: str = "ha",
         server: "LoupGarouServer | None" = None,
+        tts_delays: dict | None = None,
     ) -> None:
         self._hass = hass
         self._engine = engine
@@ -47,6 +48,7 @@ class Atmosphere:
         self._current_scene: str = "day"
         self._tts_mode = tts_mode
         self._server = server
+        self._delays: dict[str, float] = dict(tts_delays) if tts_delays else dict(TTS_PHASE_DELAYS)
 
     def update_config(self, cfg: dict) -> None:
         self._tts_mode   = cfg.get(CONF_TTS_MODE,   self._tts_mode)
@@ -54,6 +56,8 @@ class Atmosphere:
         self._lights     = cfg.get(CONF_LIGHTS,      self._lights)
         self._language   = cfg.get(CONF_LANGUAGE,    self._language)
         self._tts_engine = cfg.get(CONF_TTS_ENGINE,  self._tts_engine)
+        if CONF_TTS_DELAYS in cfg:
+            self._delays.update(cfg[CONF_TTS_DELAYS])
 
     # ── Locale ────────────────────────────────────────────────────────────────
 
@@ -266,4 +270,4 @@ class Atmosphere:
         except Exception:
             _LOGGER.exception("Failed to speak: %s", text)
 
-        await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))
+        await asyncio.sleep(self._delays.get(delay_key, 2.5))

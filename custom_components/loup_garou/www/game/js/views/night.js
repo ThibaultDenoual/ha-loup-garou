@@ -37,6 +37,13 @@ export function init(send, getState, toast) {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function showSleeping(sleepText) {
+  // Clone fresh SVG from template so CSS animations restart from the beginning
+  const tpl = document.getElementById('village-scene-tpl');
+  const container = document.getElementById('village-scene-container');
+  if (tpl && container) {
+    container.innerHTML = '';
+    container.appendChild(tpl.content.cloneNode(true));
+  }
   _setSection('sleeping');
   _setHalo(null);
   document.getElementById('sleep-text').textContent = sleepText || t('ui.night.title');

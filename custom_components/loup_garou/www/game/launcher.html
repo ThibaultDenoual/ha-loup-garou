@@ -130,6 +130,24 @@ a.btn-play:hover { opacity:0.85 }
 .checkbox-row:hover { background:var(--bg-elevated) }
 .checkbox-row input[type=checkbox] { accent-color:var(--amber);flex-shrink:0;width:1rem;height:1rem }
 .no-entities { padding:0.6rem 0.85rem;color:var(--text-muted);font-style:italic;font-size:0.85rem;display:block }
+.config-sublabel {
+  font-family:var(--font-d);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--amber-dim);margin:1rem 0 0.5rem;display:block;
+}
+.delay-grid { display:flex;flex-direction:column;gap:0.2rem }
+.delay-row {
+  display:flex;align-items:center;justify-content:space-between;gap:0.75rem;
+  padding:0.3rem 0;font-size:0.85rem;color:var(--text-muted);
+  border-bottom:1px solid rgba(255,255,255,0.03);
+}
+.delay-row:last-child { border-bottom:none }
+.delay-name { flex:1 }
+.delay-input {
+  width:5rem;background:var(--bg-elevated);border:var(--border);border-radius:4px;
+  padding:0.3rem 0.5rem;font-size:0.9rem;color:var(--text);font-family:var(--font-b);
+  text-align:center;
+}
+.delay-input:focus { outline:1px solid var(--amber-dim) }
 .btn-save {
   width:100%;background:var(--amber);color:#0c0a08;
   font-family:var(--font-d);font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;
@@ -231,6 +249,22 @@ a.btn-play:hover { opacity:0.85 }
       <div class="config-group">
         <label class="config-label" for="cfg-tts-engine">Moteur TTS</label>
         <input id="cfg-tts-engine" class="config-input" type="text" placeholder="tts.home_assistant_cloud">
+      </div>
+
+      <div class="config-group">
+        <span class="config-sublabel">Délais après narration (secondes)</span>
+        <div class="delay-grid">
+          <div class="delay-row"><span class="delay-name">Début de nuit</span>          <input type="number" class="delay-input" id="delay-night_start"      min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span class="delay-name">Réveil d'un rôle</span>       <input type="number" class="delay-input" id="delay-role_wake"         min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span class="delay-name">Endormissement d'un rôle</span><input type="number" class="delay-input" id="delay-role_sleep"        min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span class="delay-name">Jour — aucune mort</span>     <input type="number" class="delay-input" id="delay-day_no_death"      min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span class="delay-name">Jour — mort annoncée</span>   <input type="number" class="delay-input" id="delay-day_with_death"    min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span class="delay-name">Début du vote</span>          <input type="number" class="delay-input" id="delay-vote_start"         min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span class="delay-name">Résultat du vote</span>       <input type="number" class="delay-input" id="delay-vote_result"        min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span class="delay-name">Élimination en direct</span>  <input type="number" class="delay-input" id="delay-elimination_live"   min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span class="delay-name">Fin de partie</span>          <input type="number" class="delay-input" id="delay-game_over"          min="0" max="30" step="0.5"></div>
+        </div>
+        <div class="config-hint">Durée d'attente estimée après chaque narration en mode HA.</div>
       </div>
     </div>
 
@@ -338,6 +372,14 @@ applyTtsModeVisibility();
       cfg.speaker || '');
     renderLightCheckboxes(_entities.lights, cfg.lights || []);
 
+    // Delay inputs
+    const delays = cfg.tts_delays || {};
+    ['night_start','role_wake','role_sleep','day_no_death','day_with_death',
+     'vote_start','vote_result','elimination_live','game_over'].forEach(key => {
+      const el = document.getElementById(`delay-${key}`);
+      if (el && delays[key] !== undefined) el.value = delays[key];
+    });
+
     // Summary bar
     const parts = [];
     if (cfg.language) parts.push(cfg.language.toUpperCase());
@@ -380,12 +422,19 @@ applyTtsModeVisibility();
     const selectedLights = Array.from(
       document.querySelectorAll('#cfg-lights-list input[type=checkbox]:checked')
     ).map(cb => cb.value);
+    const tts_delays = {};
+    ['night_start','role_wake','role_sleep','day_no_death','day_with_death',
+     'vote_start','vote_result','elimination_live','game_over'].forEach(key => {
+      const el = document.getElementById(`delay-${key}`);
+      if (el && el.value !== '') tts_delays[key] = parseFloat(el.value);
+    });
     const payload = {
       tts_mode:   ttsModeSelect.value,
       speaker:    document.getElementById('cfg-speaker').value,
       lights:     selectedLights,
       language:   document.getElementById('cfg-language').value,
       tts_engine: document.getElementById('cfg-tts-engine').value,
+      tts_delays,
     };
     document.getElementById('save-feedback').dataset.pending = '1';
     ws.send(JSON.stringify({cmd:'save_config', data: payload}));

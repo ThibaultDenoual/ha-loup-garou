@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import HomeAssistantView
 
-from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_MODE, DEFAULT_TTS_ENGINE, DEFAULT_TTS_MODE, VERSION
+from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_MODE, CONF_TTS_DELAYS, DEFAULT_TTS_ENGINE, DEFAULT_TTS_MODE, TTS_PHASE_DELAYS, VERSION
 from ..game_engine import GameEngine
 from ..game_server import LoupGarouServer
 from ..roles.loader import load_roles
@@ -25,6 +25,7 @@ DEFAULTS = {
     CONF_LIGHTS:     [],
     CONF_LANGUAGE:   "fr",
     CONF_TTS_ENGINE: DEFAULT_TTS_ENGINE,
+    CONF_TTS_DELAYS: dict(TTS_PHASE_DELAYS),
 }
 
 
@@ -49,6 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "speaker": conf[CONF_SPEAKER],
         "lights": conf[CONF_LIGHTS],
         "tts_engine": conf[CONF_TTS_ENGINE],
+        "tts_delays": conf[CONF_TTS_DELAYS],
         "version": VERSION,
     })
     server.wire_events()
@@ -63,6 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         locale=_locale,
         tts_mode=tts_mode,
         server=server,
+        tts_delays=conf[CONF_TTS_DELAYS],
     )
     atmosphere.wire_events()
 

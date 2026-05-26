@@ -25,6 +25,7 @@ CONF_LIGHTS = "light_entities"
 CONF_LANGUAGE = "language"
 CONF_TTS_ENGINE = "tts_engine"
 CONF_TTS_MODE = "tts_mode"
+CONF_TTS_DELAYS = "tts_delays"
 
 LANGUAGES = ["fr", "en"]
 DEFAULT_LANGUAGE = "fr"
