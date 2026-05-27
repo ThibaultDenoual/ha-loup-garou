@@ -421,13 +421,35 @@ async def test_on_game_over_village_win_narrates():
     server.narrate.assert_awaited_once()
 
 
-async def test_on_player_eliminated_hunter_shot_narrates():
+async def test_on_hunter_shot_narrates_with_both_names():
+    """HUNTER_SHOT event (not PLAYER_ELIMINATED) triggers TTS with hunter + target names (fixes #8)."""
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
-        await atm._on_player_eliminated({"cause": "hunter_shot", "name": "Alice", "target": "Bob"})
+        await atm._on_hunter_shot({
+            "hunter_name": "Alice",
+            "target_name": "Bob",
+            "hunter_id": "p0",
+            "target_id": "p1",
+            "target_role": "villager",
+        })
     server.narrate.assert_awaited_once()
+    # Verify both names appear in the narrated text
+    narrated_text = server.narrate.call_args[0][0]
+    assert "Alice" in narrated_text
+    assert "Bob" in narrated_text
+
+
+async def test_on_player_eliminated_hunter_cause_is_silent():
+    """PLAYER_ELIMINATED with hunter-related cause should NOT trigger duplicate TTS (handled by HUNTER_SHOT event)."""
+    server = MagicMock()
+    server.narrate = AsyncMock()
+    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    # The target's PLAYER_ELIMINATED fires with the original cause (e.g. village_vote),
+    # not "hunter_shot", so no special handling is needed here.
+    await atm._on_player_eliminated({"cause": "village_vote", "name": "Bob", "role": "villager"})
+    server.narrate.assert_not_awaited()
 
 
 async def test_on_player_eliminated_lover_grief_narrates():

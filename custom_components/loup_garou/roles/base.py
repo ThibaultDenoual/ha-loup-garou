@@ -91,8 +91,7 @@ class RoleContext:
     async def request_action(self, role_id: str, event_data: dict) -> dict:
         """Pause the elimination chain, emit event, await external UI input."""
         from ..const import GameEvent
-        loop = asyncio.get_event_loop()
-        fut: asyncio.Future[dict] = loop.create_future()
+        fut: asyncio.Future[dict] = asyncio.get_running_loop().create_future()
         self._state.pending_interrupt_role = role_id
         self._state.pending_interrupt = fut
         await self.emit(GameEvent.NIGHT_ROLE_WAKE, {"role": role_id, **event_data})

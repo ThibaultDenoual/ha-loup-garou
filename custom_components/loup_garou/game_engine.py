@@ -111,8 +111,7 @@ class GameEngine:
             await self._emit(GameEvent.NIGHT_ROLE_WAKE, wake_data)
             await role.on_night_start(ctx)
 
-            loop = asyncio.get_event_loop()
-            fut: asyncio.Future[dict] = loop.create_future()
+            fut: asyncio.Future[dict] = asyncio.get_running_loop().create_future()
             self._pending_action_role = role.id
             self._pending_action = fut
             action = await fut
