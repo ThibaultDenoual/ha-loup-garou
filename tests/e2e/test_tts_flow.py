@@ -51,12 +51,17 @@ async def test_narrate_message_sent_to_client():
                         srv._tts_future.set_result(None)
                     await task
 
-                asyncio.get_event_loop().create_task(_narrate_and_resolve())
+                # Keep a reference so we can await it after drain() returns.
+                # narrate() blocks on _tts_future after broadcasting — if we don't
+                # await the outer task, it is still pending when TestServer tears down,
+                # causing a "Task destroyed while pending" teardown failure.
+                outer_task = asyncio.create_task(_narrate_and_resolve())
                 msgs = await drain(ws, until_type="narrate", timeout=2.0)
                 narrate = msgs[-1]
                 assert narrate["type"] == "narrate"
                 assert narrate["data"]["text"] == "La nuit tombe."
                 assert narrate["data"]["lang"] == "fr"
+                await outer_task  # let narrate() resolve cleanly before teardown
 
 
 async def test_tts_done_unblocks_narrate():
@@ -72,7 +77,7 @@ async def test_tts_done_unblocks_narrate():
                     await srv.narrate("Good night", "fr")
                     narrate_completed.set()
 
-                asyncio.get_event_loop().create_task(_run_narrate())
+                narrate_task = asyncio.create_task(_run_narrate())
 
                 # Wait for narrate broadcast
                 msgs = await drain(ws, until_type="narrate", timeout=2.0)
@@ -84,6 +89,7 @@ async def test_tts_done_unblocks_narrate():
                 # narrate() should unblock quickly
                 await asyncio.wait_for(narrate_completed.wait(), timeout=2.0)
                 assert narrate_completed.is_set()
+                await narrate_task  # clean up the task before teardown
 
 
 async def test_tts_done_from_second_client_unblocks_narrate():
@@ -100,7 +106,7 @@ async def test_tts_done_from_second_client_unblocks_narrate():
                         await srv.narrate("Wolves awaken", "fr")
                         narrate_done.set()
 
-                    asyncio.get_event_loop().create_task(_run_narrate())
+                    narrate_task = asyncio.create_task(_run_narrate())
 
                     # ws1 receives narrate
                     await drain(ws1, until_type="narrate", timeout=2.0)
@@ -112,6 +118,7 @@ async def test_tts_done_from_second_client_unblocks_narrate():
 
                     await asyncio.wait_for(narrate_done.wait(), timeout=2.0)
                     assert narrate_done.is_set()
+                    await narrate_task  # clean up the task before teardown
 
 
 async def test_narrate_skips_when_no_clients_connected():

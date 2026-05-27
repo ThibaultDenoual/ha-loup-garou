@@ -50,9 +50,10 @@ async def drain(
     until both the type matches AND predicate returns truthy.
     """
     collected: list[dict] = []
-    deadline = asyncio.get_event_loop().time() + timeout
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
     while True:
-        remaining = deadline - asyncio.get_event_loop().time()
+        remaining = deadline - loop.time()
         if remaining <= 0:
             raise AssertionError(
                 f"Timed out waiting for type={until_type!r} (predicate={predicate}); got: {collected}"
