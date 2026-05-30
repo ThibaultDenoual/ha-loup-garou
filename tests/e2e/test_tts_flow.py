@@ -36,32 +36,24 @@ async def ws_connect(test_server, session):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def test_narrate_message_sent_to_client():
-    """Server broadcast a narrate message when server.narrate() is called."""
+    """Server broadcasts a narrate message when server.narrate() is called."""
     engine, srv = make_tts_server()
     app = make_app(srv)
     async with TestServer(app) as ts:
         async with aiohttp.ClientSession() as session:
             async with await ws_connect(ts, session) as ws:
-                # Trigger narrate directly on the server, resolve it immediately
-                async def _narrate_and_resolve():
-                    await asyncio.sleep(0.01)
-                    task = asyncio.create_task(srv.narrate("La nuit tombe.", "fr"))
-                    await asyncio.sleep(0)
-                    if srv._tts_future and not srv._tts_future.done():
-                        srv._tts_future.set_result(None)
-                    await task
+                narrate_task = asyncio.create_task(srv.narrate("La nuit tombe.", "fr"))
 
-                # Keep a reference so we can await it after drain() returns.
-                # narrate() blocks on _tts_future after broadcasting — if we don't
-                # await the outer task, it is still pending when TestServer tears down,
-                # causing a "Task destroyed while pending" teardown failure.
-                outer_task = asyncio.create_task(_narrate_and_resolve())
                 msgs = await drain(ws, until_type="narrate", timeout=2.0)
                 narrate = msgs[-1]
                 assert narrate["type"] == "narrate"
                 assert narrate["data"]["text"] == "La nuit tombe."
                 assert narrate["data"]["lang"] == "fr"
-                await outer_task  # let narrate() resolve cleanly before teardown
+
+                # Acknowledge TTS so narrate() unblocks and the task finishes
+                # cleanly before TestServer tears down.
+                await ws.send_json({"cmd": "tts_done", "data": {}})
+                await asyncio.wait_for(narrate_task, timeout=2.0)
 
 
 async def test_tts_done_unblocks_narrate():
