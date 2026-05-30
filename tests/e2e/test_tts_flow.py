@@ -36,24 +36,35 @@ async def ws_connect(test_server, session):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def test_narrate_message_sent_to_client():
-    """Server broadcasts a narrate message when server.narrate() is called."""
+    """narrate() broadcasts the correct message structure (type, text, lang).
+
+    Uses a fake WS recorder instead of TestServer — this test is about the
+    message format, not the round-trip protocol. Avoids the aiohttp
+    _run_safe_shutdown_loop daemon thread that TestServer spawns on first use,
+    which trips the HA test framework's verify_cleanup thread assertion.
+    """
     engine, srv = make_tts_server()
-    app = make_app(srv)
-    async with TestServer(app) as ts:
-        async with aiohttp.ClientSession() as session:
-            async with await ws_connect(ts, session) as ws:
-                narrate_task = asyncio.create_task(srv.narrate("La nuit tombe.", "fr"))
 
-                msgs = await drain(ws, until_type="narrate", timeout=2.0)
-                narrate = msgs[-1]
-                assert narrate["type"] == "narrate"
-                assert narrate["data"]["text"] == "La nuit tombe."
-                assert narrate["data"]["lang"] == "fr"
+    class _FakeWs:
+        def __init__(self) -> None:
+            self.messages: list[dict] = []
 
-                # Acknowledge TTS so narrate() unblocks and the task finishes
-                # cleanly before TestServer tears down.
-                await ws.send_json({"cmd": "tts_done", "data": {}})
-                await asyncio.wait_for(narrate_task, timeout=2.0)
+        async def send_json(self, data: dict) -> None:
+            self.messages.append(data)
+
+    fake_ws = _FakeWs()
+    srv._clients.add(fake_ws)  # type: ignore[arg-type]
+
+    narrate_task = asyncio.create_task(srv.narrate("La nuit tombe.", "fr"))
+    await asyncio.sleep(0)  # yield so narrate() broadcasts and sets _tts_future
+    if srv._tts_future and not srv._tts_future.done():
+        srv._tts_future.set_result(None)
+    await narrate_task
+
+    narrate_msg = next((m for m in fake_ws.messages if m.get("type") == "narrate"), None)
+    assert narrate_msg is not None
+    assert narrate_msg["data"]["text"] == "La nuit tombe."
+    assert narrate_msg["data"]["lang"] == "fr"
 
 
 async def test_tts_done_unblocks_narrate():
