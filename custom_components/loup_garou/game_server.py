@@ -67,9 +67,9 @@ class LoupGarouServer:
         """
         if not self._clients:
             return
-        await self.broadcast({"type": "narrate", "data": {"text": text, "lang": lang}})
         self._tts_future = asyncio.get_running_loop().create_future()
         try:
+            await self.broadcast({"type": "narrate", "data": {"text": text, "lang": lang}})
             await asyncio.wait_for(self._tts_future, timeout=10.0)
         except asyncio.TimeoutError:
             _LOGGER.warning("Browser TTS timed out after 10 s for: %.60s", text)

@@ -32,40 +32,8 @@ async def ws_connect(test_server, session):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# narrate message structure
+# narrate message structure + tts_done round-trip
 # ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_narrate_message_sent_to_client():
-    """narrate() broadcasts the correct message structure (type, text, lang).
-
-    Uses a fake WS recorder instead of TestServer — this test is about the
-    message format, not the round-trip protocol. Avoids the aiohttp
-    _run_safe_shutdown_loop daemon thread that TestServer spawns on first use,
-    which trips the HA test framework's verify_cleanup thread assertion.
-    """
-    engine, srv = make_tts_server()
-
-    class _FakeWs:
-        def __init__(self) -> None:
-            self.messages: list[dict] = []
-
-        async def send_json(self, data: dict) -> None:
-            self.messages.append(data)
-
-    fake_ws = _FakeWs()
-    srv._clients.add(fake_ws)  # type: ignore[arg-type]
-
-    narrate_task = asyncio.create_task(srv.narrate("La nuit tombe.", "fr"))
-    await asyncio.sleep(0)  # yield so narrate() broadcasts and sets _tts_future
-    if srv._tts_future and not srv._tts_future.done():
-        srv._tts_future.set_result(None)
-    await narrate_task
-
-    narrate_msg = next((m for m in fake_ws.messages if m.get("type") == "narrate"), None)
-    assert narrate_msg is not None
-    assert narrate_msg["data"]["text"] == "La nuit tombe."
-    assert narrate_msg["data"]["lang"] == "fr"
-
 
 async def test_tts_done_unblocks_narrate():
     """Client sending tts_done releases the narrate() future."""
@@ -82,9 +50,10 @@ async def test_tts_done_unblocks_narrate():
 
                 narrate_task = asyncio.create_task(_run_narrate())
 
-                # Wait for narrate broadcast
+                # Wait for narrate broadcast — verify both text and lang are sent
                 msgs = await drain(ws, until_type="narrate", timeout=2.0)
                 assert msgs[-1]["data"]["text"] == "Good night"
+                assert msgs[-1]["data"]["lang"] == "fr"
 
                 # Send tts_done
                 await ws.send_json({"cmd": "tts_done", "data": {}})
