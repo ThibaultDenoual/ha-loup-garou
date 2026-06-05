@@ -203,7 +203,7 @@ async def test_speak_browser_mode_calls_server_narrate():
     server.narrate = AsyncMock()
     atm, hass, _ = make_atmosphere(tts_mode="browser", server=server)
     await atm.speak("Good night", delay_key="night_start")
-    server.narrate.assert_awaited_once_with("Good night", "fr")
+    server.narrate.assert_awaited_once_with("Good night", "fr", audio_url=None)
     hass.services.async_call.assert_not_awaited()
 
 
@@ -238,7 +238,7 @@ async def test_speak_browser_mode_passes_language():
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(tts_mode="browser", server=server, language="en")
     await atm.speak("Good night", delay_key="night_start")
-    server.narrate.assert_awaited_once_with("Good night", "en")
+    server.narrate.assert_awaited_once_with("Good night", "en", audio_url=None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from homeassistant.core import HomeAssistant
 
 from ..const import (
-    GameEvent, LIGHT_SCENES, ROLE_SCENE, TTS_PHASE_DELAYS,
+    GameEvent, LIGHT_SCENES, ROLE_SCENE, STATIC_AUDIO_MAP, TTS_PHASE_DELAYS,
     CONF_TTS_MODE, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
 )
 
@@ -102,7 +102,7 @@ class Atmosphere:
         phase = data.get("phase")
         if phase == "night":
             await self._set_lights("night")
-            await self.speak(self.t("phase.night.start"), delay_key="night_start")
+            await self.speak(self.t("phase.night.start"), delay_key="night_start", locale_key="phase.night.start")
         # day and vote handled by their dedicated events
 
     async def _on_role_wake(self, data: dict) -> None:
@@ -120,13 +120,13 @@ class Atmosphere:
 
         wake_text = self.t(f"role.{role_id}.wake")
         if wake_text:
-            await self.speak(wake_text, delay_key="role_wake")
+            await self.speak(wake_text, delay_key="role_wake", locale_key=f"role.{role_id}.wake")
 
     async def _on_role_sleep(self, data: dict) -> None:
         role_id = data.get("role")
         sleep_text = self.t(f"role.{role_id}.sleep")
         if sleep_text:
-            await self.speak(sleep_text, delay_key="role_sleep")
+            await self.speak(sleep_text, delay_key="role_sleep", locale_key=f"role.{role_id}.sleep")
         await self._set_lights("night")
         self._current_scene = "night"
 
@@ -138,7 +138,7 @@ class Atmosphere:
         players_by_id = {p["id"]: p for p in pub["players"]}
 
         if not eliminated_ids:
-            await self.speak(self.t("phase.day.start_no_death"), delay_key="day_no_death")
+            await self.speak(self.t("phase.day.start_no_death"), delay_key="day_no_death", locale_key="phase.day.start_no_death")
             return
 
         for pid in eliminated_ids:
@@ -153,13 +153,13 @@ class Atmosphere:
             )
 
     async def _on_vote_started(self, data: dict) -> None:
-        await self.speak(self.t("phase.vote.start"), delay_key="vote_start")
+        await self.speak(self.t("phase.vote.start"), delay_key="vote_start", locale_key="phase.vote.start")
 
     async def _on_vote_resolved(self, data: dict) -> None:
         eliminated_id = data.get("eliminated")
         is_tie = data.get("tie", False)
         if is_tie and not eliminated_id:
-            await self.speak(self.t("phase.vote.tie"), delay_key="vote_result")
+            await self.speak(self.t("phase.vote.tie"), delay_key="vote_result", locale_key="phase.vote.tie")
             return
         if eliminated_id:
             pub = self._engine.get_public_state()
@@ -223,7 +223,7 @@ class Atmosphere:
             await self._set_lights(scene_key)
         msg_key = msg_map.get(winner or "")
         if msg_key:
-            await self.speak(self.t(msg_key), delay_key="game_over")
+            await self.speak(self.t(msg_key), delay_key="game_over", locale_key=msg_key)
 
     # ── HA service calls ──────────────────────────────────────────────────────
 
@@ -242,20 +242,27 @@ class Atmosphere:
             except Exception:
                 _LOGGER.exception("Failed to set light scene %s on %s", scene_key, entity_id)
 
-    async def speak(self, text: str, delay_key: str = "role_wake") -> None:
+    async def speak(self, text: str, delay_key: str = "role_wake", locale_key: str | None = None) -> None:
         """Speak narration text and wait for completion.
 
         In browser mode: delegates to server.narrate() which blocks until
         the browser sends tts_done (or times out after 10 s).
+        In static mode: same as browser mode but includes an audio_url for
+        pre-recorded MP3 files when the locale key maps to one; dynamic
+        messages (player names, roles) fall back to Web Speech API.
         In HA mode: fires TTS to HA then sleeps for an estimated duration so
         the engine doesn't race ahead while narration is still playing.
         """
         if not text:
             return
 
-        if self._tts_mode == "browser":
+        if self._tts_mode in ("browser", "static"):
             if self._server is not None:
-                await self._server.narrate(text, self._language)
+                audio_url: str | None = None
+                if self._tts_mode == "static" and locale_key and locale_key in STATIC_AUDIO_MAP:
+                    stem = STATIC_AUDIO_MAP[locale_key]
+                    audio_url = f"/loup_garou/audio/{self._language}/{stem}.mp3"
+                await self._server.narrate(text, self._language, audio_url=audio_url)
             return
 
         # HA TTS mode

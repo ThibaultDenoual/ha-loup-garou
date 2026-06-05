@@ -59,17 +59,22 @@ class LoupGarouServer:
                 dead.add(ws)
         self._clients -= dead
 
-    async def narrate(self, text: str, lang: str) -> None:
+    async def narrate(self, text: str, lang: str, audio_url: str | None = None) -> None:
         """Broadcast a narration request and wait for the browser to confirm playback.
 
         Blocks until any connected client sends tts_done, or until the 10-second
         timeout fires so a disconnected client never stalls the game.
+        When audio_url is set the browser plays a pre-recorded MP3 instead of
+        synthesising speech, falling back to Web Speech API on error.
         """
         if not self._clients:
             return
         self._tts_future = asyncio.get_running_loop().create_future()
+        payload: dict = {"text": text, "lang": lang}
+        if audio_url:
+            payload["audio_url"] = audio_url
         try:
-            await self.broadcast({"type": "narrate", "data": {"text": text, "lang": lang}})
+            await self.broadcast({"type": "narrate", "data": payload})
             await asyncio.wait_for(self._tts_future, timeout=10.0)
         except asyncio.TimeoutError:
             _LOGGER.warning("Browser TTS timed out after 10 s for: %.60s", text)

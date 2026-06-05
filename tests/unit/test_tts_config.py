@@ -173,3 +173,54 @@ async def test_get_config_returns_tts_mode():
     sent = ws.send_json.call_args[0][0]
     assert sent["type"] == "config"
     assert sent["config"][CONF_TTS_MODE] == "browser"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# narrate() with audio_url
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def test_narrate_with_audio_url_broadcasts_field():
+    server, ws = make_server_with_fake_client()
+
+    async def resolve():
+        await asyncio.sleep(0)
+        if server._tts_future and not server._tts_future.done():
+            server._tts_future.set_result(None)
+
+    asyncio.get_event_loop().create_task(resolve())
+    await server.narrate("La nuit tombe.", "fr", audio_url="/loup_garou/audio/fr/night_start.mp3")
+
+    ws.send_json.assert_awaited_once()
+    sent = ws.send_json.call_args[0][0]
+    assert sent["type"] == "narrate"
+    assert sent["data"]["audio_url"] == "/loup_garou/audio/fr/night_start.mp3"
+    assert sent["data"]["text"] == "La nuit tombe."
+    assert sent["data"]["lang"] == "fr"
+
+
+async def test_narrate_without_audio_url_omits_field():
+    server, ws = make_server_with_fake_client()
+
+    async def resolve():
+        await asyncio.sleep(0)
+        if server._tts_future and not server._tts_future.done():
+            server._tts_future.set_result(None)
+
+    asyncio.get_event_loop().create_task(resolve())
+    await server.narrate("Alice a été dévorée.", "fr")
+
+    ws.send_json.assert_awaited_once()
+    sent = ws.send_json.call_args[0][0]
+    assert "audio_url" not in sent["data"]
+
+
+async def test_get_config_returns_static_tts_mode():
+    engine = MagicMock()
+    engine.on = MagicMock()
+    config = {CONF_TTS_MODE: "static", CONF_LANGUAGE: "fr"}
+    server = LoupGarouServer(engine, config=config)
+    ws = MagicMock()
+    ws.send_json = AsyncMock()
+    await server._dispatch(ws, {"cmd": "get_config"})
+    sent = ws.send_json.call_args[0][0]
+    assert sent["config"][CONF_TTS_MODE] == "static"

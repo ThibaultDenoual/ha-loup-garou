@@ -65,7 +65,7 @@ function handleMessage(msg) {
     case 'night_role_wake':  onNightRoleWake(msg.data);       break;
     case 'night_role_sleep': onNightRoleSleep(msg.data);      break;
     case 'player_eliminated': onPlayerEliminated(msg.data);   break;
-    case 'narrate':          tts.speak(msg.data.text, msg.data.lang); break;
+    case 'narrate':          tts.speak(msg.data.text, msg.data.lang, msg.data.audio_url ?? null); break;
     case 'config':           onConfig(msg.config);            break;
     case 'error':            toast('⚠ ' + msg.msg, 'death');  break;
   }

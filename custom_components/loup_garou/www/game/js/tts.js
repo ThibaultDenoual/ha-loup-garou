@@ -1,11 +1,8 @@
 /**
- * Browser TTS via Web Speech API.
- *
- * speak() broadcasts the narration text through the device speaker and
- * resolves after playback completes.  On any error or unavailability the
- * promise resolves immediately so the game never stalls client-side.
- * After resolving the server is notified via tts_done so it can unblock
- * the game engine for the next phase.
+ * Browser TTS — plays pre-recorded MP3 when audio_url is provided, otherwise
+ * falls back to Web Speech API.  On any error the promise resolves immediately
+ * so the game never stalls client-side.  After resolving the server is
+ * notified via tts_done so it can unblock the game engine for the next phase.
  */
 
 let _send;
@@ -18,7 +15,7 @@ export function init(send) {
   }
 }
 
-export function speak(text, lang = 'fr') {
+function speakWebSpeech(text, lang) {
   if (!window.speechSynthesis || !text) {
     _send('tts_done');
     return Promise.resolve();
@@ -38,4 +35,16 @@ export function speak(text, lang = 'fr') {
 
     speechSynthesis.speak(utt);
   });
+}
+
+export function speak(text, lang = 'fr', audioUrl = null) {
+  if (audioUrl) {
+    return new Promise(resolve => {
+      const audio = new Audio(audioUrl);
+      audio.onended = () => { _send('tts_done'); resolve(); };
+      audio.onerror = () => speakWebSpeech(text, lang).then(resolve);
+      audio.play().catch(() => speakWebSpeech(text, lang).then(resolve));
+    });
+  }
+  return speakWebSpeech(text, lang);
 }
