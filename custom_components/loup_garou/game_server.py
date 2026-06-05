@@ -67,9 +67,9 @@ class LoupGarouServer:
         """
         if not self._clients:
             return
-        await self.broadcast({"type": "narrate", "data": {"text": text, "lang": lang}})
-        self._tts_future = asyncio.get_event_loop().create_future()
+        self._tts_future = asyncio.get_running_loop().create_future()
         try:
+            await self.broadcast({"type": "narrate", "data": {"text": text, "lang": lang}})
             await asyncio.wait_for(self._tts_future, timeout=10.0)
         except asyncio.TimeoutError:
             _LOGGER.warning("Browser TTS timed out after 10 s for: %.60s", text)
@@ -159,6 +159,11 @@ class LoupGarouServer:
             GameEvent.GAME_OVER,
         ):
             self._engine.on(event, broadcast_state)
+
+        async def on_hunter_shot(data: dict) -> None:
+            await self.broadcast({"type": "hunter_shot", "data": data})
+
+        self._engine.on(GameEvent.HUNTER_SHOT, on_hunter_shot)
 
         async def on_player_eliminated(data: dict) -> None:
             await self.broadcast({"type": "player_eliminated", "data": data})

@@ -93,6 +93,7 @@ class Atmosphere:
         e.on(GameEvent.VOTE_STARTED, self._on_vote_started)
         e.on(GameEvent.VOTE_RESOLVED, self._on_vote_resolved)
         e.on(GameEvent.PLAYER_ELIMINATED, self._on_player_eliminated)
+        e.on(GameEvent.HUNTER_SHOT, self._on_hunter_shot)
         e.on(GameEvent.GAME_OVER, self._on_game_over)
 
     # ── Handlers ──────────────────────────────────────────────────────────────
@@ -176,16 +177,9 @@ class Atmosphere:
     async def _on_player_eliminated(self, data: dict) -> None:
         cause = data.get("cause", "")
         # Wolf kills and witch poison are announced on day start.
-        # Hunter shots and lover grief happen live — speak them immediately.
-        if cause == "hunter_shot":
-            name = data.get("name", "?")
-            target = data.get("name", "?")
-            await self.speak(
-                self.t("elimination.hunter_shot", name=name, target=target),
-                delay_key="elimination_live",
-            )
-            await self._set_lights("death")
-        elif cause == "lover_grief":
+        # Lover grief and scapegoat happen live — speak them immediately.
+        # Hunter shots are handled by _on_hunter_shot via HUNTER_SHOT event.
+        if cause == "lover_grief":
             name = data.get("name", "?")
             await self.speak(self.t("elimination.lover_grief", name=name), delay_key="elimination_live")
             await self._set_lights("death")
@@ -199,6 +193,22 @@ class Atmosphere:
                 delay_key="elimination_live",
             )
             await self._set_lights("death")
+
+    async def _on_hunter_shot(self, data: dict) -> None:
+        """Fired by the Hunter role before its target enters the elimination queue.
+
+        The HUNTER_SHOT event carries both the hunter's name and the target's
+        name, so the TTS message can correctly say 'Alice drags Bob into death'
+        rather than using the generic PLAYER_ELIMINATED payload (which only
+        carries the target's own name, and arrives with the original cause).
+        """
+        hunter_name = data.get("hunter_name", "?")
+        target_name = data.get("target_name", "?")
+        await self.speak(
+            self.t("elimination.hunter_shot", name=hunter_name, target=target_name),
+            delay_key="elimination_live",
+        )
+        await self._set_lights("death")
 
     async def _on_game_over(self, data: dict) -> None:
         winner = data.get("winner")

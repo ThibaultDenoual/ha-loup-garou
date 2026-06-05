@@ -53,7 +53,7 @@ async def test_begin_night_increments_night_number():
         await asyncio.sleep(0)
         await engine.submit_night_action("werewolf", {"target": "p0"})
 
-    asyncio.get_event_loop().create_task(submit())
+    asyncio.ensure_future(submit())
     await engine.begin_night()
     assert engine._state.night_number == 1
 
@@ -73,7 +73,7 @@ async def test_begin_night_emits_wake_sleep_events():
         await asyncio.sleep(0)
         await engine.submit_night_action("werewolf", {"target": "p0"})
 
-    asyncio.get_event_loop().create_task(submit())
+    asyncio.ensure_future(submit())
     await engine.begin_night()
 
     assert any(e.get("role") == "werewolf" for e in wake_events)
@@ -89,7 +89,7 @@ async def test_wolf_kill_eliminates_player():
         await asyncio.sleep(0)
         await engine.submit_night_action("werewolf", {"target": villager_id})
 
-    asyncio.get_event_loop().create_task(submit())
+    asyncio.ensure_future(submit())
     await engine.begin_night()
 
     assert not engine._state.players[villager_id].alive
@@ -107,7 +107,7 @@ async def test_night_resolved_emitted_after_night():
         await asyncio.sleep(0)
         await engine.submit_night_action("werewolf", {"target": villager_id})
 
-    asyncio.get_event_loop().create_task(submit())
+    asyncio.ensure_future(submit())
     await engine.begin_night()
     assert len(events) == 1
 
@@ -121,7 +121,7 @@ async def test_wolf_kill_triggers_game_over():
         await asyncio.sleep(0)
         await engine.submit_night_action("werewolf", {"target": villager_id})
 
-    asyncio.get_event_loop().create_task(submit())
+    asyncio.ensure_future(submit())
     await engine.begin_night()
     assert engine._state.phase == Phase.GAME_OVER
     assert engine._state.winner == "wolves"
@@ -195,7 +195,7 @@ async def test_witch_save_prevents_wolf_kill():
             "save_target": villager_id,
         })
 
-    asyncio.get_event_loop().create_task(submit())
+    asyncio.ensure_future(submit())
     await engine.begin_night()
 
     assert engine._state.players[villager_id].alive
@@ -215,7 +215,7 @@ async def test_elder_survives_first_wolf_kill_integration():
         await asyncio.sleep(0)
         await engine.submit_night_action("werewolf", {"target": elder_id})
 
-    asyncio.get_event_loop().create_task(submit())
+    asyncio.ensure_future(submit())
     await engine.begin_night()
 
     assert engine._state.players[elder_id].alive
@@ -241,7 +241,7 @@ async def test_lover_dies_when_partner_eliminated():
         await asyncio.sleep(0)
         await engine.submit_night_action("werewolf", {"target": alice_id})
 
-    asyncio.get_event_loop().create_task(submit())
+    asyncio.ensure_future(submit())
     await engine.begin_night()
 
     assert not engine._state.players[alice_id].alive

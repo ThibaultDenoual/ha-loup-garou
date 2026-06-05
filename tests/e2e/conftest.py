@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 
 import aiohttp
 import pytest
@@ -13,6 +15,13 @@ from aiohttp.test_utils import TestServer
 def _allow_sockets(socket_enabled):
     """Re-enable TCP sockets for all e2e tests (blocked by HA plugin by default)."""
     yield
+    # aiohttp spawns a _run_safe_shutdown_loop daemon thread during ClientSession teardown.
+    # Wait for it to finish before verify_cleanup (a plugin fixture) checks for stray threads.
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        if not any("_run_safe_shutdown_loop" in t.name for t in threading.enumerate()):
+            break
+        time.sleep(0.05)
 
 from loup_garou.game_engine import GameEngine
 from loup_garou.game_server import LoupGarouServer
@@ -50,9 +59,10 @@ async def drain(
     until both the type matches AND predicate returns truthy.
     """
     collected: list[dict] = []
-    deadline = asyncio.get_event_loop().time() + timeout
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
     while True:
-        remaining = deadline - asyncio.get_event_loop().time()
+        remaining = deadline - loop.time()
         if remaining <= 0:
             raise AssertionError(
                 f"Timed out waiting for type={until_type!r} (predicate={predicate}); got: {collected}"

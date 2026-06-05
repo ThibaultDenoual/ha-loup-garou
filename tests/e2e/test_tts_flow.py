@@ -32,32 +32,8 @@ async def ws_connect(test_server, session):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# narrate message structure
+# narrate message structure + tts_done round-trip
 # ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_narrate_message_sent_to_client():
-    """Server broadcast a narrate message when server.narrate() is called."""
-    engine, srv = make_tts_server()
-    app = make_app(srv)
-    async with TestServer(app) as ts:
-        async with aiohttp.ClientSession() as session:
-            async with await ws_connect(ts, session) as ws:
-                # Trigger narrate directly on the server, resolve it immediately
-                async def _narrate_and_resolve():
-                    await asyncio.sleep(0.01)
-                    task = asyncio.create_task(srv.narrate("La nuit tombe.", "fr"))
-                    await asyncio.sleep(0)
-                    if srv._tts_future and not srv._tts_future.done():
-                        srv._tts_future.set_result(None)
-                    await task
-
-                asyncio.get_event_loop().create_task(_narrate_and_resolve())
-                msgs = await drain(ws, until_type="narrate", timeout=2.0)
-                narrate = msgs[-1]
-                assert narrate["type"] == "narrate"
-                assert narrate["data"]["text"] == "La nuit tombe."
-                assert narrate["data"]["lang"] == "fr"
-
 
 async def test_tts_done_unblocks_narrate():
     """Client sending tts_done releases the narrate() future."""
@@ -72,11 +48,12 @@ async def test_tts_done_unblocks_narrate():
                     await srv.narrate("Good night", "fr")
                     narrate_completed.set()
 
-                asyncio.get_event_loop().create_task(_run_narrate())
+                narrate_task = asyncio.create_task(_run_narrate())
 
-                # Wait for narrate broadcast
+                # Wait for narrate broadcast — verify both text and lang are sent
                 msgs = await drain(ws, until_type="narrate", timeout=2.0)
                 assert msgs[-1]["data"]["text"] == "Good night"
+                assert msgs[-1]["data"]["lang"] == "fr"
 
                 # Send tts_done
                 await ws.send_json({"cmd": "tts_done", "data": {}})
@@ -84,6 +61,7 @@ async def test_tts_done_unblocks_narrate():
                 # narrate() should unblock quickly
                 await asyncio.wait_for(narrate_completed.wait(), timeout=2.0)
                 assert narrate_completed.is_set()
+                await narrate_task  # clean up the task before teardown
 
 
 async def test_tts_done_from_second_client_unblocks_narrate():
@@ -100,7 +78,7 @@ async def test_tts_done_from_second_client_unblocks_narrate():
                         await srv.narrate("Wolves awaken", "fr")
                         narrate_done.set()
 
-                    asyncio.get_event_loop().create_task(_run_narrate())
+                    narrate_task = asyncio.create_task(_run_narrate())
 
                     # ws1 receives narrate
                     await drain(ws1, until_type="narrate", timeout=2.0)
@@ -112,6 +90,7 @@ async def test_tts_done_from_second_client_unblocks_narrate():
 
                     await asyncio.wait_for(narrate_done.wait(), timeout=2.0)
                     assert narrate_done.is_set()
+                    await narrate_task  # clean up the task before teardown
 
 
 async def test_narrate_skips_when_no_clients_connected():

@@ -53,6 +53,7 @@ class GameEvent(StrEnum):
     GAME_OVER          = "game_over"
     PHASE_CHANGED      = "phase_changed"
     PLAYER_ELIMINATED  = "player_eliminated"
+    HUNTER_SHOT        = "hunter_shot"
     NIGHT_ROLE_WAKE    = "night_role_wake"
     NIGHT_ROLE_SLEEP   = "night_role_sleep"
     NIGHT_RESOLVED     = "night_resolved"
