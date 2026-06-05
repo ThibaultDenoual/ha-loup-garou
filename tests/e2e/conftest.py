@@ -2,26 +2,29 @@
 from __future__ import annotations
 
 import asyncio
-import threading
-import time
 
 import aiohttp
 import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 
+# pycares (aiohttp's DNS resolver) starts a singleton daemon thread on the first
+# Channel() creation, which happens inside aiohttp.ClientSession().  That thread
+# runs an infinite loop and never exits.  Triggering it here — at import time,
+# before pytest collects any tests — ensures it is already in threads_before when
+# verify_cleanup records the thread snapshot for the very first test.
+try:
+    import pycares as _pycares
+    _pycares.Channel()
+    del _pycares
+except (ImportError, Exception):
+    pass
+
 
 @pytest.fixture(autouse=True)
 def _allow_sockets(socket_enabled):
     """Re-enable TCP sockets for all e2e tests (blocked by HA plugin by default)."""
     yield
-    # aiohttp spawns a _run_safe_shutdown_loop daemon thread during ClientSession teardown.
-    # Wait for it to finish before verify_cleanup (a plugin fixture) checks for stray threads.
-    deadline = time.monotonic() + 2.0
-    while time.monotonic() < deadline:
-        if not any("_run_safe_shutdown_loop" in t.name for t in threading.enumerate()):
-            break
-        time.sleep(0.05)
 
 from loup_garou.game_engine import GameEngine
 from loup_garou.game_server import LoupGarouServer

@@ -70,11 +70,11 @@
   "role.cupid.sleep": "Cupidon se rendort.",
   "role.cupid.action_prompt": "Désignez les deux amoureux.",
 
-  "role.alpha_wolf.name": "Grand Méchant Loup",
+  "role.alpha_wolf.name": "Loup Alpha",
   "role.alpha_wolf.description": "Une fois par partie, vous pouvez convertir un villageois en loup-garou.",
   "role.alpha_wolf.team": "Loups",
-  "role.alpha_wolf.wake": "Le Grand Méchant Loup ouvre les yeux.",
-  "role.alpha_wolf.sleep": "Le Grand Méchant Loup se rendort.",
+  "role.alpha_wolf.wake": "Le Loup Alpha ouvre les yeux.",
+  "role.alpha_wolf.sleep": "Le Loup Alpha se rendort.",
   "role.alpha_wolf.action_prompt": "Désignez un villageois à convertir (ou passez).",
 
   "role.minion.name": "Sbire",
