@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 
 from ..const import (
     GameEvent, LIGHT_SCENES, ROLE_SCENE, STATIC_AUDIO_MAP, TTS_PHASE_DELAYS,
-    CONF_TTS_MODE, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
+    CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
 )
 
 if TYPE_CHECKING:
@@ -34,7 +34,8 @@ class Atmosphere:
         tts_engine: str,
         language: str,
         locale: dict | None = None,
-        tts_mode: str = "ha",
+        audio_source: str = "tts",
+        audio_output: str = "browser",
         server: "LoupGarouServer | None" = None,
     ) -> None:
         self._hass = hass
@@ -45,15 +46,17 @@ class Atmosphere:
         self._language = language
         self._locale: dict = locale if locale is not None else self._load_locale(language)
         self._current_scene: str = "day"
-        self._tts_mode = tts_mode
+        self._audio_source = audio_source
+        self._audio_output = audio_output
         self._server = server
 
     def update_config(self, cfg: dict) -> None:
-        self._tts_mode   = cfg.get(CONF_TTS_MODE,   self._tts_mode)
-        self._speaker    = cfg.get(CONF_SPEAKER,     self._speaker)
-        self._lights     = cfg.get(CONF_LIGHTS,      self._lights)
-        self._language   = cfg.get(CONF_LANGUAGE,    self._language)
-        self._tts_engine = cfg.get(CONF_TTS_ENGINE,  self._tts_engine)
+        self._audio_source = cfg.get(CONF_AUDIO_SOURCE, self._audio_source)
+        self._audio_output = cfg.get(CONF_AUDIO_OUTPUT, self._audio_output)
+        self._speaker      = cfg.get(CONF_SPEAKER,      self._speaker)
+        self._lights       = cfg.get(CONF_LIGHTS,       self._lights)
+        self._language     = cfg.get(CONF_LANGUAGE,     self._language)
+        self._tts_engine   = cfg.get(CONF_TTS_ENGINE,   self._tts_engine)
 
     # ── Locale ────────────────────────────────────────────────────────────────
 
@@ -245,27 +248,35 @@ class Atmosphere:
     async def speak(self, text: str, delay_key: str = "role_wake", locale_key: str | None = None) -> None:
         """Speak narration text and wait for completion.
 
-        In browser mode: delegates to server.narrate() which blocks until
-        the browser sends tts_done (or times out after 10 s).
-        In static mode: same as browser mode but includes an audio_url for
-        pre-recorded MP3 files when the locale key maps to one; dynamic
-        messages (player names, roles) fall back to Web Speech API.
-        In HA mode: fires TTS to HA then sleeps for an estimated duration so
-        the engine doesn't race ahead while narration is still playing.
+        audio_source determines content:
+          "tts"    — synthesised at runtime (Web Speech API or HA TTS service)
+          "static" — pre-recorded MP3; falls back to Web Speech for dynamic text
+
+        audio_output determines the playback channel:
+          "browser" — delegates to server.narrate(); browser plays and sends tts_done
+          "ha"      — plays directly on a HA media_player entity
         """
         if not text:
             return
 
-        if self._tts_mode in ("browser", "static"):
+        # Resolve a static audio URL when the locale key has a pre-recorded file
+        audio_url: str | None = None
+        if self._audio_source == "static" and locale_key and locale_key in STATIC_AUDIO_MAP:
+            stem = STATIC_AUDIO_MAP[locale_key]
+            audio_url = f"/loup_garou/audio/{self._language}/{stem}.mp3"
+
+        if self._audio_output == "browser":
             if self._server is not None:
-                audio_url: str | None = None
-                if self._tts_mode == "static" and locale_key and locale_key in STATIC_AUDIO_MAP:
-                    stem = STATIC_AUDIO_MAP[locale_key]
-                    audio_url = f"/loup_garou/audio/{self._language}/{stem}.mp3"
                 await self._server.narrate(text, self._language, audio_url=audio_url)
             return
 
-        # HA TTS mode
+        # HA output
+        if audio_url:
+            await self._play_static_ha(audio_url, delay_key)
+        else:
+            await self._speak_tts_ha(text, delay_key)
+
+    async def _speak_tts_ha(self, text: str, delay_key: str) -> None:
         if not self._speaker:
             return
         try:
@@ -281,6 +292,32 @@ class Atmosphere:
                 blocking=False,
             )
         except Exception:
-            _LOGGER.exception("Failed to speak: %s", text)
+            _LOGGER.exception("Failed to speak via TTS: %s", text)
+        await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))
 
+    async def _play_static_ha(self, audio_url: str, delay_key: str) -> None:
+        if not self._speaker:
+            return
+        base_url = (
+            getattr(self._hass.config, "internal_url", None)
+            or getattr(self._hass.config, "external_url", None)
+            or ""
+        ).rstrip("/")
+        if not base_url:
+            _LOGGER.warning("static+ha: no HA base URL configured; cannot play %s", audio_url)
+            await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))
+            return
+        try:
+            await self._hass.services.async_call(
+                "media_player",
+                "play_media",
+                {
+                    "entity_id": self._speaker,
+                    "media_content_id": f"{base_url}{audio_url}",
+                    "media_content_type": "music",
+                },
+                blocking=False,
+            )
+        except Exception:
+            _LOGGER.exception("Failed to play static audio on HA: %s", audio_url)
         await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))

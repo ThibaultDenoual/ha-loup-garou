@@ -11,9 +11,11 @@ from loup_garou.const import (
     CONF_SPEAKER,
     CONF_LANGUAGE,
     CONF_TTS_ENGINE,
-    CONF_TTS_MODE,
+    CONF_AUDIO_SOURCE,
+    CONF_AUDIO_OUTPUT,
     DEFAULT_TTS_ENGINE,
-    DEFAULT_TTS_MODE,
+    DEFAULT_AUDIO_SOURCE,
+    DEFAULT_AUDIO_OUTPUT,
 )
 from loup_garou.game_server import LoupGarouServer
 
@@ -22,12 +24,20 @@ from loup_garou.game_server import LoupGarouServer
 # Config constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def test_default_tts_mode_is_ha():
-    assert DEFAULT_TTS_MODE == "ha"
+def test_default_audio_source_is_tts():
+    assert DEFAULT_AUDIO_SOURCE == "tts"
 
 
-def test_conf_tts_mode_key_exists():
-    assert CONF_TTS_MODE == "tts_mode"
+def test_default_audio_output_is_browser():
+    assert DEFAULT_AUDIO_OUTPUT == "browser"
+
+
+def test_conf_audio_source_key():
+    assert CONF_AUDIO_SOURCE == "audio_source"
+
+
+def test_conf_audio_output_key():
+    assert CONF_AUDIO_OUTPUT == "audio_output"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -161,18 +171,19 @@ async def test_narrate_clears_future_after_completion():
     assert server._tts_future is None
 
 
-async def test_get_config_returns_tts_mode():
-    """get_config includes tts_mode in the config it returns to the browser."""
+async def test_get_config_returns_audio_keys():
+    """get_config exposes audio_source and audio_output to the browser."""
     engine = MagicMock()
     engine.on = MagicMock()
-    config = {CONF_TTS_MODE: "browser", CONF_LANGUAGE: "fr"}
+    config = {CONF_AUDIO_SOURCE: "static", CONF_AUDIO_OUTPUT: "browser", CONF_LANGUAGE: "fr"}
     server = LoupGarouServer(engine, config=config)
     ws = MagicMock()
     ws.send_json = AsyncMock()
     await server._dispatch(ws, {"cmd": "get_config"})
     sent = ws.send_json.call_args[0][0]
     assert sent["type"] == "config"
-    assert sent["config"][CONF_TTS_MODE] == "browser"
+    assert sent["config"][CONF_AUDIO_SOURCE] == "static"
+    assert sent["config"][CONF_AUDIO_OUTPUT] == "browser"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -214,13 +225,14 @@ async def test_narrate_without_audio_url_omits_field():
     assert "audio_url" not in sent["data"]
 
 
-async def test_get_config_returns_static_tts_mode():
+async def test_get_config_returns_ha_output():
     engine = MagicMock()
     engine.on = MagicMock()
-    config = {CONF_TTS_MODE: "static", CONF_LANGUAGE: "fr"}
+    config = {CONF_AUDIO_SOURCE: "tts", CONF_AUDIO_OUTPUT: "ha", CONF_LANGUAGE: "fr"}
     server = LoupGarouServer(engine, config=config)
     ws = MagicMock()
     ws.send_json = AsyncMock()
     await server._dispatch(ws, {"cmd": "get_config"})
     sent = ws.send_json.call_args[0][0]
-    assert sent["config"][CONF_TTS_MODE] == "static"
+    assert sent["config"][CONF_AUDIO_OUTPUT] == "ha"
+    assert sent["config"][CONF_AUDIO_SOURCE] == "tts"

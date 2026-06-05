@@ -203,11 +203,18 @@ select[multiple].config-select option { padding:0.25rem 0.5rem }
   <!-- ── CONFIG TAB ─────────────────────────────────────────────────────────── -->
   <div id="tab-config" class="tab-content">
     <div class="config-group">
-      <label class="config-label" for="cfg-tts-mode">Mode TTS</label>
-      <select id="cfg-tts-mode" class="config-select">
-        <option value="ha">Home Assistant (media_player)</option>
-        <option value="browser">Navigateur (Web Speech API)</option>
+      <label class="config-label" for="cfg-audio-source">Source audio</label>
+      <select id="cfg-audio-source" class="config-select">
         <option value="static">Fichiers audio intégrés</option>
+        <option value="tts">Synthèse vocale (TTS)</option>
+      </select>
+    </div>
+
+    <div class="config-group">
+      <label class="config-label" for="cfg-audio-output">Sortie audio</label>
+      <select id="cfg-audio-output" class="config-select">
+        <option value="browser">Navigateur (appareil actuel)</option>
+        <option value="ha">Home Assistant (media_player)</option>
       </select>
     </div>
 
@@ -219,7 +226,7 @@ select[multiple].config-select option { padding:0.25rem 0.5rem }
         </select>
       </div>
 
-      <div class="config-group">
+      <div class="config-group" id="cfg-tts-engine-group">
         <label class="config-label" for="cfg-tts-engine">Moteur TTS</label>
         <input id="cfg-tts-engine" class="config-input" type="text" placeholder="tts.home_assistant_cloud">
       </div>
@@ -268,14 +275,20 @@ function teamClass(id) {
   return 'team-village';
 }
 
-// ── TTS mode toggle ───────────────────────────────────────────────────────────
-const ttsModeSelect = document.getElementById('cfg-tts-mode');
-const haFields = document.getElementById('cfg-ha-fields');
-function applyTtsModeVisibility() {
-  haFields.style.display = ttsModeSelect.value === 'ha' ? '' : 'none';
+// ── Audio config visibility ───────────────────────────────────────────────────
+const audioSourceSelect = document.getElementById('cfg-audio-source');
+const audioOutputSelect = document.getElementById('cfg-audio-output');
+const haFields          = document.getElementById('cfg-ha-fields');
+const ttsEngineGroup    = document.getElementById('cfg-tts-engine-group');
+function applyAudioVisibility() {
+  const isHa  = audioOutputSelect.value === 'ha';
+  const isTts = audioSourceSelect.value  === 'tts';
+  haFields.style.display       = isHa           ? '' : 'none';
+  ttsEngineGroup.style.display = (isHa && isTts) ? '' : 'none';
 }
-ttsModeSelect.addEventListener('change', applyTtsModeVisibility);
-applyTtsModeVisibility();
+audioSourceSelect.addEventListener('change', applyAudioVisibility);
+audioOutputSelect.addEventListener('change', applyAudioVisibility);
+applyAudioVisibility();
 
 // ── WebSocket + config form ───────────────────────────────────────────────────
 (async () => {
@@ -312,8 +325,9 @@ applyTtsModeVisibility();
 
   function applyConfig(cfg) {
     _cfg = cfg;
-    ttsModeSelect.value = cfg.tts_mode || 'ha';
-    applyTtsModeVisibility();
+    audioSourceSelect.value = cfg.audio_source || 'tts';
+    audioOutputSelect.value = cfg.audio_output || 'browser';
+    applyAudioVisibility();
     document.getElementById('cfg-tts-engine').value = cfg.tts_engine || '';
     document.getElementById('cfg-language').value = cfg.language || 'fr';
 
@@ -368,11 +382,12 @@ applyTtsModeVisibility();
     const lightsEl = document.getElementById('cfg-lights');
     const selectedLights = Array.from(lightsEl.selectedOptions).map(o => o.value);
     const payload = {
-      tts_mode:   ttsModeSelect.value,
-      speaker:    document.getElementById('cfg-speaker').value,
-      lights:     selectedLights,
-      language:   document.getElementById('cfg-language').value,
-      tts_engine: document.getElementById('cfg-tts-engine').value,
+      audio_source: audioSourceSelect.value,
+      audio_output: audioOutputSelect.value,
+      speaker:      document.getElementById('cfg-speaker').value,
+      lights:       selectedLights,
+      language:     document.getElementById('cfg-language').value,
+      tts_engine:   document.getElementById('cfg-tts-engine').value,
     };
     document.getElementById('save-feedback').dataset.pending = '1';
     ws.send(JSON.stringify({cmd:'save_config', data: payload}));

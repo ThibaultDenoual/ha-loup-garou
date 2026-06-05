@@ -32,10 +32,12 @@ _LOGGER = logging.getLogger("devserver")
 def build_app(port: int) -> web.Application:
     engine = GameEngine()
     server = LoupGarouServer(engine, config={
-        "language": "fr",
-        "speaker": "",
-        "lights": [],
-        "tts_engine": "tts.cloud_say",
+        "language":     "fr",
+        "audio_source": "static",
+        "audio_output": "browser",
+        "speaker":      "",
+        "lights":       [],
+        "tts_engine":   "tts.cloud_say",
     })
     server.wire_events()
 
@@ -44,11 +46,12 @@ def build_app(port: int) -> web.Application:
     # WebSocket
     app.router.add_get("/loup_garou/ws", server.handle_ws)
 
-    # Static: game UI and locales
+    # Static: game UI, locales, and pre-recorded audio
     www_root    = ROOT / "custom_components" / "loup_garou" / "www"
     locale_root = ROOT / "custom_components" / "loup_garou" / "locales"
-    app.router.add_static("/loup_garou/game",    www_root / "game",  show_index=True)
-    app.router.add_static("/loup_garou/locales", locale_root,        show_index=True)
+    app.router.add_static("/loup_garou/game",    www_root / "game",   show_index=True)
+    app.router.add_static("/loup_garou/locales", locale_root,         show_index=True)
+    app.router.add_static("/loup_garou/audio",   www_root / "audio",  show_index=True)
 
     # Redirect / → game index
     async def _root(request: web.Request) -> web.Response:

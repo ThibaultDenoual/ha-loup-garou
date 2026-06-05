@@ -10,7 +10,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import HomeAssistantView
 
-from ..const import DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE, CONF_TTS_MODE, DEFAULT_TTS_ENGINE, DEFAULT_TTS_MODE, VERSION
+from ..const import (
+    DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
+    CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT,
+    DEFAULT_TTS_ENGINE, DEFAULT_AUDIO_SOURCE, DEFAULT_AUDIO_OUTPUT, VERSION,
+)
 from ..game_engine import GameEngine
 from ..game_server import LoupGarouServer
 from ..roles.loader import load_roles
@@ -20,18 +24,18 @@ _LOGGER = logging.getLogger(__name__)
 
 
 DEFAULTS = {
-    CONF_TTS_MODE:   DEFAULT_TTS_MODE,
-    CONF_SPEAKER:    "",
-    CONF_LIGHTS:     [],
-    CONF_LANGUAGE:   "fr",
-    CONF_TTS_ENGINE: DEFAULT_TTS_ENGINE,
+    CONF_AUDIO_SOURCE: DEFAULT_AUDIO_SOURCE,
+    CONF_AUDIO_OUTPUT: DEFAULT_AUDIO_OUTPUT,
+    CONF_SPEAKER:      "",
+    CONF_LIGHTS:       [],
+    CONF_LANGUAGE:     "fr",
+    CONF_TTS_ENGINE:   DEFAULT_TTS_ENGINE,
 }
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     conf = {**DEFAULTS, **entry.data}
     language = conf[CONF_LANGUAGE]
-    tts_mode = conf[CONF_TTS_MODE]
 
     # pkgutil.iter_modules + importlib.import_module are blocking — pre-warm in executor
     await hass.async_add_executor_job(load_roles)
@@ -44,12 +48,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     engine = GameEngine()
     server = LoupGarouServer(engine, config={
-        "language": language,
-        "tts_mode": tts_mode,
-        "speaker": conf[CONF_SPEAKER],
-        "lights": conf[CONF_LIGHTS],
-        "tts_engine": conf[CONF_TTS_ENGINE],
-        "version": VERSION,
+        "language":     language,
+        "audio_source": conf[CONF_AUDIO_SOURCE],
+        "audio_output": conf[CONF_AUDIO_OUTPUT],
+        "speaker":      conf[CONF_SPEAKER],
+        "lights":       conf[CONF_LIGHTS],
+        "tts_engine":   conf[CONF_TTS_ENGINE],
+        "version":      VERSION,
     })
     server.wire_events()
 
@@ -61,7 +66,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         tts_engine=conf[CONF_TTS_ENGINE],
         language=language,
         locale=_locale,
-        tts_mode=tts_mode,
+        audio_source=conf[CONF_AUDIO_SOURCE],
+        audio_output=conf[CONF_AUDIO_OUTPUT],
         server=server,
     )
     atmosphere.wire_events()
@@ -119,8 +125,9 @@ async def _register_static_paths(hass: HomeAssistant) -> None:
     locales_root = Path(__file__).parent.parent / "locales"
 
     await hass.http.async_register_static_paths([
-        StaticPathConfig(f"/{DOMAIN}/game", str(www_root / "game"), False),
-        StaticPathConfig(f"/{DOMAIN}/locales", str(locales_root), False),
+        StaticPathConfig(f"/{DOMAIN}/game",    str(www_root / "game"),  False),
+        StaticPathConfig(f"/{DOMAIN}/locales", str(locales_root),       False),
+        StaticPathConfig(f"/{DOMAIN}/audio",   str(www_root / "audio"), True),
     ])
 
 

@@ -10,7 +10,7 @@ from aiohttp import web
 
 from loup_garou.game_engine import GameEngine
 from loup_garou.game_server import LoupGarouServer
-from loup_garou.const import CONF_TTS_MODE
+from loup_garou.const import CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
 from loup_garou.roles.impl.seer import Seer
@@ -19,10 +19,13 @@ from tests.e2e.conftest import drain, make_app
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def make_tts_server(tts_mode="browser"):
+def make_tts_server(audio_source="tts", audio_output="browser"):
     roles = {cls.id: cls() for cls in (Villager, Werewolf, Seer)}
     engine = GameEngine(roles=roles)
-    server = LoupGarouServer(engine, config={CONF_TTS_MODE: tts_mode})
+    server = LoupGarouServer(engine, config={
+        CONF_AUDIO_SOURCE: audio_source,
+        CONF_AUDIO_OUTPUT: audio_output,
+    })
     server.wire_events()
     return engine, server
 
@@ -126,8 +129,8 @@ async def test_narrate_broadcasts_to_all_clients():
 # get_config exposes tts_mode
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def test_get_config_exposes_browser_tts_mode():
-    engine, srv = make_tts_server(tts_mode="browser")
+async def test_get_config_exposes_browser_output():
+    engine, srv = make_tts_server(audio_source="tts", audio_output="browser")
     app = make_app(srv)
     async with TestServer(app) as ts:
         async with aiohttp.ClientSession() as session:
@@ -135,11 +138,12 @@ async def test_get_config_exposes_browser_tts_mode():
                 await ws.send_json({"cmd": "get_config"})
                 msgs = await drain(ws, until_type="config", timeout=2.0)
                 config = msgs[-1]["config"]
-                assert config.get(CONF_TTS_MODE) == "browser"
+                assert config.get(CONF_AUDIO_OUTPUT) == "browser"
+                assert config.get(CONF_AUDIO_SOURCE) == "tts"
 
 
-async def test_get_config_exposes_ha_tts_mode():
-    engine, srv = make_tts_server(tts_mode="ha")
+async def test_get_config_exposes_ha_output():
+    engine, srv = make_tts_server(audio_source="tts", audio_output="ha")
     app = make_app(srv)
     async with TestServer(app) as ts:
         async with aiohttp.ClientSession() as session:
@@ -147,7 +151,7 @@ async def test_get_config_exposes_ha_tts_mode():
                 await ws.send_json({"cmd": "get_config"})
                 msgs = await drain(ws, until_type="config", timeout=2.0)
                 config = msgs[-1]["config"]
-                assert config.get(CONF_TTS_MODE) == "ha"
+                assert config.get(CONF_AUDIO_OUTPUT) == "ha"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -156,7 +160,7 @@ async def test_get_config_exposes_ha_tts_mode():
 
 async def test_game_flow_proceeds_after_tts_done():
     """Full game flow where the test client plays the tts_done responder role."""
-    engine, srv = make_tts_server(tts_mode="browser")
+    engine, srv = make_tts_server(audio_source="tts", audio_output="browser")
     app = make_app(srv)
     async with TestServer(app) as ts:
         async with aiohttp.ClientSession() as session:

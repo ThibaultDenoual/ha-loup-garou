@@ -80,7 +80,8 @@ _LOCALE = {
 
 def make_atmosphere(
     *,
-    tts_mode="ha",
+    audio_source="tts",
+    audio_output="ha",
     speaker="media_player.sonos",
     server=None,
     language="fr",
@@ -95,7 +96,8 @@ def make_atmosphere(
         tts_engine="tts.home_assistant_cloud",
         language=language,
         locale=_LOCALE,
-        tts_mode=tts_mode,
+        audio_source=audio_source,
+        audio_output=audio_output,
         server=server,
     )
     return atm, hass, engine
@@ -126,7 +128,7 @@ def test_tts_phase_delays_are_positive_floats():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def test_speak_ha_mode_calls_tts_service():
-    atm, hass, _ = make_atmosphere(tts_mode="ha")
+    atm, hass, _ = make_atmosphere(audio_output="ha")
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", new_callable=AsyncMock):
         await atm.speak("Bonjour", delay_key="role_wake")
     hass.services.async_call.assert_awaited_once()
@@ -137,7 +139,7 @@ async def test_speak_ha_mode_calls_tts_service():
 
 
 async def test_speak_ha_mode_sleeps_for_delay_key():
-    atm, _, _ = make_atmosphere(tts_mode="ha")
+    atm, _, _ = make_atmosphere(audio_output="ha")
     sleep_calls = []
     async def fake_sleep(seconds):
         sleep_calls.append(seconds)
@@ -147,7 +149,7 @@ async def test_speak_ha_mode_sleeps_for_delay_key():
 
 
 async def test_speak_ha_mode_unknown_delay_key_uses_default():
-    atm, _, _ = make_atmosphere(tts_mode="ha")
+    atm, _, _ = make_atmosphere(audio_output="ha")
     sleep_calls = []
     async def fake_sleep(seconds):
         sleep_calls.append(seconds)
@@ -158,7 +160,7 @@ async def test_speak_ha_mode_unknown_delay_key_uses_default():
 
 async def test_speak_ha_mode_each_delay_key_uses_correct_duration():
     for key, expected_delay in TTS_PHASE_DELAYS.items():
-        atm, _, _ = make_atmosphere(tts_mode="ha")
+        atm, _, _ = make_atmosphere(audio_output="ha")
         sleep_calls = []
         async def fake_sleep(s, _key=key):
             sleep_calls.append(s)
@@ -168,26 +170,26 @@ async def test_speak_ha_mode_each_delay_key_uses_correct_duration():
 
 
 async def test_speak_ha_mode_empty_text_skips():
-    atm, hass, _ = make_atmosphere(tts_mode="ha")
+    atm, hass, _ = make_atmosphere(audio_output="ha")
     await atm.speak("", delay_key="role_wake")
     hass.services.async_call.assert_not_awaited()
 
 
 async def test_speak_ha_mode_no_speaker_skips():
-    atm, hass, _ = make_atmosphere(tts_mode="ha", speaker="")
+    atm, hass, _ = make_atmosphere(audio_output="ha", speaker="")
     await atm.speak("Hello", delay_key="role_wake")
     hass.services.async_call.assert_not_awaited()
 
 
 async def test_speak_ha_mode_service_error_does_not_raise():
-    atm, hass, _ = make_atmosphere(tts_mode="ha")
+    atm, hass, _ = make_atmosphere(audio_output="ha")
     hass.services.async_call = AsyncMock(side_effect=Exception("TTS broken"))
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", new_callable=AsyncMock):
         await atm.speak("Broken", delay_key="role_wake")
 
 
 async def test_speak_ha_mode_passes_language_to_service():
-    atm, hass, _ = make_atmosphere(tts_mode="ha", language="en")
+    atm, hass, _ = make_atmosphere(audio_output="ha", language="en")
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", new_callable=AsyncMock):
         await atm.speak("Good night", delay_key="night_start")
     call_data = hass.services.async_call.call_args[0][2]
@@ -201,14 +203,14 @@ async def test_speak_ha_mode_passes_language_to_service():
 async def test_speak_browser_mode_calls_server_narrate():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, hass, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, hass, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     await atm.speak("Good night", delay_key="night_start")
     server.narrate.assert_awaited_once_with("Good night", "fr", audio_url=None)
     hass.services.async_call.assert_not_awaited()
 
 
 async def test_speak_browser_mode_no_server_is_silent():
-    atm, hass, _ = make_atmosphere(tts_mode="browser", server=None)
+    atm, hass, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=None)
     await atm.speak("Good night", delay_key="night_start")
     hass.services.async_call.assert_not_awaited()
 
@@ -216,7 +218,7 @@ async def test_speak_browser_mode_no_server_is_silent():
 async def test_speak_browser_mode_empty_text_skips_narrate():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     await atm.speak("", delay_key="role_wake")
     server.narrate.assert_not_awaited()
 
@@ -224,7 +226,7 @@ async def test_speak_browser_mode_empty_text_skips_narrate():
 async def test_speak_browser_mode_does_not_sleep():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     sleep_calls = []
     async def fake_sleep(s):
         sleep_calls.append(s)
@@ -236,7 +238,7 @@ async def test_speak_browser_mode_does_not_sleep():
 async def test_speak_browser_mode_passes_language():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server, language="en")
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server, language="en")
     await atm.speak("Good night", delay_key="night_start")
     server.narrate.assert_awaited_once_with("Good night", "en", audio_url=None)
 
@@ -307,7 +309,7 @@ def test_wire_events_registers_all_expected_events():
 async def test_on_phase_changed_night_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
         await atm._on_phase_changed({"phase": "night"})
     server.narrate.assert_awaited_once()
@@ -317,7 +319,7 @@ async def test_on_phase_changed_day_phase_skips_tts():
     """Day phase is handled by the dedicated day_started event, not phase_changed."""
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     await atm._on_phase_changed({"phase": "day"})
     server.narrate.assert_not_awaited()
 
@@ -325,7 +327,7 @@ async def test_on_phase_changed_day_phase_skips_tts():
 async def test_on_role_wake_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
         await atm._on_role_wake({"role": "werewolf"})
     server.narrate.assert_awaited_once()
@@ -335,7 +337,7 @@ async def test_on_role_wake_with_result_skips_tts():
     """Seer investigation result is read on-screen; no narration."""
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     await atm._on_role_wake({"role": "seer", "result": {"player_id": "p1", "role_id": "werewolf"}})
     server.narrate.assert_not_awaited()
 
@@ -343,7 +345,7 @@ async def test_on_role_wake_with_result_skips_tts():
 async def test_on_role_sleep_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
         await atm._on_role_sleep({"role": "werewolf"})
     server.narrate.assert_awaited_once()
@@ -352,7 +354,7 @@ async def test_on_role_sleep_narrates():
 async def test_on_day_started_no_deaths_narrates_once():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
         await atm._on_day_started({"eliminated": []})
     assert server.narrate.await_count == 1
@@ -361,7 +363,7 @@ async def test_on_day_started_no_deaths_narrates_once():
 async def test_on_day_started_with_death_narrates_per_victim():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, engine = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, engine = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     engine.get_public_state.return_value = {
         "players": [
             {"id": "p0", "name": "Alice", "role_id": "villager", "alive": False},
@@ -377,7 +379,7 @@ async def test_on_day_started_with_death_narrates_per_victim():
 async def test_on_vote_started_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     await atm._on_vote_started({})
     server.narrate.assert_awaited_once()
 
@@ -385,7 +387,7 @@ async def test_on_vote_started_narrates():
 async def test_on_vote_resolved_tie_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     await atm._on_vote_resolved({"eliminated": None, "tie": True})
     server.narrate.assert_awaited_once()
 
@@ -393,7 +395,7 @@ async def test_on_vote_resolved_tie_narrates():
 async def test_on_vote_resolved_with_elimination_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, engine = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, engine = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     engine.get_public_state.return_value = {
         "players": [
             {"id": "p0", "name": "Alice", "role_id": "werewolf", "alive": False},
@@ -406,7 +408,7 @@ async def test_on_vote_resolved_with_elimination_narrates():
 async def test_on_game_over_wolves_win_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
         await atm._on_game_over({"winner": "wolves"})
     server.narrate.assert_awaited_once()
@@ -415,7 +417,7 @@ async def test_on_game_over_wolves_win_narrates():
 async def test_on_game_over_village_win_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
         await atm._on_game_over({"winner": "village"})
     server.narrate.assert_awaited_once()
@@ -425,7 +427,7 @@ async def test_on_hunter_shot_narrates_with_both_names():
     """HUNTER_SHOT event (not PLAYER_ELIMINATED) triggers TTS with hunter + target names (fixes #8)."""
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
         await atm._on_hunter_shot({
             "hunter_name": "Alice",
@@ -445,7 +447,7 @@ async def test_on_player_eliminated_hunter_cause_is_silent():
     """PLAYER_ELIMINATED with hunter-related cause should NOT trigger duplicate TTS (handled by HUNTER_SHOT event)."""
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     # The target's PLAYER_ELIMINATED fires with the original cause (e.g. village_vote),
     # not "hunter_shot", so no special handling is needed here.
     await atm._on_player_eliminated({"cause": "village_vote", "name": "Bob", "role": "villager"})
@@ -455,7 +457,7 @@ async def test_on_player_eliminated_hunter_cause_is_silent():
 async def test_on_player_eliminated_lover_grief_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     with patch.object(atm, "_set_lights", new_callable=AsyncMock):
         await atm._on_player_eliminated({"cause": "lover_grief", "name": "Bob"})
     server.narrate.assert_awaited_once()
@@ -465,7 +467,7 @@ async def test_on_player_eliminated_wolf_kill_is_silent():
     """Wolf kills are announced at day start, not immediately."""
     server = MagicMock()
     server.narrate = AsyncMock()
-    atm, _, _ = make_atmosphere(tts_mode="browser", server=server)
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
     await atm._on_player_eliminated({"cause": "wolf_kill", "name": "Alice"})
     server.narrate.assert_not_awaited()
 

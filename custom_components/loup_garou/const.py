@@ -24,12 +24,14 @@ CONF_SPEAKER = "speaker_entity"
 CONF_LIGHTS = "light_entities"
 CONF_LANGUAGE = "language"
 CONF_TTS_ENGINE = "tts_engine"
-CONF_TTS_MODE = "tts_mode"
+CONF_AUDIO_SOURCE = "audio_source"   # "tts" | "static"
+CONF_AUDIO_OUTPUT = "audio_output"   # "browser" | "ha"
 
 LANGUAGES = ["fr", "en"]
 DEFAULT_LANGUAGE = "fr"
 DEFAULT_TTS_ENGINE = "tts.home_assistant_cloud"
-DEFAULT_TTS_MODE = "ha"  # "ha" = HA TTS service | "browser" = Web Speech API | "static" = pre-recorded MP3s
+DEFAULT_AUDIO_SOURCE = "tts"      # synthesised speech
+DEFAULT_AUDIO_OUTPUT = "browser"  # phone/browser speaker
 
 # Estimated post-TTS sleep durations (seconds) used in HA TTS mode so the
 # engine waits for narration to finish before advancing to the next event.

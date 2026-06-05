@@ -38,7 +38,7 @@ def make_server_mock():
     return server
 
 
-def make_atmosphere(tts_mode: str, lang: str = "fr") -> tuple:
+def make_atmosphere(audio_source: str, audio_output: str = "browser", lang: str = "fr") -> tuple:
     hass = MagicMock()
     hass.services.async_call = AsyncMock()
     engine = MagicMock()
@@ -55,7 +55,8 @@ def make_atmosphere(tts_mode: str, lang: str = "fr") -> tuple:
         tts_engine="tts.test",
         language=lang,
         locale=locale,
-        tts_mode=tts_mode,
+        audio_source=audio_source,
+        audio_output=audio_output,
         server=server,
     )
     return atm, server
@@ -107,7 +108,7 @@ async def test_static_mode_no_audio_url_for_unknown_key():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def test_browser_mode_never_sends_audio_url():
-    atm, server = make_atmosphere("browser")
+    atm, server = make_atmosphere("tts", "browser")
     await atm.speak("La nuit tombe.", delay_key="night_start", locale_key="phase.night.start")
     server.narrate.assert_awaited_once()
     _, kwargs = server.narrate.call_args
@@ -119,7 +120,7 @@ async def test_browser_mode_never_sends_audio_url():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def test_ha_mode_does_not_call_server_narrate():
-    atm, server = make_atmosphere("ha")
+    atm, server = make_atmosphere("tts", "ha")
     with MagicMock() as _sleep_patch:
         import asyncio as _aio
         orig_sleep = _aio.sleep
