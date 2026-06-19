@@ -14,6 +14,8 @@ from ..const import (
     CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
 )
 
+from ..narration import NarrationMessage
+
 if TYPE_CHECKING:
     from ..game_server import LoupGarouServer
     from ..game_engine import GameEngine
@@ -105,7 +107,7 @@ class Atmosphere:
         phase = data.get("phase")
         if phase == "night":
             await self._set_lights("night")
-            await self.speak(self.t("phase.night.start"), delay_key="night_start", locale_key="phase.night.start")
+            await self.speak(self._narrate("phase.night.start", delay_key="night_start"))
         # day and vote handled by their dedicated events
 
     async def _on_role_wake(self, data: dict) -> None:
@@ -121,15 +123,13 @@ class Atmosphere:
             self._current_scene = scene_key
             await self._set_lights(scene_key)
 
-        wake_text = self.t(f"role.{role_id}.wake")
-        if wake_text:
-            await self.speak(wake_text, delay_key="role_wake", locale_key=f"role.{role_id}.wake")
+        if self.t(f"role.{role_id}.wake"):
+            await self.speak(self._narrate(f"role.{role_id}.wake", delay_key="role_wake"))
 
     async def _on_role_sleep(self, data: dict) -> None:
         role_id = data.get("role")
-        sleep_text = self.t(f"role.{role_id}.sleep")
-        if sleep_text:
-            await self.speak(sleep_text, delay_key="role_sleep", locale_key=f"role.{role_id}.sleep")
+        if self.t(f"role.{role_id}.sleep"):
+            await self.speak(self._narrate(f"role.{role_id}.sleep", delay_key="role_sleep"))
         await self._set_lights("night")
         self._current_scene = "night"
 
@@ -141,7 +141,7 @@ class Atmosphere:
         players_by_id = {p["id"]: p for p in pub["players"]}
 
         if not eliminated_ids:
-            await self.speak(self.t("phase.day.start_no_death"), delay_key="day_no_death", locale_key="phase.day.start_no_death")
+            await self.speak(self._narrate("phase.day.start_no_death", delay_key="day_no_death"))
             return
 
         for pid in eliminated_ids:
@@ -150,19 +150,20 @@ class Atmosphere:
             role_id = p.get("role_id", "?")
             role_name = self.t(f"role.{role_id}.name") or role_id
             article = self._article(role_id)
-            await self.speak(
-                self.t("phase.day.start_with_death", name=name, article=article, role=role_name),
+            await self.speak(self._narrate(
+                "phase.day.start_with_death",
                 delay_key="day_with_death",
-            )
+                name=name, article=article, role=role_name,
+            ))
 
     async def _on_vote_started(self, data: dict) -> None:
-        await self.speak(self.t("phase.vote.start"), delay_key="vote_start", locale_key="phase.vote.start")
+        await self.speak(self._narrate("phase.vote.start", delay_key="vote_start"))
 
     async def _on_vote_resolved(self, data: dict) -> None:
         eliminated_id = data.get("eliminated")
         is_tie = data.get("tie", False)
         if is_tie and not eliminated_id:
-            await self.speak(self.t("phase.vote.tie"), delay_key="vote_result", locale_key="phase.vote.tie")
+            await self.speak(self._narrate("phase.vote.tie", delay_key="vote_result"))
             return
         if eliminated_id:
             pub = self._engine.get_public_state()
@@ -172,10 +173,11 @@ class Atmosphere:
             role_id = p.get("role_id", "?")
             role_name = self.t(f"role.{role_id}.name") or role_id
             article = self._article(role_id)
-            await self.speak(
-                self.t("phase.vote.result", name=name, article=article, role=role_name),
+            await self.speak(self._narrate(
+                "phase.vote.result",
                 delay_key="vote_result",
-            )
+                name=name, article=article, role=role_name,
+            ))
 
     async def _on_player_eliminated(self, data: dict) -> None:
         cause = data.get("cause", "")
@@ -184,17 +186,18 @@ class Atmosphere:
         # Hunter shots are handled by _on_hunter_shot via HUNTER_SHOT event.
         if cause == "lover_grief":
             name = data.get("name", "?")
-            await self.speak(self.t("elimination.lover_grief", name=name), delay_key="elimination_live")
+            await self.speak(self._narrate("elimination.lover_grief", delay_key="elimination_live", name=name))
             await self._set_lights("death")
         elif cause == "scapegoat":
             name = data.get("name", "?")
             role_id = data.get("role", "?")
             role_name = self.t(f"role.{role_id}.name") or role_id
             article = self._article(role_id)
-            await self.speak(
-                self.t("elimination.scapegoat", name=name, article=article, role=role_name),
+            await self.speak(self._narrate(
+                "elimination.scapegoat",
                 delay_key="elimination_live",
-            )
+                name=name, article=article, role=role_name,
+            ))
             await self._set_lights("death")
 
     async def _on_hunter_shot(self, data: dict) -> None:
@@ -207,10 +210,11 @@ class Atmosphere:
         """
         hunter_name = data.get("hunter_name", "?")
         target_name = data.get("target_name", "?")
-        await self.speak(
-            self.t("elimination.hunter_shot", name=hunter_name, target=target_name),
+        await self.speak(self._narrate(
+            "elimination.hunter_shot",
             delay_key="elimination_live",
-        )
+            name=hunter_name, target=target_name,
+        ))
         await self._set_lights("death")
 
     async def _on_game_over(self, data: dict) -> None:
@@ -226,7 +230,7 @@ class Atmosphere:
             await self._set_lights(scene_key)
         msg_key = msg_map.get(winner or "")
         if msg_key:
-            await self.speak(self.t(msg_key), delay_key="game_over", locale_key=msg_key)
+            await self.speak(self._narrate(msg_key, delay_key="game_over"))
 
     # ── HA service calls ──────────────────────────────────────────────────────
 
@@ -245,36 +249,38 @@ class Atmosphere:
             except Exception:
                 _LOGGER.exception("Failed to set light scene %s on %s", scene_key, entity_id)
 
-    async def speak(self, text: str, delay_key: str = "role_wake", locale_key: str | None = None) -> None:
-        """Speak narration text and wait for completion.
+    def _narrate(self, key: str, *, delay_key: str, **params) -> NarrationMessage:
+        """Build a NarrationMessage from a locale key, resolving text and static
+        audio from that single key.
 
-        audio_source determines content:
-          "tts"    — synthesised at runtime (Web Speech API or HA TTS service)
-          "static" — pre-recorded MP3; falls back to Web Speech for dynamic text
+        Static MP3s exist only for fixed-text keys; parameterized messages
+        (names/roles) interpolate at runtime and are absent from STATIC_AUDIO_MAP,
+        so the `not params` guard keeps the rule explicit and self-enforcing.
+        """
+        text = self.t(key, **params)
+        audio_url: str | None = None
+        if self._audio_source == "static" and not params and key in STATIC_AUDIO_MAP:
+            stem = STATIC_AUDIO_MAP[key]
+            audio_url = f"/loup_garou/audio/{self._language}/{stem}.mp3"
+        return NarrationMessage(text=text, lang=self._language, audio_url=audio_url, delay_key=delay_key)
+
+    async def speak(self, msg: NarrationMessage) -> None:
+        """Route a narration message to the configured output (browser or HA).
 
         audio_output determines the playback channel:
           "browser" — delegates to server.narrate(); browser plays and sends tts_done
           "ha"      — plays directly on a HA media_player entity
         """
-        if not text:
+        if not msg.text:
             return
-
-        # Resolve a static audio URL when the locale key has a pre-recorded file
-        audio_url: str | None = None
-        if self._audio_source == "static" and locale_key and locale_key in STATIC_AUDIO_MAP:
-            stem = STATIC_AUDIO_MAP[locale_key]
-            audio_url = f"/loup_garou/audio/{self._language}/{stem}.mp3"
-
         if self._audio_output == "browser":
             if self._server is not None:
-                await self._server.narrate(text, self._language, audio_url=audio_url)
+                await self._server.narrate(msg)
             return
-
-        # HA output
-        if audio_url:
-            await self._play_static_ha(audio_url, delay_key)
+        if msg.audio_url:
+            await self._play_static_ha(msg.audio_url, msg.delay_key)
         else:
-            await self._speak_tts_ha(text, delay_key)
+            await self._speak_tts_ha(msg.text, msg.delay_key)
 
     async def _speak_tts_ha(self, text: str, delay_key: str) -> None:
         if not self._speaker:

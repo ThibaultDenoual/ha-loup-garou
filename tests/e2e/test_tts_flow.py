@@ -11,6 +11,7 @@ from aiohttp import web
 from loup_garou.game_engine import GameEngine
 from loup_garou.game_server import LoupGarouServer
 from loup_garou.const import CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT
+from loup_garou.narration import NarrationMessage
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
 from loup_garou.roles.impl.seer import Seer
@@ -48,7 +49,7 @@ async def test_tts_done_unblocks_narrate():
                 narrate_completed = asyncio.Event()
 
                 async def _run_narrate():
-                    await srv.narrate("Good night", "fr")
+                    await srv.narrate(NarrationMessage("Good night", "fr"))
                     narrate_completed.set()
 
                 narrate_task = asyncio.create_task(_run_narrate())
@@ -78,7 +79,7 @@ async def test_tts_done_from_second_client_unblocks_narrate():
                     narrate_done = asyncio.Event()
 
                     async def _run_narrate():
-                        await srv.narrate("Wolves awaken", "fr")
+                        await srv.narrate(NarrationMessage("Wolves awaken", "fr"))
                         narrate_done.set()
 
                     narrate_task = asyncio.create_task(_run_narrate())
@@ -100,7 +101,7 @@ async def test_narrate_skips_when_no_clients_connected():
     """narrate() returns immediately with no clients — no stall."""
     engine, srv = make_tts_server()
     # Don't connect any client
-    await asyncio.wait_for(srv.narrate("nobody home", "fr"), timeout=1.0)
+    await asyncio.wait_for(srv.narrate(NarrationMessage("nobody home", "fr")), timeout=1.0)
 
 
 async def test_narrate_broadcasts_to_all_clients():
@@ -111,7 +112,7 @@ async def test_narrate_broadcasts_to_all_clients():
         async with aiohttp.ClientSession() as session:
             async with await ws_connect(ts, session) as ws1:
                 async with await ws_connect(ts, session) as ws2:
-                    narrate_task = asyncio.create_task(srv.narrate("Both hear this", "en"))
+                    narrate_task = asyncio.create_task(srv.narrate(NarrationMessage("Both hear this", "en")))
 
                     msgs1 = await drain(ws1, until_type="narrate", timeout=2.0)
                     msgs2 = await drain(ws2, until_type="narrate", timeout=2.0)

@@ -27,6 +27,7 @@ import pytest
 
 from loup_garou.const import GameEvent, TTS_PHASE_DELAYS
 from loup_garou.loup_garou.atmosphere import Atmosphere
+from loup_garou.narration import NarrationMessage
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -130,7 +131,7 @@ def test_tts_phase_delays_are_positive_floats():
 async def test_speak_ha_mode_calls_tts_service():
     atm, hass, _ = make_atmosphere(audio_output="ha")
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", new_callable=AsyncMock):
-        await atm.speak("Bonjour", delay_key="role_wake")
+        await atm.speak(NarrationMessage(text="Bonjour", lang="fr", delay_key="role_wake"))
     hass.services.async_call.assert_awaited_once()
     call_args = hass.services.async_call.call_args[0]
     assert call_args[0] == "tts"
@@ -144,7 +145,7 @@ async def test_speak_ha_mode_sleeps_for_delay_key():
     async def fake_sleep(seconds):
         sleep_calls.append(seconds)
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", fake_sleep):
-        await atm.speak("Hello", delay_key="night_start")
+        await atm.speak(NarrationMessage(text="Hello", lang="fr", delay_key="night_start"))
     assert sleep_calls == [TTS_PHASE_DELAYS["night_start"]]
 
 
@@ -154,7 +155,7 @@ async def test_speak_ha_mode_unknown_delay_key_uses_default():
     async def fake_sleep(seconds):
         sleep_calls.append(seconds)
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", fake_sleep):
-        await atm.speak("Hello", delay_key="nonexistent_key")
+        await atm.speak(NarrationMessage(text="Hello", lang="fr", delay_key="nonexistent_key"))
     assert sleep_calls == [2.5]
 
 
@@ -165,19 +166,19 @@ async def test_speak_ha_mode_each_delay_key_uses_correct_duration():
         async def fake_sleep(s, _key=key):
             sleep_calls.append(s)
         with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", fake_sleep):
-            await atm.speak("x", delay_key=key)
+            await atm.speak(NarrationMessage(text="x", lang="fr", delay_key=key))
         assert sleep_calls == [expected_delay], f"Wrong delay for key={key!r}"
 
 
 async def test_speak_ha_mode_empty_text_skips():
     atm, hass, _ = make_atmosphere(audio_output="ha")
-    await atm.speak("", delay_key="role_wake")
+    await atm.speak(NarrationMessage(text="", lang="fr", delay_key="role_wake"))
     hass.services.async_call.assert_not_awaited()
 
 
 async def test_speak_ha_mode_no_speaker_skips():
     atm, hass, _ = make_atmosphere(audio_output="ha", speaker="")
-    await atm.speak("Hello", delay_key="role_wake")
+    await atm.speak(NarrationMessage(text="Hello", lang="fr", delay_key="role_wake"))
     hass.services.async_call.assert_not_awaited()
 
 
@@ -185,13 +186,13 @@ async def test_speak_ha_mode_service_error_does_not_raise():
     atm, hass, _ = make_atmosphere(audio_output="ha")
     hass.services.async_call = AsyncMock(side_effect=Exception("TTS broken"))
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", new_callable=AsyncMock):
-        await atm.speak("Broken", delay_key="role_wake")
+        await atm.speak(NarrationMessage(text="Broken", lang="fr", delay_key="role_wake"))
 
 
 async def test_speak_ha_mode_passes_language_to_service():
     atm, hass, _ = make_atmosphere(audio_output="ha", language="en")
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", new_callable=AsyncMock):
-        await atm.speak("Good night", delay_key="night_start")
+        await atm.speak(NarrationMessage(text="Good night", lang="en", delay_key="night_start"))
     call_data = hass.services.async_call.call_args[0][2]
     assert call_data["language"] == "en"
 
@@ -204,14 +205,19 @@ async def test_speak_browser_mode_calls_server_narrate():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, hass, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    await atm.speak("Good night", delay_key="night_start")
-    server.narrate.assert_awaited_once_with("Good night", "fr", audio_url=None)
+    await atm.speak(NarrationMessage(text="Good night", lang="fr", delay_key="night_start"))
+    server.narrate.assert_awaited_once()
+    msg = server.narrate.call_args[0][0]
+    assert isinstance(msg, NarrationMessage)
+    assert msg.text == "Good night"
+    assert msg.lang == "fr"
+    assert msg.audio_url is None
     hass.services.async_call.assert_not_awaited()
 
 
 async def test_speak_browser_mode_no_server_is_silent():
     atm, hass, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=None)
-    await atm.speak("Good night", delay_key="night_start")
+    await atm.speak(NarrationMessage(text="Good night", lang="fr", delay_key="night_start"))
     hass.services.async_call.assert_not_awaited()
 
 
@@ -219,7 +225,7 @@ async def test_speak_browser_mode_empty_text_skips_narrate():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    await atm.speak("", delay_key="role_wake")
+    await atm.speak(NarrationMessage(text="", lang="fr", delay_key="role_wake"))
     server.narrate.assert_not_awaited()
 
 
@@ -231,7 +237,7 @@ async def test_speak_browser_mode_does_not_sleep():
     async def fake_sleep(s):
         sleep_calls.append(s)
     with patch("loup_garou.loup_garou.atmosphere.asyncio.sleep", fake_sleep):
-        await atm.speak("Hello", delay_key="night_start")
+        await atm.speak(NarrationMessage(text="Hello", lang="fr", delay_key="night_start"))
     assert sleep_calls == []
 
 
@@ -239,8 +245,10 @@ async def test_speak_browser_mode_passes_language():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server, language="en")
-    await atm.speak("Good night", delay_key="night_start")
-    server.narrate.assert_awaited_once_with("Good night", "en", audio_url=None)
+    await atm.speak(NarrationMessage(text="Good night", lang="en", delay_key="night_start"))
+    server.narrate.assert_awaited_once()
+    msg = server.narrate.call_args[0][0]
+    assert msg.lang == "en"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -437,10 +445,9 @@ async def test_on_hunter_shot_narrates_with_both_names():
             "target_role": "villager",
         })
     server.narrate.assert_awaited_once()
-    # Verify both names appear in the narrated text
-    narrated_text = server.narrate.call_args[0][0]
-    assert "Alice" in narrated_text
-    assert "Bob" in narrated_text
+    msg = server.narrate.call_args[0][0]
+    assert "Alice" in msg.text
+    assert "Bob" in msg.text
 
 
 async def test_on_player_eliminated_hunter_cause_is_silent():

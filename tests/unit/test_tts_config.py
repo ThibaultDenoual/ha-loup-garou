@@ -18,6 +18,7 @@ from loup_garou.const import (
     DEFAULT_AUDIO_OUTPUT,
 )
 from loup_garou.game_server import LoupGarouServer
+from loup_garou.narration import NarrationMessage
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -60,7 +61,7 @@ async def test_narrate_returns_immediately_when_no_clients():
     engine.on = MagicMock()
     server = LoupGarouServer(engine)
     # Should complete without blocking
-    await asyncio.wait_for(server.narrate("hello", "fr"), timeout=1.0)
+    await asyncio.wait_for(server.narrate(NarrationMessage("hello", "fr")), timeout=1.0)
 
 
 async def test_narrate_broadcasts_narrate_message():
@@ -69,8 +70,8 @@ async def test_narrate_broadcasts_narrate_message():
         await asyncio.sleep(0)
         if server._tts_future and not server._tts_future.done():
             server._tts_future.set_result(None)
-    asyncio.get_event_loop().create_task(resolve_future())
-    await server.narrate("Good night", "fr")
+    asyncio.ensure_future(resolve_future())
+    await server.narrate(NarrationMessage("Good night", "fr"))
     ws.send_json.assert_awaited_once()
     sent = ws.send_json.call_args[0][0]
     assert sent["type"] == "narrate"
@@ -83,13 +84,13 @@ async def test_narrate_blocks_until_tts_done():
     resolved_at = []
     async def resolver():
         await asyncio.sleep(0.05)
-        resolved_at.append(asyncio.get_event_loop().time())
+        resolved_at.append(asyncio.get_running_loop().time())
         if server._tts_future and not server._tts_future.done():
             server._tts_future.set_result(None)
-    asyncio.get_event_loop().create_task(resolver())
-    start = asyncio.get_event_loop().time()
-    await server.narrate("Wait for me", "fr")
-    end = asyncio.get_event_loop().time()
+    asyncio.ensure_future(resolver())
+    start = asyncio.get_running_loop().time()
+    await server.narrate(NarrationMessage("Wait for me", "fr"))
+    end = asyncio.get_running_loop().time()
     assert end - start >= 0.04, "narrate() should have blocked until tts_done"
 
 
@@ -107,7 +108,7 @@ async def test_narrate_times_out_after_10_seconds():
         raise asyncio.TimeoutError()
     from unittest.mock import patch as _patch
     with _patch("loup_garou.game_server.asyncio.wait_for", fast_wait_for):
-        await server.narrate("stuck", "fr")
+        await server.narrate(NarrationMessage("stuck", "fr"))
     assert server._tts_future is None
     assert call_count == 1
 
@@ -121,8 +122,7 @@ async def test_tts_done_command_resolves_future():
     server._clients.add(ws)
 
     # Manually plant a future as if narrate() set it
-    loop = asyncio.get_event_loop()
-    future = loop.create_future()
+    future = asyncio.get_running_loop().create_future()
     server._tts_future = future
 
     # Dispatch tts_done
@@ -151,8 +151,7 @@ async def test_tts_done_when_future_already_done_is_noop():
     ws = MagicMock()
     ws.send_json = AsyncMock()
 
-    loop = asyncio.get_event_loop()
-    future = loop.create_future()
+    future = asyncio.get_running_loop().create_future()
     future.set_result(None)  # already resolved
     server._tts_future = future
 
@@ -166,8 +165,8 @@ async def test_narrate_clears_future_after_completion():
         await asyncio.sleep(0)
         if server._tts_future and not server._tts_future.done():
             server._tts_future.set_result(None)
-    asyncio.get_event_loop().create_task(resolve())
-    await server.narrate("clean up", "fr")
+    asyncio.ensure_future(resolve())
+    await server.narrate(NarrationMessage("clean up", "fr"))
     assert server._tts_future is None
 
 
@@ -198,8 +197,8 @@ async def test_narrate_with_audio_url_broadcasts_field():
         if server._tts_future and not server._tts_future.done():
             server._tts_future.set_result(None)
 
-    asyncio.get_event_loop().create_task(resolve())
-    await server.narrate("La nuit tombe.", "fr", audio_url="/loup_garou/audio/fr/night_start.mp3")
+    asyncio.ensure_future(resolve())
+    await server.narrate(NarrationMessage("La nuit tombe.", "fr", audio_url="/loup_garou/audio/fr/night_start.mp3"))
 
     ws.send_json.assert_awaited_once()
     sent = ws.send_json.call_args[0][0]
@@ -217,8 +216,8 @@ async def test_narrate_without_audio_url_omits_field():
         if server._tts_future and not server._tts_future.done():
             server._tts_future.set_result(None)
 
-    asyncio.get_event_loop().create_task(resolve())
-    await server.narrate("Alice a été dévorée.", "fr")
+    asyncio.ensure_future(resolve())
+    await server.narrate(NarrationMessage("Alice a été dévorée.", "fr"))
 
     ws.send_json.assert_awaited_once()
     sent = ws.send_json.call_args[0][0]

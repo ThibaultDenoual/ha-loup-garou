@@ -28,6 +28,7 @@ import pytest  # noqa: E402
 
 from loup_garou.const import STATIC_AUDIO_MAP  # noqa: E402
 from loup_garou.loup_garou.atmosphere import Atmosphere  # noqa: E402
+from loup_garou.narration import NarrationMessage  # noqa: E402
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -47,6 +48,7 @@ def make_atmosphere(audio_source: str, audio_output: str = "browser", lang: str 
     locale = {k: f"text for {k}" for k in STATIC_AUDIO_MAP}
     locale["phase.day.start_with_death"] = "{name} a été dévoré. C'était {article} {role}."
     locale["phase.vote.result"] = "{name} éliminé. C'était {article} {role}."
+    locale["ui.misc.plain"] = "Texte simple"
     atm = Atmosphere(
         hass=hass,
         engine=engine,
@@ -69,38 +71,45 @@ def make_atmosphere(audio_source: str, audio_output: str = "browser", lang: str 
 @pytest.mark.parametrize("locale_key,stem", list(STATIC_AUDIO_MAP.items()))
 async def test_static_mode_sends_audio_url_for_static_key(locale_key, stem):
     atm, server = make_atmosphere("static", lang="fr")
-    await atm.speak("some text", delay_key="role_wake", locale_key=locale_key)
+    await atm.speak(atm._narrate(locale_key, delay_key="role_wake"))
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs.get("audio_url") == f"/loup_garou/audio/fr/{stem}.mp3"
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url == f"/loup_garou/audio/fr/{stem}.mp3"
 
 
 async def test_static_mode_audio_url_uses_language():
     atm, server = make_atmosphere("static", lang="en")
-    await atm.speak("some text", delay_key="night_start", locale_key="phase.night.start")
-    _, kwargs = server.narrate.call_args
-    assert kwargs["audio_url"] == "/loup_garou/audio/en/night_start.mp3"
+    await atm.speak(atm._narrate("phase.night.start", delay_key="night_start"))
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url == "/loup_garou/audio/en/night_start.mp3"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Static mode — dynamic messages (no pre-recorded file)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def test_static_mode_no_audio_url_when_locale_key_is_none():
+async def test_static_mode_no_audio_url_for_parameterized_key():
+    """Parameterized messages interpolate at runtime, so they never get a static MP3."""
     atm, server = make_atmosphere("static")
-    await atm.speak("Alice a été dévorée.", delay_key="day_with_death", locale_key=None)
+    await atm.speak(atm._narrate(
+        "phase.day.start_with_death",
+        delay_key="day_with_death",
+        name="Alice", article="un", role="Loup",
+    ))
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs.get("audio_url") is None
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url is None
+    assert "Alice" in msg.text
 
 
-async def test_static_mode_no_audio_url_for_unknown_key():
+async def test_static_mode_no_audio_url_for_non_static_key():
+    """A fixed-text key absent from STATIC_AUDIO_MAP resolves text but no audio."""
     atm, server = make_atmosphere("static")
-    await atm.speak("some dynamic text", delay_key="day_with_death",
-                    locale_key="phase.day.start_with_death")
+    await atm.speak(atm._narrate("ui.misc.plain", delay_key="role_wake"))
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs.get("audio_url") is None
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url is None
+    assert msg.text == "Texte simple"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -109,10 +118,10 @@ async def test_static_mode_no_audio_url_for_unknown_key():
 
 async def test_browser_mode_never_sends_audio_url():
     atm, server = make_atmosphere("tts", "browser")
-    await atm.speak("La nuit tombe.", delay_key="night_start", locale_key="phase.night.start")
+    await atm.speak(atm._narrate("phase.night.start", delay_key="night_start"))
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs.get("audio_url") is None
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url is None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -126,7 +135,7 @@ async def test_ha_mode_does_not_call_server_narrate():
         orig_sleep = _aio.sleep
         _aio.sleep = AsyncMock()
         try:
-            await atm.speak("La nuit tombe.", delay_key="night_start", locale_key="phase.night.start")
+            await atm.speak(atm._narrate("phase.night.start", delay_key="night_start"))
         finally:
             _aio.sleep = orig_sleep
     server.narrate.assert_not_awaited()
@@ -140,37 +149,37 @@ async def test_on_phase_changed_night_sends_audio_url():
     atm, server = make_atmosphere("static")
     await atm._on_phase_changed({"phase": "night"})
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs["audio_url"] == "/loup_garou/audio/fr/night_start.mp3"
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url == "/loup_garou/audio/fr/night_start.mp3"
 
 
 async def test_on_vote_started_sends_audio_url():
     atm, server = make_atmosphere("static")
     await atm._on_vote_started({})
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs["audio_url"] == "/loup_garou/audio/fr/vote_start.mp3"
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url == "/loup_garou/audio/fr/vote_start.mp3"
 
 
 async def test_on_role_wake_sends_audio_url_for_werewolf():
     atm, server = make_atmosphere("static")
     await atm._on_role_wake({"role": "werewolf"})
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs["audio_url"] == "/loup_garou/audio/fr/role_werewolf_wake.mp3"
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url == "/loup_garou/audio/fr/role_werewolf_wake.mp3"
 
 
 async def test_on_role_sleep_sends_audio_url_for_seer():
     atm, server = make_atmosphere("static")
     await atm._on_role_sleep({"role": "seer"})
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs["audio_url"] == "/loup_garou/audio/fr/role_seer_sleep.mp3"
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url == "/loup_garou/audio/fr/role_seer_sleep.mp3"
 
 
 async def test_on_game_over_wolves_win_sends_audio_url():
     atm, server = make_atmosphere("static")
     await atm._on_game_over({"winner": "wolves"})
     server.narrate.assert_awaited_once()
-    _, kwargs = server.narrate.call_args
-    assert kwargs["audio_url"] == "/loup_garou/audio/fr/game_over_wolves.mp3"
+    msg = server.narrate.call_args[0][0]
+    assert msg.audio_url == "/loup_garou/audio/fr/game_over_wolves.mp3"

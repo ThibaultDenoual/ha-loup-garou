@@ -90,8 +90,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "lights":   hass.states.async_entity_ids("light"),
         }
 
+    async def _test_audio() -> None:
+        await atmosphere.speak(atmosphere._narrate("phase.night.start", delay_key="night_start"))
+
     server.set_save_callback(_save_config)
     server.set_entities_callback(_get_entities)
+    server.set_test_audio_callback(_test_audio)
 
     hass.http.register_view(_WebSocketView(server))
 

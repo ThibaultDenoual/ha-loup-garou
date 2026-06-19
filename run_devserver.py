@@ -20,10 +20,14 @@ ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "custom_components"))
 
+import json as _json
+
 from aiohttp import web
 
 from loup_garou.game_engine import GameEngine
 from loup_garou.game_server import LoupGarouServer
+from loup_garou.const import STATIC_AUDIO_MAP
+from loup_garou.narration import NarrationMessage
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 _LOGGER = logging.getLogger("devserver")
@@ -40,6 +44,21 @@ def build_app(port: int) -> web.Application:
         "tts_engine":   "tts.cloud_say",
     })
     server.wire_events()
+
+    async def _test_audio() -> None:
+        lang = server._config.get("language", "fr")
+        audio_source = server._config.get("audio_source", "static")
+        locale_key = "phase.night.start"
+        locale_path = ROOT / "custom_components" / "loup_garou" / "locales" / f"{lang}.json"
+        locale = _json.loads(locale_path.read_text())
+        text = locale.get(locale_key, "Test audio")
+        audio_url = None
+        if audio_source == "static" and locale_key in STATIC_AUDIO_MAP:
+            stem = STATIC_AUDIO_MAP[locale_key]
+            audio_url = f"/loup_garou/audio/{lang}/{stem}.mp3"
+        await server.narrate(NarrationMessage(text=text, lang=lang, audio_url=audio_url))
+
+    server.set_test_audio_callback(_test_audio)
 
     app = web.Application()
 

@@ -8,6 +8,7 @@ import logging
 from aiohttp import WSMsgType, web
 
 from .game_engine import GameEngine
+from .narration import NarrationMessage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,12 +22,16 @@ class LoupGarouServer:
         self._tts_future: asyncio.Future | None = None
         self._save_config_cb = None
         self._get_entities_cb = None
+        self._test_audio_cb = None
 
     def set_save_callback(self, fn) -> None:
         self._save_config_cb = fn
 
     def set_entities_callback(self, fn) -> None:
         self._get_entities_cb = fn
+
+    def set_test_audio_callback(self, fn) -> None:
+        self._test_audio_cb = fn
 
     # ── aiohttp request handler ───────────────────────────────────────────────
 
@@ -59,25 +64,22 @@ class LoupGarouServer:
                 dead.add(ws)
         self._clients -= dead
 
-    async def narrate(self, text: str, lang: str, audio_url: str | None = None) -> None:
+    async def narrate(self, msg: NarrationMessage) -> None:
         """Broadcast a narration request and wait for the browser to confirm playback.
 
         Blocks until any connected client sends tts_done, or until the 10-second
         timeout fires so a disconnected client never stalls the game.
-        When audio_url is set the browser plays a pre-recorded MP3 instead of
+        When msg.audio_url is set the browser plays a pre-recorded MP3 instead of
         synthesising speech, falling back to Web Speech API on error.
         """
         if not self._clients:
             return
         self._tts_future = asyncio.get_running_loop().create_future()
-        payload: dict = {"text": text, "lang": lang}
-        if audio_url:
-            payload["audio_url"] = audio_url
         try:
-            await self.broadcast({"type": "narrate", "data": payload})
+            await self.broadcast({"type": "narrate", "data": msg.to_payload()})
             await asyncio.wait_for(self._tts_future, timeout=10.0)
         except asyncio.TimeoutError:
-            _LOGGER.warning("Browser TTS timed out after 10 s for: %.60s", text)
+            _LOGGER.warning("Browser TTS timed out after 10 s for: %.60s", msg.text)
         except asyncio.CancelledError:
             pass
         finally:
@@ -122,6 +124,17 @@ class LoupGarouServer:
             elif cmd == "get_entities":
                 entities = self._get_entities_cb() if self._get_entities_cb else {}
                 await ws.send_json({"type": "entities", "data": entities})
+            elif cmd == "test_audio":
+                if self._test_audio_cb:
+                    async def _run_test(target_ws=ws):
+                        try:
+                            await self._test_audio_cb()
+                        finally:
+                            try:
+                                await target_ws.send_json({"type": "test_audio_done"})
+                            except Exception:
+                                pass
+                    asyncio.create_task(_run_test())
             else:
                 await ws.send_json({"type": "error", "msg": f"unknown command: {cmd}"})
         except Exception as exc:
