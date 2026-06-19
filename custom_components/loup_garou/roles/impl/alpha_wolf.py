@@ -14,7 +14,8 @@ class AlphaWolf(BaseRole):
                 ctx.set_flag(p["id"], "alpha_conversion_used", False)
 
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
-        wolf_id = action.get("player_id")
+        alphas = ctx.alive_players_by_role("alpha_wolf")
+        wolf_id = alphas[0]["id"] if alphas else None
         if wolf_id and ctx.get_flag(wolf_id, "alpha_conversion_used"):
             return  # Already used
 
@@ -29,8 +30,7 @@ class AlphaWolf(BaseRole):
             return  # Can't convert a wolf
 
         ctx.change_role(convert_target, "werewolf")
-        if wolf_id:
-            ctx.set_flag(wolf_id, "alpha_conversion_used", True)
+        ctx.set_flag(wolf_id, "alpha_conversion_used", True)
 
     async def check_win(self, ctx: RoleContext) -> str | None:
         alive = ctx.alive_players

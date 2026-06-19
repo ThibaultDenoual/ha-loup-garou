@@ -68,6 +68,48 @@ async def test_alpha_wolf_cannot_convert_another_wolf():
     assert not state.player_flags[alpha_id]["alpha_conversion_used"]
 
 
+async def test_alpha_wolf_converts_without_player_id_in_payload():
+    """Frontend never sends player_id; wolf_id must be resolved from ctx."""
+    engine = make_engine(Villager, Werewolf, AlphaWolf)
+    await engine.start_game(
+        ["Alice", "Bob", "Carol", "Dave"],
+        ["villager", "villager", "werewolf", "alpha_wolf"],
+    )
+    state = engine._state
+    alpha_id = next(p.id for p in state.players.values() if p.role_id == "alpha_wolf")
+    villager_id = next(p.id for p in state.players.values() if p.role_id == "villager")
+
+    ctx = make_ctx(state)
+    role = engine._roles["alpha_wolf"]
+    # No player_id in payload — matches what the real frontend sends
+    await role.on_night_action(ctx, {"convert_target": villager_id})
+
+    assert state.players[villager_id].role_id == "werewolf"
+    assert state.player_flags[alpha_id]["alpha_conversion_used"] is True
+
+
+async def test_alpha_wolf_only_converts_once_without_player_id():
+    """Conversion flag must block a second convert even when player_id is absent."""
+    engine = make_engine(Villager, Werewolf, AlphaWolf)
+    await engine.start_game(
+        ["Alice", "Bob", "Carol", "Dave"],
+        ["villager", "villager", "werewolf", "alpha_wolf"],
+    )
+    state = engine._state
+    alpha_id = next(p.id for p in state.players.values() if p.role_id == "alpha_wolf")
+    villagers = [p.id for p in state.players.values() if p.role_id == "villager"]
+
+    ctx = make_ctx(state)
+    role = engine._roles["alpha_wolf"]
+    await role.on_night_action(ctx, {"convert_target": villagers[0]})
+    await role.on_night_action(ctx, {"convert_target": villagers[1]})
+
+    # Only the first target should have been converted
+    assert state.players[villagers[0]].role_id == "werewolf"
+    assert state.players[villagers[1]].role_id == "villager"
+    assert state.player_flags[alpha_id]["alpha_conversion_used"] is True
+
+
 async def test_alpha_wolf_check_win():
     engine = make_engine(Villager, AlphaWolf)
     await engine.start_game(["Alice", "Bob"], ["villager", "alpha_wolf"])

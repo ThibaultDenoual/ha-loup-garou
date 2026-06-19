@@ -4,6 +4,7 @@ import pytest
 from loup_garou.game_engine import GameEngine, GameState, Player
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
+from loup_garou.roles.impl.alpha_wolf import AlphaWolf
 from tests.unit.conftest import make_engine, make_ctx
 
 
@@ -50,6 +51,32 @@ async def test_werewolf_dead_target_ignored():
     ctx = make_ctx(state)
     role = engine._roles["werewolf"]
     await role.on_night_action(ctx, {"target": villager_id})
+
+    assert ctx.pending_kills == []
+
+
+async def test_werewolf_cannot_target_fellow_wolf():
+    engine = make_engine(Villager, Werewolf)
+    await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "werewolf", "werewolf"])
+    state = engine._state
+    wolf_ids = [p.id for p in state.players.values() if p.role_id == "werewolf"]
+
+    ctx = make_ctx(state)
+    role = engine._roles["werewolf"]
+    await role.on_night_action(ctx, {"target": wolf_ids[1]})
+
+    assert ctx.pending_kills == []
+
+
+async def test_werewolf_cannot_target_alpha_wolf():
+    engine = make_engine(Villager, Werewolf, AlphaWolf)
+    await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "werewolf", "alpha_wolf"])
+    state = engine._state
+    alpha_id = next(p.id for p in state.players.values() if p.role_id == "alpha_wolf")
+
+    ctx = make_ctx(state)
+    role = engine._roles["werewolf"]
+    await role.on_night_action(ctx, {"target": alpha_id})
 
     assert ctx.pending_kills == []
 

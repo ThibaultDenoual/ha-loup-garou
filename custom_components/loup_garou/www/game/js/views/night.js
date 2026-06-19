@@ -150,7 +150,7 @@ function _showNightAction(data) {
       _seerOrbActivate();
     });
   } else if (role === 'werewolf') {
-    _renderTargetGrid(alive, 'wolf-locked', (pid) => {
+    _renderTargetGrid(alive.filter(p => !['werewolf', 'alpha_wolf'].includes(p.role_id)), 'wolf-locked', (pid) => {
       _naSelected = pid;
       confirm.disabled = false;
     });

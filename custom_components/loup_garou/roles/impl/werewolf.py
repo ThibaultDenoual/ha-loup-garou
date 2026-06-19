@@ -10,7 +10,11 @@ class Werewolf(BaseRole):
 
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
         target_id = action.get("target")
-        if target_id and any(p["id"] == target_id and p["alive"] for p in ctx.alive_players):
+        wolf_role_ids = {"werewolf", "alpha_wolf"}
+        if target_id and any(
+            p["id"] == target_id and p["alive"] and p["role_id"] not in wolf_role_ids
+            for p in ctx.alive_players
+        ):
             ctx.add_pending_kill(target_id, "wolf_kill")
 
     async def check_win(self, ctx: RoleContext) -> str | None:
