@@ -28,7 +28,7 @@ class Cupid(BaseRole):
         return EliminateDecision()
 
     async def check_win(self, ctx: RoleContext) -> str | None:
-        lovers_link = ctx._state.player_links.get("lovers", [])
+        lovers_link = ctx.get_link_group("lovers")
         if len(lovers_link) != 2:
             return None
         a_id, b_id = lovers_link

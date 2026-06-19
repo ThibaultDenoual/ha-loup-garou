@@ -35,12 +35,12 @@
   "role.seer.sleep": "Seer… go back to sleep.",
   "role.seer.action_prompt": "Designate a player to investigate.",
   "role.seer.result": "{name} is {article} {role}.",
-  "role.seer.prompt_investigate": "Choose a player to reveal.",
 
   "role.hunter.name": "Hunter",
   "role.hunter.description": "If you are eliminated, you may take another player with you into death.",
   "role.hunter.team": "Village",
   "role.hunter.death_prompt": "You are dead! Designate a player to take with you.",
+  "role.hunter.shoot_confirm": "🔫 Shoot",
 
   "role.elder.name": "Elder",
   "role.elder.description": "You survive the first werewolf attack. The second will be fatal.",
@@ -59,10 +59,10 @@
   "role.witch.team": "Village",
   "role.witch.wake": "Witch… open your eyes.",
   "role.witch.sleep": "Witch… go back to sleep.",
+  "role.witch.action_prompt": "Manage your potions.",
+  "role.witch.victim_label": "Tonight's victim:",
   "role.witch.save_prompt": "Do you want to use your healing potion to save {name}?",
   "role.witch.poison_prompt": "Do you want to use your poison to kill someone?",
-  "role.witch.no_save_potion": "You have already used your healing potion.",
-  "role.witch.no_poison_potion": "You have already used your poison.",
 
   "role.cupid.name": "Cupid",
   "role.cupid.description": "On the first night, you link two players with love. If one dies, they both die.",

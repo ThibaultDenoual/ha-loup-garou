@@ -116,3 +116,15 @@ async def test_witch_sees_pending_kill():
 
     ctx = make_ctx(state)
     assert villager_id in ctx.pending_kills
+
+
+async def test_pending_kills_full_returns_tuples():
+    engine = make_engine(Villager, Werewolf, Witch)
+    await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "werewolf", "witch"])
+    state = engine._state
+    villager_id = next(p.id for p in state.players.values() if p.role_id == "villager")
+    state.pending_kills.append((villager_id, "wolf_kill"))
+
+    ctx = make_ctx(state)
+    full = ctx.pending_kills_full()
+    assert full == [(villager_id, "wolf_kill")]

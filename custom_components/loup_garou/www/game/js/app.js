@@ -12,7 +12,6 @@ import * as gameOver from './views/game_over.js';
 
 let _state = { phase: 'setup', players: [], night_number: 0, winner: null };
 let _nightDeaths = [];   // player_eliminated events accumulated during night
-let _voteDeath = null;   // player eliminated by vote (for next-day announcement)
 const _activeViews = new Set(); // which view is currently showing
 
 function getState() { return _state; }

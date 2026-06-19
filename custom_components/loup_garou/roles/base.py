@@ -59,6 +59,14 @@ class RoleContext:
             return [pid for pid in group if pid != player_id]
         return []
 
+    def get_link_group(self, link_type: str) -> list[str]:
+        """All player IDs in a named link group (e.g. 'lovers')."""
+        return list(self._state.player_links.get(link_type, []))
+
+    def pending_kills_full(self) -> list[tuple[str, str]]:
+        """(player_id, cause) tuples for all pending night kills."""
+        return list(self._state.pending_kills)
+
     def alive_players_by_role(self, role_id: str) -> list[dict]:
         return [
             p.to_dict()

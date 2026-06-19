@@ -185,7 +185,7 @@ function _showSeerResult(data) {
     box.classList.add('seer-reveal');
   }
 
-  document.getElementById('btn-seer-ack').textContent = t('ui.reveal.seen') || 'Compris';
+  document.getElementById('btn-seer-ack').textContent = t('ui.reveal.seen');
   _setSection('seer');
 }
 
@@ -204,7 +204,7 @@ function _showHunterAction(data) {
   const confirm = document.getElementById('btn-na-confirm');
   confirm.disabled = true;
   confirm.className = 'primary hunter-aim';
-  confirm.textContent = '🔫 Tirer';
+  confirm.textContent = t('role.hunter.shoot_confirm');
 
   const state = _getState();
   const targets = state.players.filter(p => p.alive && p.id !== hunterId);
@@ -246,7 +246,7 @@ function _renderWitch(data, alive) {
   if (victims.length) {
     const victimBox = document.getElementById('na-victim');
     victimBox.style.display = '';
-    victimBox.innerHTML = `<strong>Victime cette nuit :</strong> ${victims.map(p => p.name).join(', ')}`;
+    victimBox.innerHTML = `<strong>${t('role.witch.victim_label')}</strong> ${victims.map(p => p.name).join(', ')}`;
   }
 
   const witchBox = document.getElementById('na-witch-potions');

@@ -21,7 +21,7 @@ class Witch(BaseRole):
         return {
             "pending_kills": [
                 {"player_id": pid, "cause": cause}
-                for pid, cause in ctx._state.pending_kills
+                for pid, cause in ctx.pending_kills_full()
             ],
             "save_used": ctx.get_flag(witch_id, "witch_save_used", False) if witch_id else True,
             "poison_used": ctx.get_flag(witch_id, "witch_poison_used", False) if witch_id else True,

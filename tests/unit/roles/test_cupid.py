@@ -177,3 +177,17 @@ async def test_lovers_do_not_win_while_others_alive():
     role = engine._roles["cupid"]
     result = await role.check_win(ctx)
     assert result is None
+
+
+async def test_get_link_group_returns_full_list():
+    engine = make_engine(Villager, Werewolf, Cupid)
+    await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "villager", "cupid"])
+    state = engine._state
+    alice_id = next(p.id for p in state.players.values() if p.name == "Alice")
+    bob_id = next(p.id for p in state.players.values() if p.name == "Bob")
+    state.player_links["lovers"] = [alice_id, bob_id]
+
+    ctx = make_ctx(state)
+    group = ctx.get_link_group("lovers")
+    assert set(group) == {alice_id, bob_id}
+    assert ctx.get_link_group("nonexistent") == []

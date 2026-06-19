@@ -35,12 +35,12 @@
   "role.seer.sleep": "Voyante… rendors-toi.",
   "role.seer.action_prompt": "Désignez un joueur à investiguer.",
   "role.seer.result": "{name} est {article} {role}.",
-  "role.seer.prompt_investigate": "Choisissez un joueur à révéler.",
 
   "role.hunter.name": "Chasseur",
   "role.hunter.description": "Si vous êtes éliminé, vous pouvez emmener un autre joueur avec vous dans la mort.",
   "role.hunter.team": "Village",
   "role.hunter.death_prompt": "Vous êtes mort ! Désignez un joueur à emporter avec vous.",
+  "role.hunter.shoot_confirm": "🔫 Tirer",
 
   "role.elder.name": "Ancien",
   "role.elder.description": "Vous survivez à la première attaque des loups-garous. La deuxième vous sera fatale.",
@@ -59,10 +59,10 @@
   "role.witch.team": "Village",
   "role.witch.wake": "Sorcière… ouvre les yeux.",
   "role.witch.sleep": "Sorcière… rendors-toi.",
+  "role.witch.action_prompt": "Gérez vos potions.",
+  "role.witch.victim_label": "Victime cette nuit :",
   "role.witch.save_prompt": "Voulez-vous utiliser votre potion de guérison pour sauver {name} ?",
   "role.witch.poison_prompt": "Voulez-vous utiliser votre poison pour tuer quelqu'un ?",
-  "role.witch.no_save_potion": "Vous avez déjà utilisé votre potion de guérison.",
-  "role.witch.no_poison_potion": "Vous avez déjà utilisé votre poison.",
 
   "role.cupid.name": "Cupidon",
   "role.cupid.description": "La première nuit, vous liez deux joueurs par l'amour. S'ils meurent, ils meurent ensemble.",
