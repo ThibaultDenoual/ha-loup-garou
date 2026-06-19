@@ -24,12 +24,14 @@ CONF_SPEAKER = "speaker_entity"
 CONF_LIGHTS = "light_entities"
 CONF_LANGUAGE = "language"
 CONF_TTS_ENGINE = "tts_engine"
-CONF_TTS_MODE = "tts_mode"
+CONF_AUDIO_SOURCE = "audio_source"   # "tts" | "static"
+CONF_AUDIO_OUTPUT = "audio_output"   # "browser" | "ha"
 
 LANGUAGES = ["fr", "en"]
 DEFAULT_LANGUAGE = "fr"
 DEFAULT_TTS_ENGINE = "tts.home_assistant_cloud"
-DEFAULT_TTS_MODE = "ha"  # "ha" = HA TTS service | "browser" = Web Speech API
+DEFAULT_AUDIO_SOURCE = "tts"      # synthesised speech
+DEFAULT_AUDIO_OUTPUT = "browser"  # phone/browser speaker
 
 # Estimated post-TTS sleep durations (seconds) used in HA TTS mode so the
 # engine waits for narration to finish before advancing to the next event.
@@ -133,6 +135,29 @@ LIGHT_SCENES: dict[str, dict] = {
         "brightness": 128,
         "transition": 1,
     },
+}
+
+# Locale keys whose text never changes at runtime — can be served as pre-recorded MP3s.
+# Maps locale key → audio filename stem (no lang prefix, no extension).
+# URL template: /loup_garou/audio/{lang}/{stem}.mp3
+STATIC_AUDIO_MAP: dict[str, str] = {
+    "phase.night.start":           "night_start",
+    "phase.day.start_no_death":    "day_no_death",
+    "phase.vote.start":            "vote_start",
+    "phase.vote.tie":              "vote_tie",
+    "phase.game_over.wolves_win":  "game_over_wolves",
+    "phase.game_over.village_win": "game_over_village",
+    "phase.game_over.lovers_win":  "game_over_lovers",
+    "role.werewolf.wake":          "role_werewolf_wake",
+    "role.werewolf.sleep":         "role_werewolf_sleep",
+    "role.seer.wake":              "role_seer_wake",
+    "role.seer.sleep":             "role_seer_sleep",
+    "role.witch.wake":             "role_witch_wake",
+    "role.witch.sleep":            "role_witch_sleep",
+    "role.cupid.wake":             "role_cupid_wake",
+    "role.cupid.sleep":            "role_cupid_sleep",
+    "role.alpha_wolf.wake":        "role_alpha_wolf_wake",
+    "role.alpha_wolf.sleep":       "role_alpha_wolf_sleep",
 }
 
 # Role id → light scene key for that role's night turn
