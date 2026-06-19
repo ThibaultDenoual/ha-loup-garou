@@ -1,11 +1,11 @@
 {
   "domain": "loup_garou",
   "name": "Loup Garou",
-  "version": "0.1.0",
-  "documentation": "https://github.com/ThibaultDenoual/ha-loup-garou",
-  "issue_tracker": "https://github.com/ThibaultDenoual/ha-loup-garou/issues",
   "codeowners": ["@ThibaultDenoual"],
-  "iot_class": "local_push",
+  "config_flow": true,
   "dependencies": ["http"],
-  "config_flow": true
+  "documentation": "https://github.com/ThibaultDenoual/ha-loup-garou",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/ThibaultDenoual/ha-loup-garou/issues",
+  "version": "0.1.0"
 }
