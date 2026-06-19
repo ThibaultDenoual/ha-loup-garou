@@ -106,8 +106,12 @@ class Atmosphere:
     async def _on_phase_changed(self, data: dict) -> None:
         phase = data.get("phase")
         if phase == "night":
-            await self._set_lights("night")
+            # Start dark fade simultaneously with narration so darkness builds as narrator speaks
+            asyncio.create_task(self._set_lights("night"))
+            await asyncio.sleep(0.5)
             await self.speak(self._narrate("phase.night.start", delay_key="night_start"))
+            # Let darkness settle before first role wakes
+            await asyncio.sleep(2.0)
         # day and vote handled by their dedicated events
 
     async def _on_role_wake(self, data: dict) -> None:
@@ -121,7 +125,9 @@ class Atmosphere:
         scene_key = ROLE_SCENE.get(role_id or "")
         if scene_key:
             self._current_scene = scene_key
-            await self._set_lights(scene_key)
+            # Start role-color flash just before speaking so it's fully lit by command's end
+            asyncio.create_task(self._set_lights(scene_key))
+            await asyncio.sleep(0.3)
 
         if self.t(f"role.{role_id}.wake"):
             await self.speak(self._narrate(f"role.{role_id}.wake", delay_key="role_wake"))
@@ -130,21 +136,32 @@ class Atmosphere:
         role_id = data.get("role")
         if self.t(f"role.{role_id}.sleep"):
             await self.speak(self._narrate(f"role.{role_id}.sleep", delay_key="role_sleep"))
-        await self._set_lights("night")
+        # Lights fade back to night as the role "obeys" the command
+        asyncio.create_task(self._set_lights("night"))
         self._current_scene = "night"
+        # Settle pause before next role wakes
+        await asyncio.sleep(1.0)
 
     async def _on_day_started(self, data: dict) -> None:
-        await self._set_lights("day")
+        # Gentle day brightening starts immediately while players wait in suspense
+        asyncio.create_task(self._set_lights("day"))
         self._current_scene = "day"
         eliminated_ids: list[str] = data.get("eliminated", [])
         pub = self._engine.get_public_state()
         players_by_id = {p["id"]: p for p in pub["players"]}
 
+        # Dramatic pause while lights brighten — the most tense moment of the game
+        await asyncio.sleep(2.5)
+
         if not eliminated_ids:
             await self.speak(self._narrate("phase.day.start_no_death", delay_key="day_no_death"))
             return
 
-        for pid in eliminated_ids:
+        # Suspense prelude before revealing who died
+        await self.speak(self._narrate("phase.day.prelude_death", delay_key="day_prelude"))
+        await asyncio.sleep(0.8)
+
+        for i, pid in enumerate(eliminated_ids):
             p = players_by_id.get(pid, {})
             name = p.get("name", "?")
             role_id = p.get("role_id", "?")
@@ -155,6 +172,8 @@ class Atmosphere:
                 delay_key="day_with_death",
                 name=name, article=article, role=role_name,
             ))
+            if i < len(eliminated_ids) - 1:
+                await asyncio.sleep(0.5)
 
     async def _on_vote_started(self, data: dict) -> None:
         await self.speak(self._narrate("phase.vote.start", delay_key="vote_start"))
@@ -162,6 +181,7 @@ class Atmosphere:
     async def _on_vote_resolved(self, data: dict) -> None:
         eliminated_id = data.get("eliminated")
         is_tie = data.get("tie", False)
+        await asyncio.sleep(0.5)
         if is_tie and not eliminated_id:
             await self.speak(self._narrate("phase.vote.tie", delay_key="vote_result"))
             return
@@ -187,7 +207,7 @@ class Atmosphere:
         if cause == "lover_grief":
             name = data.get("name", "?")
             await self.speak(self._narrate("elimination.lover_grief", delay_key="elimination_live", name=name))
-            await self._set_lights("death")
+            asyncio.create_task(self._set_lights("death"))
         elif cause == "scapegoat":
             name = data.get("name", "?")
             role_id = data.get("role", "?")
@@ -198,7 +218,7 @@ class Atmosphere:
                 delay_key="elimination_live",
                 name=name, article=article, role=role_name,
             ))
-            await self._set_lights("death")
+            asyncio.create_task(self._set_lights("death"))
 
     async def _on_hunter_shot(self, data: dict) -> None:
         """Fired by the Hunter role before its target enters the elimination queue.
@@ -215,7 +235,7 @@ class Atmosphere:
             delay_key="elimination_live",
             name=hunter_name, target=target_name,
         ))
-        await self._set_lights("death")
+        asyncio.create_task(self._set_lights("death"))
 
     async def _on_game_over(self, data: dict) -> None:
         winner = data.get("winner")
@@ -227,7 +247,8 @@ class Atmosphere:
         }
         scene_key = scene_map.get(winner or "")
         if scene_key:
-            await self._set_lights(scene_key)
+            asyncio.create_task(self._set_lights(scene_key))
+        await asyncio.sleep(0.5)
         msg_key = msg_map.get(winner or "")
         if msg_key:
             await self.speak(self._narrate(msg_key, delay_key="game_over"))

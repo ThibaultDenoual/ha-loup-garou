@@ -59,6 +59,7 @@ _LOCALE = {
     "phase.night.start": "La nuit tombe.",
     "phase.day.start_no_death": "Personne n'est mort.",
     "phase.day.start_with_death": "{name} était {article} {role}.",
+    "phase.day.prelude_death": "L'aube se lève.",
     "phase.vote.start": "Le vote commence.",
     "phase.vote.tie": "Égalité.",
     "phase.vote.result": "{name} était {article} {role}.",
@@ -77,6 +78,8 @@ _LOCALE = {
     "elimination.scapegoat": "{name} était {article} {role}.",
     "article.male": "a",
 }
+
+_SLEEP = "loup_garou.loup_garou.atmosphere.asyncio.sleep"
 
 
 def make_atmosphere(
@@ -111,7 +114,7 @@ def make_atmosphere(
 def test_tts_phase_delays_has_all_keys():
     expected = {
         "night_start", "role_wake", "role_sleep",
-        "day_no_death", "day_with_death",
+        "day_no_death", "day_prelude", "day_with_death",
         "vote_start", "vote_result",
         "elimination_live", "game_over",
     }
@@ -318,7 +321,8 @@ async def test_on_phase_changed_night_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_phase_changed({"phase": "night"})
     server.narrate.assert_awaited_once()
 
@@ -336,7 +340,8 @@ async def test_on_role_wake_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_role_wake({"role": "werewolf"})
     server.narrate.assert_awaited_once()
 
@@ -354,7 +359,8 @@ async def test_on_role_sleep_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_role_sleep({"role": "werewolf"})
     server.narrate.assert_awaited_once()
 
@@ -363,12 +369,13 @@ async def test_on_day_started_no_deaths_narrates_once():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_day_started({"eliminated": []})
     assert server.narrate.await_count == 1
 
 
-async def test_on_day_started_with_death_narrates_per_victim():
+async def test_on_day_started_with_death_narrates_prelude_then_per_victim():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, engine = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
@@ -379,9 +386,11 @@ async def test_on_day_started_with_death_narrates_per_victim():
             {"id": "p2", "name": "Carol", "role_id": "werewolf", "alive": True},
         ]
     }
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_day_started({"eliminated": ["p0", "p1"]})
-    assert server.narrate.await_count == 2
+    # 1 prelude + 2 per-victim = 3 total
+    assert server.narrate.await_count == 3
 
 
 async def test_on_vote_started_narrates():
@@ -396,7 +405,8 @@ async def test_on_vote_resolved_tie_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    await atm._on_vote_resolved({"eliminated": None, "tie": True})
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_vote_resolved({"eliminated": None, "tie": True})
     server.narrate.assert_awaited_once()
 
 
@@ -409,7 +419,8 @@ async def test_on_vote_resolved_with_elimination_narrates():
             {"id": "p0", "name": "Alice", "role_id": "werewolf", "alive": False},
         ]
     }
-    await atm._on_vote_resolved({"eliminated": "p0", "tie": False})
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_vote_resolved({"eliminated": "p0", "tie": False})
     server.narrate.assert_awaited_once()
 
 
@@ -417,7 +428,8 @@ async def test_on_game_over_wolves_win_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_game_over({"winner": "wolves"})
     server.narrate.assert_awaited_once()
 
@@ -426,7 +438,8 @@ async def test_on_game_over_village_win_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_game_over({"winner": "village"})
     server.narrate.assert_awaited_once()
 

@@ -37,14 +37,15 @@ DEFAULT_AUDIO_OUTPUT = "browser"  # phone/browser speaker
 # engine waits for narration to finish before advancing to the next event.
 # In browser mode these are ignored — the engine waits for the real tts_done signal.
 TTS_PHASE_DELAYS: dict[str, float] = {
-    "night_start":         4.0,
-    "role_wake":           2.5,
+    "night_start":         3.5,
+    "role_wake":           2.0,
     "role_sleep":          2.0,
     "day_no_death":        3.0,
-    "day_with_death":      4.0,
+    "day_prelude":         2.5,
+    "day_with_death":      3.5,
     "vote_start":          2.0,
-    "vote_result":         4.0,
-    "elimination_live":    3.5,
+    "vote_result":         3.5,
+    "elimination_live":    3.0,
     "game_over":           5.0,
 }
 
@@ -143,6 +144,7 @@ LIGHT_SCENES: dict[str, dict] = {
 STATIC_AUDIO_MAP: dict[str, str] = {
     "phase.night.start":           "night_start",
     "phase.day.start_no_death":    "day_no_death",
+    "phase.day.prelude_death":     "day_prelude_death",
     "phase.vote.start":            "vote_start",
     "phase.vote.tie":              "vote_tie",
     "phase.game_over.wolves_win":  "game_over_wolves",

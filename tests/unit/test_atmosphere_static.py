@@ -22,13 +22,15 @@ for _mod in [
 ]:
     sys.modules.setdefault(_mod, MagicMock())
 
-from unittest.mock import AsyncMock, call  # noqa: E402
+from unittest.mock import AsyncMock, call, patch  # noqa: E402
 
 import pytest  # noqa: E402
 
 from loup_garou.const import STATIC_AUDIO_MAP  # noqa: E402
 from loup_garou.loup_garou.atmosphere import Atmosphere  # noqa: E402
 from loup_garou.narration import NarrationMessage  # noqa: E402
+
+_SLEEP = "loup_garou.loup_garou.atmosphere.asyncio.sleep"
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -147,7 +149,8 @@ async def test_ha_mode_does_not_call_server_narrate():
 
 async def test_on_phase_changed_night_sends_audio_url():
     atm, server = make_atmosphere("static")
-    await atm._on_phase_changed({"phase": "night"})
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_phase_changed({"phase": "night"})
     server.narrate.assert_awaited_once()
     msg = server.narrate.call_args[0][0]
     assert msg.audio_url == "/loup_garou/audio/fr/night_start.mp3"
@@ -163,7 +166,8 @@ async def test_on_vote_started_sends_audio_url():
 
 async def test_on_role_wake_sends_audio_url_for_werewolf():
     atm, server = make_atmosphere("static")
-    await atm._on_role_wake({"role": "werewolf"})
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_role_wake({"role": "werewolf"})
     server.narrate.assert_awaited_once()
     msg = server.narrate.call_args[0][0]
     assert msg.audio_url == "/loup_garou/audio/fr/role_werewolf_wake.mp3"
@@ -171,7 +175,8 @@ async def test_on_role_wake_sends_audio_url_for_werewolf():
 
 async def test_on_role_sleep_sends_audio_url_for_seer():
     atm, server = make_atmosphere("static")
-    await atm._on_role_sleep({"role": "seer"})
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_role_sleep({"role": "seer"})
     server.narrate.assert_awaited_once()
     msg = server.narrate.call_args[0][0]
     assert msg.audio_url == "/loup_garou/audio/fr/role_seer_sleep.mp3"
@@ -179,7 +184,22 @@ async def test_on_role_sleep_sends_audio_url_for_seer():
 
 async def test_on_game_over_wolves_win_sends_audio_url():
     atm, server = make_atmosphere("static")
-    await atm._on_game_over({"winner": "wolves"})
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_game_over({"winner": "wolves"})
     server.narrate.assert_awaited_once()
     msg = server.narrate.call_args[0][0]
     assert msg.audio_url == "/loup_garou/audio/fr/game_over_wolves.mp3"
+
+
+async def test_on_day_started_death_prelude_sends_audio_url():
+    """prelude_death is a parameterless key — it gets a static audio_url."""
+    atm, server = make_atmosphere("static")
+    atm._engine.get_public_state.return_value = {
+        "players": [{"id": "p0", "name": "Alice", "role_id": "werewolf", "alive": False}]
+    }
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_day_started({"eliminated": ["p0"]})
+    # First call is the prelude, second is the per-victim announcement
+    assert server.narrate.await_count == 2
+    prelude_msg = server.narrate.call_args_list[0][0][0]
+    assert prelude_msg.audio_url == "/loup_garou/audio/fr/day_prelude_death.mp3"
