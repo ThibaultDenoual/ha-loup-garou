@@ -99,52 +99,52 @@ class LoupGarouServer:
         
         try:
             match cmd:
-            case "start_game":
-                await self._cmd_start_game(data)
-            case "begin_night":
-                await self._cmd_begin_night()
-            case "submit_night_action":
-                _require(data, "role")
-                await self._engine.submit_night_action(data["role"], data.get("action", {}))
-            case "submit_pending_action":
-                _require(data, "role")
-                await self._engine.submit_pending_action(data["role"], data.get("action", {}))
-            case "begin_vote":
-                await self._engine.begin_vote()
-            case "resolve_vote":
-                _require(data, "votes")
-                await self._engine.resolve_vote(data["votes"])
-            case "elect_sheriff":
-                _require(data, "player_id")
-                self._engine.elect_sheriff(data["player_id"])
-                await self.broadcast({"type": "state", "state": self._engine.get_public_state()})
-            case "get_state":
-                await ws.send_json({"type": "state", "state": self._engine.get_public_state()})
-            case "get_config":
-                await ws.send_json({"type": "config", "config": self._config})
-            case "tts_done":
-                if self._tts_future and not self._tts_future.done():
-                    self._tts_future.set_result(None)
-            case "save_config":
-                if self._save_config_cb:
-                    await self._save_config_cb(data)
-                await self.broadcast({"type": "config", "config": self._config})
-            case "get_entities":
-                entities = self._get_entities_cb() if self._get_entities_cb else {}
-                await ws.send_json({"type": "entities", "data": entities})
-            case "test_audio":
-                if self._test_audio_cb:
-                    async def _run_test(target_ws=ws):
-                        try:
-                            await self._test_audio_cb()
-                        finally:
+                case "start_game":
+                    await self._cmd_start_game(data)
+                case "begin_night":
+                    await self._cmd_begin_night()
+                case "submit_night_action":
+                    _require(data, "role")
+                    await self._engine.submit_night_action(data["role"], data.get("action", {}))
+                case "submit_pending_action":
+                    _require(data, "role")
+                    await self._engine.submit_pending_action(data["role"], data.get("action", {}))
+                case "begin_vote":
+                    await self._engine.begin_vote()
+                case "resolve_vote":
+                    _require(data, "votes")
+                    await self._engine.resolve_vote(data["votes"])
+                case "elect_sheriff":
+                    _require(data, "player_id")
+                    self._engine.elect_sheriff(data["player_id"])
+                    await self.broadcast({"type": "state", "state": self._engine.get_public_state()})
+                case "get_state":
+                    await ws.send_json({"type": "state", "state": self._engine.get_public_state()})
+                case "get_config":
+                    await ws.send_json({"type": "config", "config": self._config})
+                case "tts_done":
+                    if self._tts_future and not self._tts_future.done():
+                        self._tts_future.set_result(None)
+                case "save_config":
+                    if self._save_config_cb:
+                        await self._save_config_cb(data)
+                    await self.broadcast({"type": "config", "config": self._config})
+                case "get_entities":
+                    entities = self._get_entities_cb() if self._get_entities_cb else {}
+                    await ws.send_json({"type": "entities", "data": entities})
+                case "test_audio":
+                    if self._test_audio_cb:
+                        async def _run_test(target_ws=ws):
                             try:
-                                await target_ws.send_json({"type": "test_audio_done"})
-                            except Exception:
-                                pass
-                    asyncio.create_task(_run_test())
-            case _:
-                await ws.send_json({"type": "error", "msg": f"unknown command: {cmd}"})
+                                await self._test_audio_cb()
+                            finally:
+                                try:
+                                    await target_ws.send_json({"type": "test_audio_done"})
+                                except Exception:
+                                    pass
+                        asyncio.create_task(_run_test())
+                case _:
+                    await ws.send_json({"type": "error", "msg": f"unknown command: {cmd}"})
         except Exception as exc:
             _LOGGER.exception("Error handling command %s", cmd)
             await ws.send_json({"type": "error", "msg": str(exc)})
