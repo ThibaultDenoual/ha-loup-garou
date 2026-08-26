@@ -74,12 +74,13 @@ class Atmosphere:
     def t(self, key: str, **kwargs) -> str:
         text = self._locale.get(key, "")
         if not text:
+            _LOGGER.warning("Missing locale key: %r (language=%s)", key, self._language)
             return ""
         if kwargs:
             try:
                 text = text.format(**kwargs)
             except (KeyError, ValueError):
-                pass
+                _LOGGER.error("Format error on locale key: %r (language=%s)", key, self._language)
         return text
 
     def _article(self, role_id: str) -> str:
