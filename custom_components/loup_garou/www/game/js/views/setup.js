@@ -110,9 +110,23 @@ function _updateTotalLabel() {
 
 function _validate() {
   const total = Object.values(_roleConfig).reduce((a, b) => a + b, 0);
-  const ok = _names.length >= 3
-    && total === _names.length
-    && _names.every(n => n.trim());
+
+  const namesValid =
+    _names.length >= 3 &&
+    total === _names.length &&
+    _names.every(name =>
+      typeof name === 'string' &&
+      name.length > 0 &&
+      name.length <= 20 &&
+      name === name.trim() &&
+      !/[{}]/.test(name)
+    );
+
+  const uniqueNames =
+    new Set(_names.map(name => name.toLowerCase())).size === _names.length;
+
+  const ok = namesValid && uniqueNames;
+
   document.getElementById('btn-start-game').disabled = !ok;
   _updateTotalLabel();
 }

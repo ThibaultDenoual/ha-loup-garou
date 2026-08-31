@@ -6,9 +6,14 @@ export async function loadLocale(lang) {
 }
 
 export function t(key, vars = {}) {
-  let s = _locale[key] || '';
-  for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
-  return s || key;
+  const s = _locale[key];
+  if (!s) return key;
+
+  return s.replace(/\{(\w+)\}/g, (_, k) =>
+    Object.hasOwn(vars, k)
+      ? escHtml(String(vars[k]))
+      : `{${k}}`
+  );
 }
 
 export const roleName = id => t(`role.${id}.name`) || id;
