@@ -139,6 +139,18 @@ select[multiple].config-select option { padding:0.25rem 0.5rem }
   text-align:center;font-size:0.85rem;color:var(--sage);font-style:italic;
   margin-top:0.6rem;min-height:1.2em;
 }
+.demo-card {
+  border:1px solid rgba(212,134,42,0.25);border-radius:var(--radius);
+  padding:1rem;margin-bottom:1.25rem;
+}
+.demo-title {
+  font-family:var(--font-d);font-size:0.95rem;color:var(--amber);
+  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;
+}
+.demo-log {
+  font-family:var(--font-b);font-size:0.78rem;color:var(--text-muted);
+  min-height:1.4em;margin-top:0.5rem;font-style:italic;
+}
 </style>
 </head>
 <body>
@@ -210,6 +222,20 @@ select[multiple].config-select option { padding:0.25rem 0.5rem }
 
   <!-- ── CONFIG TAB ─────────────────────────────────────────────────────────── -->
   <div id="tab-config" class="tab-content">
+    <div class="demo-card">
+      <div class="demo-title" id="demo-title">Démo</div>
+      <div class="config-hint" id="demo-hint"></div>
+      <div class="config-group">
+        <label class="config-label" for="demo-preset" id="demo-preset-label">Scénario</label>
+        <select id="demo-preset" class="config-select"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="btn-test-audio" id="btn-run-demo">Lancer</button>
+        <button class="btn-test-audio" id="btn-stop-demo" disabled>Arrêter</button>
+        <span class="demo-log" id="demo-log"></span>
+      </div>
+    </div>
+
     <div class="config-group">
       <label class="config-label" for="cfg-audio-source">Source audio</label>
       <select id="cfg-audio-source" class="config-select">
@@ -376,7 +402,48 @@ applyAudioVisibility();
   ws.onopen = () => {
     ws.send(JSON.stringify({cmd:'get_config', data:{}}));
     ws.send(JSON.stringify({cmd:'get_entities', data:{}}));
+    ws.send(JSON.stringify({cmd:'get_demos', data:{}}));
   };
+
+  // ── Demo game ───────────────────────────────────────────────────────────────
+  const tr = k => locale[k] || k;
+  const demoLog = document.getElementById('demo-log');
+  const btnRunDemo = document.getElementById('btn-run-demo');
+  const btnStopDemo = document.getElementById('btn-stop-demo');
+  const demoPreset = document.getElementById('demo-preset');
+  let demoRunning = false;
+
+  function renderDemoShell() {
+    document.getElementById('demo-title').textContent = tr('demo.title');
+    document.getElementById('demo-hint').textContent = tr('demo.hint');
+    document.getElementById('demo-preset-label').textContent = tr('demo.preset_label');
+    btnRunDemo.textContent = tr('demo.run');
+    btnStopDemo.textContent = tr('demo.stop');
+  }
+
+  function setDemoRunning(running, message, ok) {
+    demoRunning = running;
+    btnRunDemo.disabled = running;
+    btnStopDemo.disabled = !running;
+    demoPreset.disabled = running;
+    if (message !== undefined) {
+      demoLog.textContent = message;
+      demoLog.style.color = ok === false ? 'var(--blood)' : '';
+    }
+  }
+
+  renderDemoShell();
+
+  btnRunDemo.addEventListener('click', () => {
+    const preset = demoPreset.value;
+    if (!preset) return;
+    setDemoRunning(true, tr('demo.running'));
+    ws.send(JSON.stringify({cmd:'run_demo', data:{preset}}));
+  });
+
+  btnStopDemo.addEventListener('click', () => {
+    ws.send(JSON.stringify({cmd:'stop_demo', data:{}}));
+  });
 
   // ── Inline TTS for "Test audio" in browser mode ─────────────────────────────
   function _speakWebSpeech(text, lang, done) {
@@ -408,6 +475,23 @@ applyAudioVisibility();
     const msg = JSON.parse(e.data);
     if (msg.type === 'config') applyConfig(msg.config || {});
     if (msg.type === 'entities') applyEntities(msg.data || {});
+    if (msg.type === 'demo_presets') {
+      demoPreset.innerHTML = (msg.presets || [])
+        .map(p => `<option value="${p.key}">${tr(p.label_key)}</option>`)
+        .join('');
+    }
+    if (msg.type === 'demo_started') setDemoRunning(true, tr('demo.running'));
+    if (msg.type === 'demo_step') {
+      demoLog.textContent = tr(`demo.step.${msg.data.step}`);
+    }
+    if (msg.type === 'demo_finished') {
+      setDemoRunning(false, tr('demo.finished'), true);
+    }
+    if (msg.type === 'demo_stopped') setDemoRunning(false, tr('demo.stopped'));
+    if (msg.type === 'demo_error') setDemoRunning(false, tr('demo.failed'), false);
+    if (msg.type === 'demo_rejected') {
+      setDemoRunning(false, tr(`demo.rejected.${msg.data.reason}`), false);
+    }
     if (msg.type === 'narrate') {
       handleNarrate(msg.data || {}, s => ws.send(s));
     }

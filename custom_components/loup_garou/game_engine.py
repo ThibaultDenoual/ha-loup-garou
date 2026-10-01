@@ -55,6 +55,12 @@ class GameEngine:
     def on(self, event: GameEvent, handler: _Handler) -> None:
         self._listeners.setdefault(str(event), []).append(handler)
 
+    def off(self, event: GameEvent, handler: _Handler) -> None:
+        """Remove a previously registered handler. Safe to call if not registered."""
+        handlers = self._listeners.get(str(event))
+        if handlers and handler in handlers:
+            handlers.remove(handler)
+
     async def _emit(self, event: GameEvent, data: dict | None = None) -> None:
         payload = data or {}
         for handler in self._listeners.get(str(event), []):
@@ -72,6 +78,28 @@ class GameEngine:
             "winner": self._state.winner,
             "players": [p.to_dict() for p in self._state.players.values()],
         }
+
+    @property
+    def pending_action_role(self) -> str | None:
+        """Role the night sequence is currently blocked on, or None.
+
+        Note this is only set *after* NIGHT_ROLE_WAKE has been emitted, so a
+        listener must yield before reading it.
+        """
+        return self._pending_action_role
+
+    @property
+    def pending_interrupt_role(self) -> str | None:
+        """Role whose mid-chain interrupt is currently awaiting input, or None."""
+        return self._state.pending_interrupt_role
+
+    async def reset(self) -> None:
+        """Discard any game in progress and return to the setup phase."""
+        self._pending_action = None
+        self._pending_action_role = None
+        self._state = GameState()
+        self._state.phase = Phase.SETUP
+        await self._emit(GameEvent.PHASE_CHANGED, {"phase": Phase.SETUP})
 
     # ── Game lifecycle ────────────────────────────────────────────────────────
 

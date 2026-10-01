@@ -33,12 +33,12 @@ from loup_garou.roles.impl.werewolf import Werewolf
 from loup_garou.roles.impl.seer import Seer
 
 
-def make_server(role_classes=None):
+def make_server(role_classes=None, **server_kwargs):
     """Build a GameEngine + LoupGarouServer with the given role classes."""
     classes = role_classes or (Villager, Werewolf, Seer)
     roles = {cls.id: cls() for cls in classes}
     engine = GameEngine(roles=roles)
-    server = LoupGarouServer(engine)
+    server = LoupGarouServer(engine, **server_kwargs)
     server.wire_events()
     return engine, server
 

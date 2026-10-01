@@ -90,6 +90,23 @@ http://<your-ha-ip>:8123/local/loup_garou/game/
 
 > **Tip:** Bookmark this URL and set your screen to stay on. The phone gets passed between players — no accounts, no QR codes.
 
+### 🧪 Demo mode
+
+> **Beta** — available since `v0.2.0-beta.1`. Reports and feedback welcome.
+
+Before inviting people over, check that your lights and voice actually work. The
+launcher (`http://<your-ha-ip>:8123/loup_garou/game/launcher.html`) can play a
+scripted game on its own — no players needed, no setup.
+
+| Scenario | What it shows you |
+|---|---|
+| **Quick smoke test** | 1 night, 1 vote, village wins |
+| **Wolves win** | 2 nights, the seer finds the wolf, wolves reach parity |
+| **Lovers win** | Cupid links two players, lovers win |
+
+Each scenario runs the real game engine, so your lights and TTS behave exactly as
+they will during a real game. Press **Stop** at any point to reset back to setup.
+
 ---
 
 ## 🎭 Roles
