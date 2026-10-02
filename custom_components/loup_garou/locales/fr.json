@@ -111,6 +111,16 @@
   "ui.game_over.title": "Fin de partie",
   "ui.game_over.restart": "Nouvelle partie",
 
+  "ui.config.lights_label": "Lumières d'ambiance",
+  "ui.config.lights_placeholder": "Choisir des lumières…",
+  "ui.config.lights_search": "Rechercher des lumières…",
+  "ui.config.lights_select_all": "Tout sélectionner",
+  "ui.config.lights_clear": "Effacer",
+  "ui.config.lights_selected": "{n} sélectionnée(s)",
+  "ui.config.lights_no_results": "Aucune lumière correspondante.",
+  "ui.config.lights_empty": "Aucune lumière trouvée dans Home Assistant.",
+  "ui.config.lights_hint": "Touchez pour choisir une ou plusieurs lumières. Noms et pièces issus de Home Assistant.",
+
   "demo.title": "Partie de démonstration",
   "demo.hint": "Joue une partie scriptée pour vérifier les lumières et la voix avant de recevoir des joueurs.",
   "demo.preset_label": "Scénario",

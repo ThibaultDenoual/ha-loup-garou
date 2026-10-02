@@ -7,8 +7,10 @@ from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
-from homeassistant.components.http import HomeAssistantView
+
+# NOTE: homeassistant.components.frontend / .http are imported lazily inside
+# the setup functions below — they pull in half of HA's HTTP stack and would
+# otherwise make this module unimportable without a full HA runtime.
 
 from ..const import (
     DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
@@ -21,6 +23,41 @@ from ..roles.loader import load_roles
 from .atmosphere import Atmosphere
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def describe_light(hass: HomeAssistant, entity_id: str) -> dict:
+    """Build a display payload for one light entity.
+
+    Returns {entity_id, name, area, state}; every field falls back
+    gracefully so a missing state or registry entry never breaks
+    the entity picker.
+    """
+    name: str = entity_id
+    state: str | None = None
+    try:
+        st = hass.states.get(entity_id)
+        if st is not None:
+            name = (st.attributes.get("friendly_name") if st.attributes else None) or entity_id
+            state = st.state
+    except Exception:
+        _LOGGER.debug("describe_light: no state for %s", entity_id, exc_info=True)
+
+    area: str | None = None
+    try:
+        from homeassistant.helpers import area_registry as _area_reg
+        from homeassistant.helpers import entity_registry as _entity_reg
+
+        ent_reg = _entity_reg.async_get(hass)
+        entry = ent_reg.async_get(entity_id) if ent_reg is not None else None
+        area_id = getattr(entry, "area_id", None)
+        if area_id:
+            ar = _area_reg.async_get(hass)
+            area_entry = ar.async_get(area_id) if ar is not None else None
+            area = getattr(area_entry, "name", None)
+    except Exception:
+        _LOGGER.debug("describe_light: no area for %s", entity_id, exc_info=True)
+
+    return {"entity_id": entity_id, "name": name, "area": area, "state": state}
 
 
 DEFAULTS = {
@@ -87,7 +124,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     def _get_entities() -> dict:
         return {
             "speakers": hass.states.async_entity_ids("media_player"),
-            "lights":   hass.states.async_entity_ids("light"),
+            "lights": [
+                describe_light(hass, eid)
+                for eid in hass.states.async_entity_ids("light")
+            ],
         }
 
     async def _test_audio() -> None:
@@ -96,6 +136,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     server.set_save_callback(_save_config)
     server.set_entities_callback(_get_entities)
     server.set_test_audio_callback(_test_audio)
+
+    from homeassistant.components.frontend import async_register_built_in_panel
+    from homeassistant.components.http import HomeAssistantView
+
+    class _WebSocketView(HomeAssistantView):
+        """Thin aiohttp view wrapper."""
+
+        url = f"/{DOMAIN}/ws"
+        name = f"{DOMAIN}_ws"
+        requires_auth = False
+
+        def __init__(self, server: LoupGarouServer) -> None:
+            self._server = server
+
+        async def get(self, request):
+            return await self._server.handle_ws(request)
 
     hass.http.register_view(_WebSocketView(server))
 
@@ -116,6 +172,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    from homeassistant.components.frontend import async_remove_panel
+
     hass.data[DOMAIN].pop(entry.entry_id, None)
     async_remove_panel(hass, "loup_garou")
     return True
@@ -133,17 +191,3 @@ async def _register_static_paths(hass: HomeAssistant) -> None:
         StaticPathConfig(f"/{DOMAIN}/locales", str(locales_root),       False),
         StaticPathConfig(f"/{DOMAIN}/audio",   str(www_root / "audio"), True),
     ])
-
-
-class _WebSocketView(HomeAssistantView):
-    """Thin aiohttp view wrapper."""
-
-    url = f"/{DOMAIN}/ws"
-    name = f"{DOMAIN}_ws"
-    requires_auth = False
-
-    def __init__(self, server: LoupGarouServer) -> None:
-        self._server = server
-
-    async def get(self, request):
-        return await self._server.handle_ws(request)
