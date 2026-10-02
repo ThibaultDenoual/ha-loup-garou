@@ -111,6 +111,16 @@
   "ui.game_over.title": "Game Over",
   "ui.game_over.restart": "New game",
 
+  "ui.config.lights_label": "Ambient lights",
+  "ui.config.lights_placeholder": "Select lights…",
+  "ui.config.lights_search": "Search lights…",
+  "ui.config.lights_select_all": "Select all",
+  "ui.config.lights_clear": "Clear",
+  "ui.config.lights_selected": "{n} selected",
+  "ui.config.lights_no_results": "No matching lights.",
+  "ui.config.lights_empty": "No lights found in Home Assistant.",
+  "ui.config.lights_hint": "Tap to pick one or more lights. Names and rooms come from Home Assistant.",
+
   "demo.title": "Demo game",
   "demo.hint": "Plays a scripted game to check your lights and voice before guests arrive.",
   "demo.preset_label": "Scenario",
