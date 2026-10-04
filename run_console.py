@@ -72,31 +72,88 @@ async def run_non_interactive(config: DevConfig) -> None:
     while engine._state.phase not in (Phase.GAME_OVER,):
         phase = engine._state.phase
         if phase == Phase.ROLE_REVEAL:
-            # Skip role reveal in non-interactive; begin night directly
-            await engine.begin_night()
+            # Start night and let it begin (reach first await for night action)
+            night_task = asyncio.create_task(engine.begin_night())
+            await asyncio.sleep(0.01)  # Let begin_night start and wait for first action
+            await _auto_night_actions(engine)
+            # Wait for night to fully resolve
+            await night_task
         elif phase == Phase.DAY:
-            # Auto-vote: each alive player votes for first alive other player
-            await engine.begin_vote()
-            state = engine.get_public_state()
-            alive = [p for p in state["players"] if p["alive"]]
-            if len(alive) >= 2:
-                votes = {}
-                for voter in alive:
-                    # Vote for next alive player (circular)
-                    others = [p for p in alive if p["id"] != voter["id"]]
-                    if others:
-                        votes[voter["id"]] = others[0]["id"]
-                await engine.resolve_vote(votes)
-            else:
-                await engine.resolve_vote({})
+            await _auto_vote(engine)
         elif phase == Phase.NIGHT:
-            # Night actions already handled by engine via DevOutputHandler
-            # Just wait for night to resolve
-            await asyncio.sleep(0.5)
+            # Should not reach here if we handle it in ROLE_REVEAL
+            night_task = asyncio.create_task(engine.begin_night())
+            await asyncio.sleep(0.01)
+            await _auto_night_actions(engine)
+            await night_task
         else:
             await asyncio.sleep(0.1)
 
     print("\n=== Game Over ===")
+
+
+async def _auto_night_actions(engine: GameEngine) -> None:
+    """Automatically submit night actions for all roles that wake up."""
+    state = engine.get_public_state()
+    alive_players = {p["id"]: p for p in state["players"] if p["alive"]}
+
+    while engine._state.phase == Phase.NIGHT:
+        # Handle regular night actions
+        pending_role = getattr(engine, "_pending_action_role", None)
+        pending_fut = getattr(engine, "_pending_action", None)
+        if pending_role and pending_fut and not pending_fut.done():
+            action = _choose_action_for_role(engine, pending_role, alive_players)
+            await engine.submit_night_action(pending_role, action)
+        # Handle interrupt actions (e.g., Seer result acknowledgment)
+        interrupt_role = getattr(engine._state, "pending_interrupt_role", None)
+        interrupt_fut = getattr(engine._state, "pending_interrupt", None)
+        if interrupt_role and interrupt_fut and not interrupt_fut.done():
+            await engine.submit_pending_action(interrupt_role, {})
+        else:
+            # Check if night is done (engine._resolve_night will transition to DAY)
+            if engine._state.phase != Phase.NIGHT:
+                break
+            await asyncio.sleep(0.05)
+
+
+def _choose_action_for_role(engine: GameEngine, role_id: str, alive_players: dict) -> dict:
+    """Choose an automatic action for the given role."""
+    alive_ids = list(alive_players.keys())
+    other_ids = [pid for pid in alive_ids if alive_players[pid].get("role_id") != role_id]
+
+    if not other_ids:
+        return {}
+
+    if role_id in ("werewolf", "alpha_wolf"):
+        return {"target": other_ids[0]}
+    if role_id == "seer":
+        return {"target": other_ids[0]}
+    if role_id == "cupid":
+        if len(other_ids) >= 2:
+            return {"lovers": [other_ids[0], other_ids[1]]}
+        return {"lovers": [other_ids[0], other_ids[0]]}
+    if role_id == "witch":
+        pending = getattr(engine._state, "pending_kills", [])
+        save_target = pending[0] if pending else None
+        poison_target = other_ids[0] if len(other_ids) > 1 else None
+        return {"save_target": save_target, "poison_target": poison_target}
+    return {}
+
+
+async def _auto_vote(engine: GameEngine) -> None:
+    """Automatically vote: each alive player votes for first other alive player."""
+    await engine.begin_vote()
+    state = engine.get_public_state()
+    alive = [p for p in state["players"] if p["alive"]]
+    if len(alive) >= 2:
+        votes = {}
+        for voter in alive:
+            others = [p for p in alive if p["id"] != voter["id"]]
+            if others:
+                votes[voter["id"]] = others[0]["id"]
+        await engine.resolve_vote(votes)
+    else:
+        await engine.resolve_vote({})
 
 
 def add_console_args(parser: argparse.ArgumentParser) -> None:
