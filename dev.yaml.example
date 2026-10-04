@@ -1,0 +1,25 @@
+# Loup Garou dev configuration
+# Copy to dev.yaml and adjust as needed
+
+language: fr              # fr | en
+tts_mode: mock            # browser | mock (console logs [TTS])
+tts_engine: tts.cloud_say # HA TTS entity (used by browser mode)
+speaker: ""               # media_player entity_id (HA mode)
+lights: []                # list of light entity_ids to simulate
+port: 8099                # devserver HTTP port
+
+# TTS phase delays (seconds) — used by mock TTS and browser TTS timeout
+tts_delays:
+  night_start: 4.0
+  role_wake: 2.5
+  role_sleep: 2.0
+  day_no_death: 3.0
+  day_with_death: 4.0
+  vote_start: 2.0
+  vote_result: 4.0
+  elimination_live: 3.5
+  game_over: 5.0
+
+# Non-interactive console mode
+players: []  # ["Alice", "Bob", "Charlie", "David"]
+roles: []    # ["werewolf", "seer", "villager", "villager"]

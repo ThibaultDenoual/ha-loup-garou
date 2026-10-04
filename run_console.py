@@ -1,128 +1,128 @@
 #!/usr/bin/env python3
 """
 Console runner for Loup Garou (Werewolf) game.
-Run with: python run_console.py
+Run with: python run_console.py [--config dev.yaml] [--non-interactive --players "A,B" --roles "werewolf,seer"]
+
+Dev features:
+- TTS simulation (mock: logs [TTS] to console)
+- Light simulation (logs [LIGHT] scene changes)
+- Full event wiring matching HA integration
 """
+from __future__ import annotations
 
+import argparse
+import asyncio
+import logging
 import sys
-import os
+from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "custom_components"))
+sys.path.insert(0, str(Path(__file__).parent / "custom_components"))
 
-from custom_components.loup_garou.core_game.engine import GameEngine
-from custom_components.loup_garou.core_game.roles import PRESETS
+from custom_components.loup_garou.console.console_runner import ConsoleRunner
+from custom_components.loup_garou.const import (
+    Phase,
+)
+from custom_components.loup_garou.game_engine import GameEngine
+from custom_components.loup_garou.roles.loader import load_roles
+from dev_config import DevConfig, add_common_args, load_config
+from dev_lights import DevLights
+from dev_output import DevOutputHandler
+from dev_tts import create_tts
 
-
-def suggest_preset(n: int) -> str:
-    """Suggest a preset based on player count."""
-    if n <= 6:
-        return "small"
-    if n <= 9:
-        return "medium"
-    if n <= 13:
-        return "large"
-    return "chaos"
-
-
-def print_presets():
-    """Print available presets."""
-    print("\nAvailable presets:")
-    for name, roles in PRESETS.items():
-        print(f"  {name}: {len(roles)} roles - {roles}")
+logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
+_LOGGER = logging.getLogger("console")
 
 
-def get_role_names(n: int) -> list[str]:
-    """Get role names from user (with preset suggestions)."""
-    suggested = suggest_preset(n)
-    print_presets()
-    print(f"\nSuggested preset for {n} players: {suggested}")
-    print(f"  → {PRESETS[suggested]}")
-
-    while True:
-        choice = input("\nUse preset or customize? (preset name/custom): ").strip().lower()
-        if choice in PRESETS:
-            role_names = PRESETS[choice][:]
-            if len(role_names) != n:
-                print(f"Warning: '{choice}' preset has {len(role_names)} roles but you have {n} players.")
-                if input("Adjust to match player count? (y/n): ").strip().lower() != 'y':
-                    continue
-                role_names = _adjust_roles(role_names, n)
-            break
-        elif choice == "custom":
-            role_names = _get_custom_roles(n)
-            break
-        else:
-            print(f"Invalid choice. Enter a preset name or 'custom'.")
-
-    print(f"\nFinal roles: {role_names}")
-    return role_names
+async def run_interactive(config: DevConfig) -> None:
+    """Interactive mode — prompts for players and roles."""
+    runner = ConsoleRunner(language=config.language)
+    await runner.run()
 
 
-def _adjust_roles(roles: list[str], target: int) -> list[str]:
-    """Adjust role list to match target count by adding/removing Villagers."""
-    while len(roles) < target:
-        roles.append("Villager")
-    while len(roles) > target:
-        if "Villager" in roles:
-            roles.remove("Villager")
-        else:
-            roles.pop()
-    return roles
-
-
-def _get_custom_roles(n: int) -> list[str]:
-    """Get custom role configuration from user."""
-    print("\nEnter roles (comma-separated) or press Enter for default villagers:")
-    print(f"Available roles: Werewolf, Seer, Doctor, Hunter, Witch, Bodyguard, "
-          "Cupid, Alpha Wolf, Minion, Serial Killer, Jester, Villager")
-
-    while True:
-        roles_input = input(f"Enter {n} roles (comma-separated): ").strip()
-        if not roles_input:
-            return ["Villager"] * n
-
-        role_names = [r.strip() for r in roles_input.split(",")]
-
-        if len(role_names) != n:
-            print(f"Need exactly {n} roles, got {len(role_names)}. Try again.")
-            continue
-
-        invalid = [r for r in role_names if r not in PRESETS.get("chaos")]
-        if invalid:
-            print(f"Unknown roles: {invalid}. Try again.")
-            continue
-
-        return role_names
-
-
-def main():
-    print("🐺 Loup Garou - Console Mode 🐺\n")
-
-    while True:
-        try:
-            n = int(input("Number of players (4-18): ").strip())
-            if 4 <= n <= 18:
-                break
-            print("Please enter a number between 4 and 18.")
-        except ValueError:
-            print("Please enter a valid number.")
-
-    role_names = get_role_names(n)
-
-    print("\n" + "=" * 40)
-    print("Player names:")
-    names = []
-    while len(names) < n:
-        name = input(f"Player {len(names)+1} name: ").strip()
-        if name:
-            names.append(name)
-
-    if len(names) < 4:
-        print("Need at least 4 players!")
+async def run_non_interactive(config: DevConfig) -> None:
+    """Non-interactive mode — uses config.players and config.roles."""
+    if not config.players:
+        print("Error: --players required in non-interactive mode")
+        sys.exit(1)
+    if not config.roles:
+        print("Error: --roles required in non-interactive mode")
+        sys.exit(1)
+    if len(config.players) != len(config.roles):
+        print(f"Error: player count ({len(config.players)}) != role count ({len(config.roles)})")
         sys.exit(1)
 
-    engine = GameEngine(player_names=names, role_names=role_names)
-    engine.run()
+    # Load roles to validate
+    load_roles()
+    engine = GameEngine()
+
+    # Setup TTS + lights + output handler
+    tts = create_tts(config.tts_mode, delays=config.tts_delays)
+    lights = DevLights(config.lights)
+    DevOutputHandler(engine, tts, lights, config.language).wire_events()
+
+    print("\n=== Loup Garou Console (non-interactive) ===")
+    print(f"Players: {config.players}")
+    print(f"Roles:   {config.roles}")
+    print(f"Language: {config.language}")
+    print(f"TTS mode: {config.tts_mode}")
+
+    await engine.start_game(config.players, config.roles)
+
+    # Game loop — drive phases automatically
+    while engine._state.phase not in (Phase.GAME_OVER,):
+        phase = engine._state.phase
+        if phase == Phase.ROLE_REVEAL:
+            # Skip role reveal in non-interactive; begin night directly
+            await engine.begin_night()
+        elif phase == Phase.DAY:
+            # Auto-vote: each alive player votes for first alive other player
+            await engine.begin_vote()
+            state = engine.get_public_state()
+            alive = [p for p in state["players"] if p["alive"]]
+            if len(alive) >= 2:
+                votes = {}
+                for voter in alive:
+                    # Vote for next alive player (circular)
+                    others = [p for p in alive if p["id"] != voter["id"]]
+                    if others:
+                        votes[voter["id"]] = others[0]["id"]
+                await engine.resolve_vote(votes)
+            else:
+                await engine.resolve_vote({})
+        elif phase == Phase.NIGHT:
+            # Night actions already handled by engine via DevOutputHandler
+            # Just wait for night to resolve
+            await asyncio.sleep(0.5)
+        else:
+            await asyncio.sleep(0.1)
+
+    print("\n=== Game Over ===")
+
+
+def add_console_args(parser: argparse.ArgumentParser) -> None:
+    add_common_args(parser)
+    parser.add_argument(
+        "--non-interactive", action="store_true", help="Run without prompts (requires --players --roles)"
+    )
+    parser.add_argument(
+        "--players", help="Comma-separated player names (non-interactive)"
+    )
+    parser.add_argument(
+        "--roles", help="Comma-separated role IDs (non-interactive)"
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Loup Garou console runner")
+    add_console_args(parser)
+    args = parser.parse_args()
+
+    config = load_config(parser, args)
+
+    if args.non_interactive:
+        asyncio.run(run_non_interactive(config))
+    else:
+        asyncio.run(run_interactive(config))
 
 
 if __name__ == "__main__":
