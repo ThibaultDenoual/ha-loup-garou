@@ -134,12 +134,21 @@ Browser (phone)  ──▶  game_server.py  (WebSocket / aiohttp)
 The game engine is **completely decoupled from Home Assistant**. You can run it standalone for development or testing:
 
 ```bash
-# Standalone web UI (no HA required)
-python run_devserver.py --port 8099
+# Install development dependencies
+python -m pip install -r requirements_test.txt
+
+# Standalone browser game (no HA required)
+python run_devserver.py --config dev.yaml
+# Open http://localhost:8099/loup_garou/game/launcher.html
+
+# Set tts_mode: browser in dev.yaml to hear browser speech; mock logs narration
+# to the server console instead.
 
 # Console-only mode
-python run_console.py
+python run_console.py --config dev.yaml
 ```
+
+The standalone server uses the same game UI and WebSocket protocol as Home Assistant, so it is the recommended way to playtest UI changes with people before installing a release.
 
 ---
 

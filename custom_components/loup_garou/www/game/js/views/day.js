@@ -50,9 +50,13 @@ function _renderGrid() {
   state.players.forEach(p => {
     const card = document.createElement('div');
     card.className = 'player-card' + (p.alive ? '' : ' dead');
-    card.innerHTML = `
-      <div class="player-name">${p.name}</div>
-      <div class="player-role">${p.alive ? '' : roleName(p.role_id)}</div>`;
+    const name = document.createElement('div');
+    name.className = 'player-name';
+    name.textContent = p.name;
+    const role = document.createElement('div');
+    role.className = 'player-role';
+    role.textContent = p.alive ? '' : roleName(p.role_id);
+    card.append(name, role);
     grid.appendChild(card);
   });
 }

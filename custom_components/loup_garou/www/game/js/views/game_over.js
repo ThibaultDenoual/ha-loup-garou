@@ -33,19 +33,27 @@ export function render() {
   state.players.forEach(p => {
     const card = document.createElement('div');
     card.className = 'player-card' + (p.alive ? '' : ' dead');
-    const dot = _teamDot(p.role_id);
-    card.innerHTML = `
-      <div class="player-name">${p.name}</div>
-      <div class="player-role">${dot}${roleName(p.role_id)}</div>`;
+    const name = document.createElement('div');
+    name.className = 'player-name';
+    name.textContent = p.name;
+    const role = document.createElement('div');
+    role.className = 'player-role';
+    const dot = document.createElement('span');
+    dot.className = 'player-team-dot';
+    dot.style.background = _teamColor(p.role_id);
+    const roleLabel = document.createElement('span');
+    roleLabel.textContent = roleName(p.role_id);
+    role.append(dot, roleLabel);
+    card.append(name, role);
     grid.appendChild(card);
   });
 }
 
-function _teamDot(roleId) {
+function _teamColor(roleId) {
   const wolves = ['werewolf', 'alpha_wolf', 'minion'];
   const lovers = ['cupid'];
   let color = 'var(--sage)';
   if (wolves.includes(roleId)) color = 'var(--blood-bright)';
   else if (lovers.includes(roleId)) color = 'var(--rose)';
-  return `<span class="player-team-dot" style="background:${color}"></span>`;
+  return color;
 }

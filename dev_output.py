@@ -82,14 +82,21 @@ class DevOutputHandler:
             elif cause == "witch_poison":
                 article = "une" if role == "witch" else "un"
                 await self._narrate("elimination.witch_poison", name=name, article=article, role=role)
-            elif cause == "village_vote":
-                article = "une" if role == "witch" else "un"
-                await self._narrate("elimination.village_vote", name=name, article=article, role=role)
+            else:
+                # wolf_kill and village_vote are announced via DAY_STARTED /
+                # VOTE_RESOLVED, not live (matches Atmosphere)
+                return
             await self._lights.set_scene("death")
             await self._lights.set_scene("day")
 
         async def on_night_role_wake(data: dict) -> None:
             role = data.get("role", "")
+            if data.get("result"):
+                # Seer investigation result — shown on the seer's screen.
+                # TTS/lights deliberately skipped (matches Atmosphere).
+                _LOGGER.info("[SEER] result: %s", data["result"])
+                return
+
             role_scenes = {
                 "cupid": "cupid",
                 "seer": "seer_wake",

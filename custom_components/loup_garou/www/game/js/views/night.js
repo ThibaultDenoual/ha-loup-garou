@@ -253,7 +253,7 @@ function _renderWitch(data, alive) {
   if (victims.length) {
     const victimBox = document.getElementById('na-victim');
     victimBox.style.display = '';
-    victimBox.innerHTML = `<strong>Victime cette nuit :</strong> ${victims.map(p => p.name).join(', ')}`;
+    victimBox.textContent = `Victime cette nuit : ${victims.map(p => p.name).join(', ')}`;
   }
 
   const witchBox = document.getElementById('na-witch-potions');
@@ -415,9 +415,12 @@ function _onConfirm() {
 function _makePlayerCard(player, onClick) {
   const card = document.createElement('div');
   card.className = 'player-card';
-  card.innerHTML = `
-    <div class="player-name">${player.name}</div>
-    <div class="player-role"></div>`;
+  const name = document.createElement('div');
+  name.className = 'player-name';
+  name.textContent = player.name;
+  const role = document.createElement('div');
+  role.className = 'player-role';
+  card.append(name, role);
   card.addEventListener('click', onClick);
   return card;
 }

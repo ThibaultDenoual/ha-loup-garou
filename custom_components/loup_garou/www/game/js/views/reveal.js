@@ -60,14 +60,23 @@ function _showCurrent() {
   card.classList.remove('flipped');
 
   const front = card.querySelector('.card-front');
-  front.innerHTML = `<span class="reveal-tap">${t('ui.reveal.tap_to_reveal')}</span>`;
+  const tap = document.createElement('span');
+  tap.className = 'reveal-tap';
+  tap.textContent = t('ui.reveal.tap_to_reveal');
+  front.replaceChildren(tap);
 
   const back = card.querySelector('.card-back');
   back.className = `card-face card-back ${_teamClass(p.role_id)}`;
-  back.innerHTML = `
-    <div class="reveal-role-name">${roleName(p.role_id)}</div>
-    <div class="reveal-role-desc">${roleDesc(p.role_id)}</div>
-    <span class="reveal-team-badge">${_teamLabel(p.role_id)}</span>`;
+  const name = document.createElement('div');
+  name.className = 'reveal-role-name';
+  name.textContent = roleName(p.role_id);
+  const description = document.createElement('div');
+  description.className = 'reveal-role-desc';
+  description.textContent = roleDesc(p.role_id);
+  const team = document.createElement('span');
+  team.className = 'reveal-team-badge';
+  team.textContent = _teamLabel(p.role_id);
+  back.replaceChildren(name, description, team);
 
   document.getElementById('btn-reveal-seen').style.display = 'none';
   document.getElementById('btn-reveal-seen').textContent = t('ui.reveal.seen');

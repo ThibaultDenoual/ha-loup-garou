@@ -45,6 +45,11 @@ class RoleContext:
         """Player IDs marked for death this night (wolves' choices so far)."""
         return [pid for pid, _ in self._state.pending_kills]
 
+    @property
+    def pending_kill_entries(self) -> list[tuple[str, str]]:
+        """Pending player IDs and causes, for role-specific wake information."""
+        return list(self._state.pending_kills)
+
     def get_player(self, player_id: str) -> dict | None:
         p = self._state.players.get(player_id)
         return p.to_dict() if p else None

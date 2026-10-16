@@ -173,3 +173,57 @@ async def test_get_config_returns_tts_mode():
     sent = ws.send_json.call_args[0][0]
     assert sent["type"] == "config"
     assert sent["config"][CONF_TTS_MODE] == "browser"
+
+
+async def test_command_runtime_error_is_sanitized_for_client():
+    engine = MagicMock()
+    engine.on = MagicMock()
+    server = LoupGarouServer(engine)
+    engine.start_game = AsyncMock(side_effect=RuntimeError("/private/path/secret"))
+    ws = MagicMock()
+    ws.send_json = AsyncMock()
+
+    await server._dispatch(ws, {
+        "cmd": "start_game",
+        "data": {"players": ["Alice"], "roles": ["villager"]},
+    })
+
+    response = ws.send_json.call_args.args[0]
+    assert response == {
+        "type": "error",
+        "code": "internal_error",
+        "msg": "An internal error occurred. Check the server logs.",
+    }
+
+
+async def test_command_missing_field_returns_bad_request():
+    engine = MagicMock()
+    engine.on = MagicMock()
+    server = LoupGarouServer(engine)
+    ws = MagicMock()
+    ws.send_json = AsyncMock()
+
+    await server._dispatch(ws, {"cmd": "start_game", "data": {}})
+
+    response = ws.send_json.call_args.args[0]
+    assert response["type"] == "error"
+    assert response["code"] == "bad_request"
+    assert response["msg"] == "Missing required field: players"
+
+
+async def test_command_value_error_does_not_expose_exception_text():
+    engine = MagicMock()
+    engine.on = MagicMock()
+    engine.start_game = AsyncMock(side_effect=ValueError("/private/path/secret"))
+    server = LoupGarouServer(engine)
+    ws = MagicMock()
+    ws.send_json = AsyncMock()
+
+    await server._dispatch(ws, {
+        "cmd": "start_game",
+        "data": {"players": ["Alice"], "roles": ["villager"]},
+    })
+
+    response = ws.send_json.call_args.args[0]
+    assert response["code"] == "bad_request"
+    assert response["msg"] == "Invalid request."

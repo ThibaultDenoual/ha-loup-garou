@@ -60,9 +60,12 @@ function _renderGrid(excludeId) {
   state.players.filter(p => p.alive && p.id !== excludeId).forEach(p => {
     const card = document.createElement('div');
     card.className = 'player-card';
-    card.innerHTML = `
-      <div class="player-name">${p.name}</div>
-      <div class="player-role"></div>`;
+    const name = document.createElement('div');
+    name.className = 'player-name';
+    name.textContent = p.name;
+    const role = document.createElement('div');
+    role.className = 'player-role';
+    card.append(name, role);
     card.addEventListener('click', () => {
       grid.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');

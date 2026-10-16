@@ -54,9 +54,6 @@ def build_app(config: DevConfig) -> web.Application:
 
     app = web.Application()
 
-    # WebSocket
-    app.router.add_get("/loup_garou/ws", server.handle_ws)
-
     # Static: game UI and locales
     www_root = ROOT / "custom_components" / "loup_garou" / "www"
     locale_root = ROOT / "custom_components" / "loup_garou" / "locales"

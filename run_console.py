@@ -134,8 +134,8 @@ def _choose_action_for_role(engine: GameEngine, role_id: str, alive_players: dic
         return {"lovers": [other_ids[0], other_ids[0]]}
     if role_id == "witch":
         pending = getattr(engine._state, "pending_kills", [])
-        save_target = pending[0] if pending else None
-        poison_target = other_ids[0] if len(other_ids) > 1 else None
+        save_target = pending[0][0] if pending else None
+        poison_target = next((cid for cid in other_ids if cid != save_target), None)
         return {"save_target": save_target, "poison_target": poison_target}
     return {}
 

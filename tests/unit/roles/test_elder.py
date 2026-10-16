@@ -5,6 +5,7 @@ from loup_garou.game_engine import GameEngine
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
 from loup_garou.roles.impl.elder import Elder
+from loup_garou.roles.impl.witch import Witch
 from tests.unit.conftest import make_engine, make_ctx
 
 
@@ -59,6 +60,32 @@ async def test_elder_dies_from_vote_even_with_first_life():
     decision = await role.on_before_eliminate(ctx, elder_id, "village_vote")
 
     assert decision.cancel is False
+
+
+async def test_witch_does_not_offer_elder_save_for_first_wolf_attack():
+    engine = make_engine(Villager, Werewolf, Elder, Witch)
+    await engine.start_game(
+        ["Alice", "Bob", "Carol", "David"],
+        ["elder", "villager", "werewolf", "witch"],
+    )
+    elder_id = next(p.id for p in engine._state.players.values() if p.role_id == "elder")
+    villager_id = next(p.id for p in engine._state.players.values() if p.role_id == "villager")
+    engine._state.pending_kills = [
+        (elder_id, "wolf_kill"),
+        (villager_id, "wolf_kill"),
+    ]
+
+    data = engine._roles["witch"].get_wake_data(make_ctx(engine._state))
+
+    assert data["pending_kills"] == [{"player_id": villager_id, "cause": "wolf_kill"}]
+    assert data["save_used"] is False
+
+    witch_id = next(p.id for p in engine._state.players.values() if p.role_id == "witch")
+    await engine._roles["witch"].on_night_action(
+        make_ctx(engine._state), {"player_id": witch_id, "save_target": elder_id}
+    )
+    assert engine._state.player_flags[witch_id]["witch_save_used"] is False
+    assert (elder_id, "wolf_kill") in engine._state.pending_kills
 
 
 async def test_elder_does_not_affect_other_players():

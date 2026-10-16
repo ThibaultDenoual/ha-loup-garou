@@ -1,17 +1,15 @@
 """Tests for GameEngine lifecycle, event system, and elimination chain."""
 import asyncio
-import pytest
 
-from loup_garou.game_engine import GameEngine
+import pytest
 from loup_garou.const import GameEvent, Phase
+from loup_garou.roles.impl.cupid import Cupid
+from loup_garou.roles.impl.elder import Elder
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
-from loup_garou.roles.impl.seer import Seer
-from loup_garou.roles.impl.elder import Elder
 from loup_garou.roles.impl.witch import Witch
-from loup_garou.roles.impl.cupid import Cupid
-from tests.unit.conftest import make_engine
 
+from tests.unit.conftest import make_engine
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -154,6 +152,29 @@ async def test_vote_tie_no_elimination():
     assert eliminated is None
 
 
+async def test_vote_tie_returns_to_day():
+    """A tie with no scapegoat must transition back to DAY, not leave phase=VOTE."""
+    engine = make_engine(Villager, Werewolf)
+    await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "villager", "werewolf"])
+    alice_id = next(p.id for p in engine._state.players.values() if p.name == "Alice")
+    bob_id = next(p.id for p in engine._state.players.values() if p.name == "Bob")
+    carol_id = next(p.id for p in engine._state.players.values() if p.name == "Carol")
+
+    await engine.begin_vote()
+    await engine.resolve_vote({alice_id: bob_id, carol_id: alice_id})
+    assert engine._state.phase == Phase.DAY
+
+
+async def test_vote_empty_returns_to_day():
+    """Voting with no valid ballots must transition back to DAY, not leave phase=VOTE."""
+    engine = make_engine(Villager, Werewolf)
+    await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "villager", "werewolf"])
+
+    await engine.begin_vote()
+    await engine.resolve_vote({})
+    assert engine._state.phase == Phase.DAY
+
+
 async def test_vote_emits_vote_resolved():
     engine = make_engine(Villager, Werewolf)
     await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "villager", "werewolf"])
@@ -169,6 +190,25 @@ async def test_vote_emits_vote_resolved():
     await engine.resolve_vote({alice_id: carol_id, bob_id: carol_id})
     assert len(events) == 1
     assert events[0]["eliminated"] == carol_id
+
+
+async def test_vote_resolved_fires_before_game_over():
+    """Voting out the werewolf ends the game, but VOTE_RESOLVED must precede GAME_OVER."""
+    engine = make_engine(Villager, Werewolf)
+    await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "villager", "werewolf"])
+    alice_id = next(p.id for p in engine._state.players.values() if p.name == "Alice")
+    bob_id = next(p.id for p in engine._state.players.values() if p.name == "Bob")
+    carol_id = next(p.id for p in engine._state.players.values() if p.name == "Carol")
+
+    order = []
+    async def on_vote_resolved(d): order.append("vote_resolved")
+    async def on_game_over(d): order.append("game_over")
+    engine.on(GameEvent.VOTE_RESOLVED, on_vote_resolved)
+    engine.on(GameEvent.GAME_OVER, on_game_over)
+
+    await engine.begin_vote()
+    await engine.resolve_vote({alice_id: carol_id, bob_id: carol_id})
+    assert order == ["vote_resolved", "game_over"]
 
 
 # ── Witch integration ─────────────────────────────────────────────────────────
@@ -244,5 +284,65 @@ async def test_lover_dies_when_partner_eliminated():
     asyncio.get_event_loop().create_task(submit())
     await engine.begin_night()
 
+    assert not engine._state.players[alice_id].alive
+    assert not engine._state.players[bob_id].alive
+
+
+async def test_lover_grief_flushed_before_win_check():
+    """Wolves reaching parity must not stop the grief death of the partner mid-queue."""
+    engine = make_engine(Villager, Werewolf, Cupid)
+    await engine.start_game(
+        ["Alice", "Bob", "Carol", "Dave"],
+        ["villager", "villager", "werewolf", "cupid"],
+    )
+    alice_id = next(p.id for p in engine._state.players.values() if p.name == "Alice")
+    bob_id = next(p.id for p in engine._state.players.values() if p.name == "Bob")
+    dave_id = next(p.id for p in engine._state.players.values() if p.name == "Dave")
+    engine._state.player_links["lovers"] = [alice_id, bob_id]
+
+    async def night1():
+        await asyncio.sleep(0)
+        await engine.submit_night_action("cupid", {"lovers": []})  # skip night 1 link
+        await asyncio.sleep(0)
+        await engine.submit_night_action("werewolf", {"target": dave_id})
+
+    asyncio.get_event_loop().create_task(night1())
+    await engine.begin_night()
+    assert engine._state.phase == Phase.DAY
+
+    async def night2():
+        await asyncio.sleep(0)
+        await engine.submit_night_action("werewolf", {"target": alice_id})
+
+    asyncio.get_event_loop().create_task(night2())
+    await engine.begin_night()
+
+    assert engine._state.phase == Phase.GAME_OVER
+    assert engine._state.winner == "wolves"
+    assert not engine._state.players[alice_id].alive
+    assert not engine._state.players[bob_id].alive
+
+
+async def test_village_wins_when_last_wolf_voted_and_grief_empties_board():
+    """Vote flushes the grief chain before deciding: last wolf voted out while its
+    villager lover dies of grief leaves an empty board — still a village win."""
+    engine = make_engine(Villager, Werewolf, Cupid)
+    await engine.start_game(
+        ["Alice", "Bob", "Carol", "Dave", "Eve"],
+        ["villager", "werewolf", "villager", "villager", "cupid"],
+    )
+    alice_id = next(p.id for p in engine._state.players.values() if p.name == "Alice")
+    bob_id = next(p.id for p in engine._state.players.values() if p.name == "Bob")
+    engine._state.player_links["lovers"] = [alice_id, bob_id]
+    # The village was whittled down: only the lover pair remains.
+    for name in ("Carol", "Dave", "Eve"):
+        pid = next(p.id for p in engine._state.players.values() if p.name == name)
+        engine._state.players[pid].alive = False
+
+    await engine.begin_vote()
+    await engine.resolve_vote({alice_id: bob_id})
+
+    assert engine._state.phase == Phase.GAME_OVER
+    assert engine._state.winner == "village"
     assert not engine._state.players[alice_id].alive
     assert not engine._state.players[bob_id].alive

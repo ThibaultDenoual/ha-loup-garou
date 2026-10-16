@@ -18,13 +18,34 @@ class Witch(BaseRole):
     def get_wake_data(self, ctx: RoleContext) -> dict:
         witch_players = ctx.alive_players_by_role(self.id)
         witch_id = witch_players[0]["id"] if witch_players else None
+        # An Elder's first wolf attack is already negated by their protection,
+        # so showing that target here could waste the Witch's one-use save potion.
+        pending_kills = []
+        for player_id, cause in ctx.pending_kill_entries:
+            player = ctx.get_player(player_id)
+            elder_is_protected = (
+                cause == "wolf_kill"
+                and player is not None
+                and player["role_id"] == "elder"
+                and ctx.get_flag(player_id, "elder_first_life", False)
+            )
+            if not elder_is_protected:
+                pending_kills.append({"player_id": player_id, "cause": cause})
         return {
-            "pending_kills": [
-                {"player_id": pid, "cause": cause}
-                for pid, cause in ctx._state.pending_kills
-            ],
+            "pending_kills": pending_kills,
             "save_used": ctx.get_flag(witch_id, "witch_save_used", False) if witch_id else True,
             "poison_used": ctx.get_flag(witch_id, "witch_poison_used", False) if witch_id else True,
+        }
+
+    def get_public_state(self, ctx: RoleContext) -> dict:
+        witch_players = ctx.alive_players_by_role(self.id)
+        if not witch_players:
+            return {}
+        witch_id = witch_players[0]["id"]
+        return {
+            "witch_id": witch_id,
+            "witch_save_available": not ctx.get_flag(witch_id, "witch_save_used", False),
+            "witch_poison_available": not ctx.get_flag(witch_id, "witch_poison_used", False),
         }
 
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
@@ -39,8 +60,19 @@ class Witch(BaseRole):
         poison_target = action.get("poison_target")
 
         if save_target and not ctx.get_flag(witch_id, "witch_save_used"):
-            ctx.remove_pending_kill(save_target)
-            ctx.set_flag(witch_id, "witch_save_used", True)
+            player = ctx.get_player(save_target)
+            is_protected_elder = (
+                player is not None
+                and player["role_id"] == "elder"
+                and ctx.get_flag(save_target, "elder_first_life", False)
+            )
+            is_pending_wolf_victim = any(
+                pid == save_target and cause == "wolf_kill"
+                for pid, cause in ctx.pending_kill_entries
+            )
+            if is_pending_wolf_victim and not is_protected_elder:
+                ctx.remove_pending_kill(save_target)
+                ctx.set_flag(witch_id, "witch_save_used", True)
 
         if poison_target and not ctx.get_flag(witch_id, "witch_poison_used"):
             target = ctx.get_player(poison_target)
