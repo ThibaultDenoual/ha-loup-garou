@@ -193,6 +193,8 @@ class LoupGarouServer:
             _LOGGER.info("Rejected invalid command %s: %s", cmd, exc)
             if isinstance(exc, KeyError):
                 message = f"Missing required field: {exc.args[0]}"
+            elif isinstance(exc, ValueError):
+                message = str(exc)
             else:
                 message = "Invalid request."
             await ws.send_json({"type": "error", "code": "bad_request", "msg": message})

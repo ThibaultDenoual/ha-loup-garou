@@ -35,6 +35,17 @@ class Witch(BaseRole):
             "poison_used": ctx.get_flag(witch_id, "witch_poison_used", False) if witch_id else True,
         }
 
+    def get_public_state(self, ctx: RoleContext) -> dict:
+        witch_players = ctx.alive_players_by_role(self.id)
+        if not witch_players:
+            return {}
+        witch_id = witch_players[0]["id"]
+        return {
+            "witch_id": witch_id,
+            "witch_save_available": not ctx.get_flag(witch_id, "witch_save_used", False),
+            "witch_poison_available": not ctx.get_flag(witch_id, "witch_poison_used", False),
+        }
+
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
         witch_id = action.get("player_id")
         if witch_id is None:
