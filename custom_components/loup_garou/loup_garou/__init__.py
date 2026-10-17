@@ -145,7 +145,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         url = f"/{DOMAIN}/ws"
         name = f"{DOMAIN}_ws"
-        requires_auth = False
+        requires_auth = True
 
         def __init__(self, server: LoupGarouServer) -> None:
             self._server = server

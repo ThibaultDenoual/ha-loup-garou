@@ -59,7 +59,23 @@ class LoupGarouServer:
         try:
             async for msg in ws:
                 if msg.type == WSMsgType.TEXT:
-                    await self._dispatch(ws, json.loads(msg.data))
+                    try:
+                        payload = json.loads(msg.data)
+                    except json.JSONDecodeError:
+                        await ws.send_json({
+                            "type": "error",
+                            "code": "bad_request",
+                            "msg": "Invalid JSON message.",
+                        })
+                        continue
+                    if not isinstance(payload, dict):
+                        await ws.send_json({
+                            "type": "error",
+                            "code": "bad_request",
+                            "msg": "WebSocket message must be a JSON object.",
+                        })
+                        continue
+                    await self._dispatch(ws, payload)
                 elif msg.type == WSMsgType.ERROR:
                     _LOGGER.warning("WS error: %s", ws.exception())
         finally:
@@ -173,9 +189,20 @@ class LoupGarouServer:
                     await self._cmd_stop_demo()
                 case _:
                     await ws.send_json({"type": "error", "msg": f"unknown command: {cmd}"})
-        except Exception as exc:
+        except (KeyError, TypeError, ValueError) as exc:
+            _LOGGER.info("Rejected invalid command %s: %s", cmd, exc)
+            if isinstance(exc, KeyError):
+                message = f"Missing required field: {exc.args[0]}"
+            else:
+                message = "Invalid request."
+            await ws.send_json({"type": "error", "code": "bad_request", "msg": message})
+        except Exception:
             _LOGGER.exception("Error handling command %s", cmd)
-            await ws.send_json({"type": "error", "msg": str(exc)})
+            await ws.send_json({
+                "type": "error",
+                "code": "internal_error",
+                "msg": "An internal error occurred. Check the server logs.",
+            })
 
     async def _cmd_start_game(self, data: dict) -> None:
         if self._demo_running():
@@ -308,14 +335,7 @@ class LoupGarouServer:
 
             # For witch: include her potion availability
             if role_id == "witch":
-                witch = next(
-                    (p for p in pub["players"] if p["role_id"] == "witch" and p["alive"]), None
-                )
-                if witch:
-                    flags = self._engine._state.player_flags.get(witch["id"], {})
-                    enriched["witch_id"] = witch["id"]
-                    enriched["witch_save_available"] = not flags.get("witch_save_used", False)
-                    enriched["witch_poison_available"] = not flags.get("witch_poison_used", False)
+                enriched.update(self._engine.get_role_public_state("witch"))
 
             await self.broadcast({"type": "night_role_wake", "data": enriched})
 
