@@ -22,7 +22,11 @@ async def ws_for(fn, role_classes=None, **server_kwargs):
     async with TestServer(app) as ts:
         async with aiohttp.ClientSession() as sess:
             async with sess.ws_connect(ts.make_url("/ws")) as ws:
-                return await fn(ws, engine, srv)
+                try:
+                    return await fn(ws, engine, srv)
+                finally:
+                    if srv._demo_running():
+                        await srv._cmd_stop_demo()
 
 
 async def send(ws, cmd, **data):
