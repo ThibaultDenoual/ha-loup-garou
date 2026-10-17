@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 
 from aiohttp import WSMsgType, web
 
+from .const import Phase
+from .demo import DEMOS, DemoRunner, list_demos
 from .game_engine import GameEngine
 from .narration import NarrationMessage
 
@@ -14,12 +17,24 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class LoupGarouServer:
-    def __init__(self, engine: GameEngine, config: dict | None = None) -> None:
+    def __init__(
+        self,
+        engine: GameEngine,
+        config: dict | None = None,
+        *,
+        demo_action_delay: float = 1.5,
+        demo_step_delay: float = 1.0,
+    ) -> None:
         self._engine = engine
         self._config: dict = config or {}
         self._clients: set[web.WebSocketResponse] = set()
         self._night_task: asyncio.Task | None = None
         self._tts_future: asyncio.Future | None = None
+        self._demo_task: asyncio.Task | None = None
+        self._demo_runner: DemoRunner | None = None
+        # Pacing between scripted demo steps; lowered to 0 in tests.
+        self._demo_action_delay = demo_action_delay
+        self._demo_step_delay = demo_step_delay
         self._save_config_cb = None
         self._get_entities_cb = None
         self._test_audio_cb = None
@@ -44,7 +59,23 @@ class LoupGarouServer:
         try:
             async for msg in ws:
                 if msg.type == WSMsgType.TEXT:
-                    await self._dispatch(ws, json.loads(msg.data))
+                    try:
+                        payload = json.loads(msg.data)
+                    except json.JSONDecodeError:
+                        await ws.send_json({
+                            "type": "error",
+                            "code": "bad_request",
+                            "msg": "Invalid JSON message.",
+                        })
+                        continue
+                    if not isinstance(payload, dict):
+                        await ws.send_json({
+                            "type": "error",
+                            "code": "bad_request",
+                            "msg": "WebSocket message must be a JSON object.",
+                        })
+                        continue
+                    await self._dispatch(ws, payload)
                 elif msg.type == WSMsgType.ERROR:
                     _LOGGER.warning("WS error: %s", ws.exception())
         finally:
@@ -81,7 +112,9 @@ class LoupGarouServer:
         except asyncio.TimeoutError:
             _LOGGER.warning("Browser TTS timed out after 10 s for: %.60s", msg.text)
         except asyncio.CancelledError:
-            _LOGGER.error("Asyncio.CancelledError")
+            # Expected when a demo is stopped mid-narration — the caller unwinds.
+            _LOGGER.debug("Narration cancelled: %.60s", msg.text)
+            raise
         finally:
             self._tts_future = None
 
@@ -143,13 +176,39 @@ class LoupGarouServer:
                                 except Exception:
                                     pass
                         asyncio.create_task(_run_test())
+                case "get_demos":
+                    await ws.send_json({"type": "demo_presets", "presets": list_demos()})
+                case "run_demo":
+                    _require(data, "preset")
+                    reason = self._demo_rejection_reason(data["preset"])
+                    if reason:
+                        await ws.send_json({"type": "demo_rejected", "data": {"reason": reason}})
+                    else:
+                        await self._cmd_run_demo(data["preset"])
+                case "stop_demo":
+                    await self._cmd_stop_demo()
                 case _:
                     await ws.send_json({"type": "error", "msg": f"unknown command: {cmd}"})
-        except Exception as exc:
+        except (KeyError, TypeError, ValueError) as exc:
+            _LOGGER.info("Rejected invalid command %s: %s", cmd, exc)
+            if isinstance(exc, KeyError):
+                message = f"Missing required field: {exc.args[0]}"
+            elif isinstance(exc, ValueError):
+                message = str(exc)
+            else:
+                message = "Invalid request."
+            await ws.send_json({"type": "error", "code": "bad_request", "msg": message})
+        except Exception:
             _LOGGER.exception("Error handling command %s", cmd)
-            await ws.send_json({"type": "error", "msg": str(exc)})
+            await ws.send_json({
+                "type": "error",
+                "code": "internal_error",
+                "msg": "An internal error occurred. Check the server logs.",
+            })
 
     async def _cmd_start_game(self, data: dict) -> None:
+        if self._demo_running():
+            raise ValueError("demo already running")
         players = data["players"]
         role_ids = data["roles"]
         await self._engine.start_game(players, role_ids)
@@ -160,6 +219,68 @@ class LoupGarouServer:
             _LOGGER.warning("begin_night: night already in progress")
             return
         self._night_task = asyncio.create_task(self._engine.begin_night())
+
+    # ── Demo games ───────────────────────────────────────────────────────────
+
+    def _demo_running(self) -> bool:
+        return self._demo_task is not None and not self._demo_task.done()
+
+    def _demo_rejection_reason(self, preset: str) -> str | None:
+        """Why this demo cannot start right now, or None if it can."""
+        if self._demo_running():
+            return "already_running"
+        if preset not in DEMOS:
+            return "unknown_preset"
+        if self._engine.get_public_state()["phase"] != Phase.SETUP:
+            return "game_in_progress"
+        return None
+
+    async def _cmd_run_demo(self, preset: str) -> None:
+        script = DEMOS[preset]
+
+        async def _on_step(step: str) -> None:
+            await self.broadcast({"type": "demo_step", "data": {"preset": script.key, "step": step}})
+
+        runner = DemoRunner(
+            self._engine,
+            script,
+            action_delay=self._demo_action_delay,
+            step_delay=self._demo_step_delay,
+            on_step=_on_step,
+        )
+        self._demo_runner = runner
+        self._demo_task = asyncio.create_task(self._run_demo(runner))
+        # Share the slot so a real begin_night cannot race the demo's own night.
+        self._night_task = self._demo_task
+        await self.broadcast({"type": "demo_started", "data": {"preset": script.key}})
+
+    async def _run_demo(self, runner: DemoRunner) -> None:
+        try:
+            await runner.run()
+        except asyncio.CancelledError:
+            _LOGGER.debug("Demo cancelled")
+        except Exception:
+            _LOGGER.exception("Demo failed")
+            await self.broadcast({"type": "demo_error", "data": {"msg": "demo_failed"}})
+        else:
+            await self.broadcast({"type": "demo_finished", "data": {"preset": runner.key}})
+
+    async def _cmd_stop_demo(self) -> None:
+        task = self._demo_task
+        if task is None or task.done():
+            await self.broadcast({"type": "demo_stopped", "data": {}})
+            return
+        if self._demo_runner:
+            self._demo_runner.cancel()
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        # The runner resets on its way out, but a cancel can cut that short.
+        await self._engine.reset()
+        self._demo_runner = None
+        self._demo_task = None
+        self._night_task = None
+        await self.broadcast({"type": "demo_stopped", "data": {}})
 
     # ── Engine event → broadcast ──────────────────────────────────────────────
 
@@ -216,14 +337,7 @@ class LoupGarouServer:
 
             # For witch: include her potion availability
             if role_id == "witch":
-                witch = next(
-                    (p for p in pub["players"] if p["role_id"] == "witch" and p["alive"]), None
-                )
-                if witch:
-                    flags = self._engine._state.player_flags.get(witch["id"], {})
-                    enriched["witch_id"] = witch["id"]
-                    enriched["witch_save_available"] = not flags.get("witch_save_used", False)
-                    enriched["witch_poison_available"] = not flags.get("witch_poison_used", False)
+                enriched.update(self._engine.get_role_public_state("witch"))
 
             await self.broadcast({"type": "night_role_wake", "data": enriched})
 

@@ -55,6 +55,12 @@ class GameEngine:
     def on(self, event: GameEvent, handler: _Handler) -> None:
         self._listeners.setdefault(str(event), []).append(handler)
 
+    def off(self, event: GameEvent, handler: _Handler) -> None:
+        """Remove a previously registered handler. Safe to call if not registered."""
+        handlers = self._listeners.get(str(event))
+        if handlers and handler in handlers:
+            handlers.remove(handler)
+
     async def _emit(self, event: GameEvent, data: dict | None = None) -> None:
         payload = data or {}
         for handler in self._listeners.get(str(event), []):
@@ -72,6 +78,35 @@ class GameEngine:
             "winner": self._state.winner,
             "players": [p.to_dict() for p in self._state.players.values()],
         }
+
+    def get_role_public_state(self, role_id: str) -> dict:
+        """Return role-specific public data without exposing engine internals."""
+        role = self._roles.get(role_id)
+        if role is None:
+            return {}
+        return role.get_public_state(self._make_ctx())
+
+    @property
+    def pending_action_role(self) -> str | None:
+        """Role the night sequence is currently blocked on, or None.
+
+        Note this is only set *after* NIGHT_ROLE_WAKE has been emitted, so a
+        listener must yield before reading it.
+        """
+        return self._pending_action_role
+
+    @property
+    def pending_interrupt_role(self) -> str | None:
+        """Role whose mid-chain interrupt is currently awaiting input, or None."""
+        return self._state.pending_interrupt_role
+
+    async def reset(self) -> None:
+        """Discard any game in progress and return to the setup phase."""
+        self._pending_action = None
+        self._pending_action_role = None
+        self._state = GameState()
+        self._state.phase = Phase.SETUP
+        await self._emit(GameEvent.PHASE_CHANGED, {"phase": Phase.SETUP})
 
     # ── Game lifecycle ────────────────────────────────────────────────────────
 
@@ -166,6 +201,7 @@ class GameEngine:
 
         if not tally:
             await self._emit(GameEvent.VOTE_RESOLVED, {"eliminated": None, "tie": True})
+            await self._start_day()
             return None
 
         max_votes = max(tally.values())
@@ -174,24 +210,26 @@ class GameEngine:
         if len(top) > 1:
             scapegoat_id = self._find_scapegoat()
             if scapegoat_id:
-                game_over = await self._do_elimination(scapegoat_id, "scapegoat", ctx)
                 await self._emit(GameEvent.VOTE_RESOLVED, {"eliminated": scapegoat_id, "tie": True})
+                game_over = await self._do_elimination(scapegoat_id, "scapegoat", ctx)
                 if not game_over:
-                    self._state.phase = Phase.DAY
-                    await self._emit(GameEvent.PHASE_CHANGED, {"phase": Phase.DAY})
-                    await self._emit(GameEvent.DAY_STARTED, {})
+                    await self._start_day()
                 return scapegoat_id
             await self._emit(GameEvent.VOTE_RESOLVED, {"eliminated": None, "tie": True})
+            await self._start_day()
             return None
 
         target_id = top[0]
-        game_over = await self._do_elimination(target_id, "village_vote", ctx)
         await self._emit(GameEvent.VOTE_RESOLVED, {"eliminated": target_id, "tie": False})
+        game_over = await self._do_elimination(target_id, "village_vote", ctx)
         if not game_over:
-            self._state.phase = Phase.DAY
-            await self._emit(GameEvent.PHASE_CHANGED, {"phase": Phase.DAY})
-            await self._emit(GameEvent.DAY_STARTED, {"eliminated": [target_id]})
+            await self._start_day([target_id])
         return target_id
+
+    async def _start_day(self, eliminated: list[str] | None = None) -> None:
+        self._state.phase = Phase.DAY
+        await self._emit(GameEvent.PHASE_CHANGED, {"phase": Phase.DAY})
+        await self._emit(GameEvent.DAY_STARTED, {"eliminated": eliminated or []})
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -230,6 +268,7 @@ class GameEngine:
     async def _do_elimination(self, first_pid: str, cause: str, ctx: RoleContext) -> bool:
         """Run elimination queue starting with first_pid. Returns True if game ended."""
         queue = [first_pid]
+        deceased = False
         while queue:
             pid = queue.pop(0)
             player = self._state.players.get(pid)
@@ -253,6 +292,7 @@ class GameEngine:
                     queue.append(e)
 
             player.alive = False
+            deceased = True
             await self._emit(
                 GameEvent.PLAYER_ELIMINATED,
                 {"player_id": pid, "name": player.name, "role": player.role_id, "cause": cause},
@@ -260,7 +300,10 @@ class GameEngine:
             for role in self._active_roles():
                 await role.on_after_eliminate(ctx, pid, cause)
 
+        if deceased:
             winner = await self._check_win(ctx)
+            if winner is None and not ctx.alive_players:
+                winner = "village"
             if winner:
                 await self._end_game(winner)
                 return True
@@ -305,14 +348,15 @@ class GameEngine:
             for role in self._active_roles():
                 await role.on_after_eliminate(ctx, pid, cause)
 
+        await self._emit(GameEvent.NIGHT_RESOLVED, {"eliminated": eliminated})
+
+        if eliminated:
             winner = await self._check_win(ctx)
+            if winner is None and not ctx.alive_players:
+                winner = "village"
             if winner:
-                await self._emit(GameEvent.NIGHT_RESOLVED, {"eliminated": eliminated})
                 await self._end_game(winner)
                 return eliminated
 
-        await self._emit(GameEvent.NIGHT_RESOLVED, {"eliminated": eliminated})
-        self._state.phase = Phase.DAY
-        await self._emit(GameEvent.PHASE_CHANGED, {"phase": Phase.DAY})
-        await self._emit(GameEvent.DAY_STARTED, {"eliminated": eliminated})
+        await self._start_day(eliminated)
         return eliminated
