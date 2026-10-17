@@ -11,10 +11,27 @@
 <canvas id="bg-canvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0"></canvas>
 
 <!-- ── Status bar ─────────────────────────────────────────────────────────── -->
-<div id="status-bar">
-  <span id="st-phase">—</span>
-  <span id="ws-status" class="disconnected">Déconnecté</span>
-</div>
+<header id="status-bar">
+  <div class="bar-brand">
+    <span class="brand-sigil" aria-hidden="true">✦</span>
+    <span data-i18n="ui.app.name">Loup-Garou</span>
+  </div>
+  <div class="bar-phase">
+    <span id="st-phase" aria-live="polite">Préparer le village</span>
+    <div id="phase-track" class="phase-track" role="progressbar" data-i18n-aria-label="ui.status.steps" aria-label="Progression de la partie" aria-valuemin="1" aria-valuemax="6" aria-valuenow="1">
+      <span data-phase-step="setup" aria-hidden="true"></span>
+      <span data-phase-step="role_reveal" aria-hidden="true"></span>
+      <span data-phase-step="night" aria-hidden="true"></span>
+      <span data-phase-step="day" aria-hidden="true"></span>
+      <span data-phase-step="vote" aria-hidden="true"></span>
+      <span data-phase-step="game_over" aria-hidden="true"></span>
+    </div>
+  </div>
+  <div class="bar-connection" aria-live="polite">
+    <span class="connection-dot" aria-hidden="true"></span>
+    <span id="ws-status" class="disconnected" data-i18n="ui.status.disconnected">Reconnexion</span>
+  </div>
+</header>
 
 <!-- ── Toast ──────────────────────────────────────────────────────────────── -->
 <div id="toast"></div>
@@ -23,43 +40,57 @@
 
 <!-- ══ SETUP ══════════════════════════════════════════════════════════════════ -->
 <div id="view-setup" class="view active">
-  <a href="/loup_garou/game/launcher.html" class="back-link">← Accueil</a>
-  <h1>Loup Garou</h1>
-  <h2>Préparation de la partie</h2>
+  <a href="/loup_garou/game/launcher.html" class="back-link"><span aria-hidden="true">←</span><span data-i18n="ui.nav.home">Accueil</span></a>
+  <div class="view-heading">
+    <span class="eyebrow" data-i18n="ui.app.tagline">Un village. Un secret. Une nuit.</span>
+    <h1 data-i18n="ui.setup.title">Nouvelle partie</h1>
+  </div>
 
-  <section>
-    <div class="ruled"><h3>Joueurs</h3></div>
+  <section class="setup-panel">
+    <div class="section-heading">
+      <div><span class="section-index">01</span><h3 data-i18n="ui.setup.players_heading">Les villageois</h3></div>
+      <span id="player-count" class="section-count">0 joueurs</span>
+    </div>
+    <p class="section-hint" data-i18n="ui.setup.player_hint">Ajoutez les joueurs autour de la table. Les noms sont visibles, les rôles restent secrets.</p>
     <div id="setup-player-list" class="player-list"></div>
-    <button id="btn-add-player" class="secondary" style="margin-top:0.75rem">+ Ajouter un joueur</button>
+    <button id="btn-add-player" class="secondary add-player-btn"><span aria-hidden="true">＋</span><span data-i18n="ui.setup.add_player_cta">Ajouter un joueur</span></button>
   </section>
 
-  <section>
-    <div class="ruled">
-      <h3>Rôles</h3>
-      <span id="role-total-label" style="font-family:var(--font-display);font-size:0.75rem;color:var(--amber);letter-spacing:0.08em">0 / 0</span>
+  <section class="setup-panel">
+    <div class="section-heading">
+      <div><span class="section-index">02</span><h3 data-i18n="ui.setup.roles_heading">Rôles secrets</h3></div>
+      <span id="role-total-label" class="section-count">0 / 0 rôles</span>
     </div>
+    <p class="section-hint" data-i18n="ui.setup.roles_hint">Attribuez exactement un rôle à chaque joueur.</p>
     <div id="setup-role-slots" class="role-slots"></div>
   </section>
 
-  <button id="btn-start-game" class="primary" disabled>Commencer la partie</button>
+  <div class="setup-footer">
+    <p id="setup-hint" class="setup-hint" aria-live="polite">Ajoutez au moins 3 joueurs pour commencer.</p>
+    <button id="btn-start-game" class="primary start-game-btn" disabled><span data-i18n="ui.setup.start_game">Commencer la partie</span><span aria-hidden="true">↗</span></button>
+  </div>
 </div>
 
 <!-- ══ ROLE REVEAL ════════════════════════════════════════════════════════════ -->
 <div id="view-reveal" class="view">
-  <h2 id="reveal-player-label"></h2>
+  <div class="view-heading reveal-heading">
+    <span class="eyebrow" data-i18n="ui.reveal.pass_device">Passez le téléphone à</span>
+    <h1 id="reveal-player-label"></h1>
+    <p class="section-hint" data-i18n="ui.reveal.private_instruction">Gardez votre rôle secret. Révélez-le uniquement à l'abri des regards.</p>
+  </div>
 
   <div class="reveal-card-wrapper">
-    <div class="reveal-card" id="reveal-card">
-      <div class="card-face card-front">
-        <span class="reveal-tap">Touchez pour révéler votre rôle</span>
+    <div class="reveal-card" id="reveal-card" role="button" tabindex="0" aria-expanded="false" aria-label="Touchez pour révéler votre rôle">
+      <div class="card-face card-front" aria-hidden="false">
+        <span class="reveal-tap" data-i18n="ui.reveal.tap_to_reveal">Touchez pour révéler votre rôle</span>
       </div>
-      <div class="card-face card-back">
+      <div class="card-face card-back" aria-hidden="true">
         <!-- Populated by reveal.js -->
       </div>
     </div>
   </div>
 
-  <button id="btn-reveal-seen" class="primary" style="display:none"></button>
+  <button id="btn-reveal-seen" class="primary" style="display:none"><span data-i18n="ui.reveal.continue">Masquer le rôle et passer le téléphone</span><span aria-hidden="true">↗</span></button>
 </div>
 
 <!-- ══ NIGHT ══════════════════════════════════════════════════════════════════ -->
@@ -136,15 +167,15 @@
 
     <!-- Witch potions -->
     <div id="na-witch-potions" class="witch-actions" style="display:none">
-      <button id="witch-save-btn" class="witch-toggle-btn secondary">💊 Utiliser la guérison</button>
-      <button id="witch-poison-btn" class="witch-toggle-btn secondary">☠️ Utiliser le poison</button>
+    <button id="witch-save-btn" class="witch-toggle-btn secondary" data-i18n="ui.night.witch_save">💊 Utiliser la potion de guérison</button>
+    <button id="witch-poison-btn" class="witch-toggle-btn secondary" data-i18n="ui.night.witch_poison">☠️ Utiliser le poison</button>
     </div>
 
     <div id="na-grid" class="player-grid"></div>
 
     <div class="action-row">
-      <button id="btn-na-skip" class="secondary">Passer</button>
-      <button id="btn-na-confirm" class="primary" disabled>Confirmer</button>
+      <button id="btn-na-skip" class="secondary" data-i18n="ui.night.skip">Ne rien faire</button>
+      <button id="btn-na-confirm" class="primary" disabled data-i18n="ui.night.confirm">Confirmer le choix</button>
     </div>
   </div>
 
@@ -152,11 +183,11 @@
   <div id="night-seer" style="display:none">
     <div style="padding:3rem 0;display:flex;flex-direction:column;align-items:center;gap:2rem">
       <div class="night-result" style="width:100%;max-width:320px">
-        <div style="font-family:var(--font-display);font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-muted);margin-bottom:0.75rem">🔮 Voyante</div>
+        <div class="eyebrow" data-i18n="ui.night.seer_result">La boule de cristal révèle</div>
         <div id="seer-name" class="night-result-name"></div>
         <div id="seer-role" class="night-result-role"></div>
       </div>
-      <button id="btn-seer-ack" class="primary">J'ai vu</button>
+       <button id="btn-seer-ack" class="primary"><span data-i18n="ui.reveal.seen">J'ai vu mon rôle</span></button>
     </div>
   </div>
 
@@ -164,39 +195,39 @@
 
 <!-- ══ DAY ════════════════════════════════════════════════════════════════════ -->
 <div id="view-day" class="view">
-  <h1>Jour <span id="day-night-num"></span></h1>
+  <div class="view-heading"><span class="eyebrow" data-i18n="ui.status.day">Le village s'éveille</span><h1 id="day-title">Jour 1</h1></div>
 
   <div id="day-announcement" class="day-announcement"></div>
 
   <div id="day-grid" class="player-grid"></div>
 
   <div class="action-row">
-    <button id="btn-day-night" class="secondary">Nuit suivante</button>
-    <button id="btn-day-vote" class="danger">Voter</button>
+    <button id="btn-day-night" class="secondary" data-i18n="ui.day.next_night">La nuit peut tomber</button>
+    <button id="btn-day-vote" class="danger" data-i18n="ui.day.begin_vote">Débattre et voter</button>
   </div>
 </div>
 
 <!-- ══ VOTE ═══════════════════════════════════════════════════════════════════ -->
 <div id="view-vote" class="view">
-  <h1>Vote</h1>
-  <p class="vote-instruction">À qui vote</p>
-  <div class="voter-name" id="vote-voter-name"></div>
+  <div class="view-heading"><span class="eyebrow" data-i18n="ui.vote.title">Vote du village</span><h1 data-i18n="ui.vote.instruction">Choisissez qui éliminer</h1></div>
+  <div class="voter-handoff"><span class="eyebrow" data-i18n="ui.vote.pass_phone">Passez le téléphone</span><span class="voter-name" id="vote-voter-name"></span></div>
 
   <div id="vote-grid" class="player-grid"></div>
 
-  <button id="btn-vote-confirm" class="primary" disabled>Voter</button>
-  <div id="vote-progress" style="font-family:var(--font-display);font-size:0.75rem;color:var(--text-muted);text-align:center;letter-spacing:0.1em"></div>
+  <button id="btn-vote-confirm" class="primary" disabled data-i18n="ui.vote.submit">Confirmer le vote</button>
+  <div id="vote-progress" class="vote-progress" aria-live="polite"></div>
 </div>
 
 <!-- ══ GAME OVER ══════════════════════════════════════════════════════════════ -->
 <div id="view-game-over" class="view">
+  <span class="eyebrow game-over-kicker" data-i18n="ui.game_over.roles_revealed">Les masques sont tombés</span>
   <div id="go-banner" class="winner-banner">
     <div id="go-msg" class="winner-msg"></div>
   </div>
 
   <div id="go-grid" class="player-grid"></div>
 
-  <button id="btn-restart" class="secondary">Nouvelle partie</button>
+  <button id="btn-restart" class="primary" data-i18n="ui.game_over.play_again">Rassembler le village</button>
 </div>
 
 </div><!-- #app -->

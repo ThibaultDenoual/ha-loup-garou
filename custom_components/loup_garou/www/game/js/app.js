@@ -1,4 +1,4 @@
-import { loadLocale, t } from './i18n.js';
+import { loadLocale, currentLanguage, t } from './i18n.js';
 import { connect, send } from './ws.js';
 import * as tts from './tts.js';
 import * as setup from './views/setup.js';
@@ -13,7 +13,7 @@ import * as gameOver from './views/game_over.js';
 let _state = { phase: 'setup', players: [], night_number: 0, winner: null };
 let _nightDeaths = [];   // player_eliminated events accumulated during night
 let _voteDeath = null;   // player eliminated by vote (for next-day announcement)
-const _activeViews = new Set(); // which view is currently showing
+let _configLocaleReady = Promise.resolve();
 
 function getState() { return _state; }
 
@@ -45,23 +45,24 @@ function toast(msg, type = '', ms = 3000) {
 function updatePhaseLabel(phase) {
   const el = document.getElementById('st-phase');
   if (!el) return;
-  const labels = {
-    setup: 'Configuration',
-    role_reveal: 'Révélation',
-    night: 'Nuit',
-    day: 'Jour',
-    vote: 'Vote',
-    game_over: 'Fin de partie',
-  };
-  el.textContent = labels[phase] || phase;
-  el.className = `phase-${phase}` || '';
+  const phases = ['setup', 'role_reveal', 'night', 'day', 'vote', 'game_over'];
+  el.textContent = t(`ui.status.${phase}`);
+  el.className = `phase-${phase}`;
+  const activeIndex = phases.indexOf(phase);
+  const track = document.getElementById('phase-track');
+  if (track && activeIndex >= 0) track.setAttribute('aria-valuenow', String(activeIndex + 1));
+  document.querySelectorAll('[data-phase-step]').forEach(step => {
+    const index = phases.indexOf(step.dataset.phaseStep);
+    step.classList.toggle('complete', index < activeIndex);
+    step.classList.toggle('current', index === activeIndex);
+  });
 }
 
 // ── Message handling ───────────────────────────────────────────────────────────
 
-function handleMessage(msg) {
+async function handleMessage(msg) {
   switch (msg.type) {
-    case 'state':            onState(msg.state);              break;
+    case 'state':            await _configLocaleReady; onState(msg.state); break;
     case 'night_role_wake':  onNightRoleWake(msg.data);       break;
     case 'night_role_sleep': onNightRoleSleep(msg.data);      break;
     case 'player_eliminated': onPlayerEliminated(msg.data);   break;
@@ -72,7 +73,6 @@ function handleMessage(msg) {
 }
 
 function onState(newState) {
-  const prevPhase = _state.phase;
   _state = newState;
   updatePhaseLabel(newState.phase);
 
@@ -140,6 +140,12 @@ function onNightRoleSleep(data) {
 function onConfig(cfg) {
   const el = document.getElementById('version-footer');
   if (el && cfg?.version) el.textContent = '#' + cfg.version;
+  if (cfg?.language && cfg.language !== currentLanguage()) {
+    _configLocaleReady = loadLocale(cfg.language).then(() => {
+      updatePhaseLabel(_state.phase);
+      if (_state.phase === 'setup') setup.updateLanguage();
+    }).catch(err => console.warn('Could not apply configured game language', err));
+  }
 }
 
 function onPlayerEliminated(data) {
@@ -162,7 +168,11 @@ function onPlayerEliminated(data) {
 
 async function init() {
   const lang = document.documentElement.lang || 'fr';
-  await loadLocale(lang);
+  try {
+    await loadLocale(lang);
+  } catch (err) {
+    console.warn('Could not load the selected game language', err);
+  }
 
   // Wire up all view modules
   tts.init(send);
@@ -177,9 +187,10 @@ async function init() {
     showView('setup');
   });
 
+  updatePhaseLabel(_state.phase);
   connect(handleMessage, () => {
-    send('get_state');
     send('get_config');
+    send('get_state');
   });
 
   showView('setup');
@@ -187,8 +198,9 @@ async function init() {
 
 init();
 
-// Starfield canvas
+// Subtle starfield for the folklore atmosphere.
 (function () {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const canvas = document.getElementById('bg-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -200,7 +212,7 @@ init();
   }
   function mkStars() {
     stars = [];
-    const n = Math.floor(W * H / 6500);
+    const n = Math.min(100, Math.floor(W * H / 10000));
     for (let i = 0; i < n; i++) stars.push({
       x: Math.random() * W, y: Math.random() * H,
       r: Math.random() * 1.1 + 0.25,

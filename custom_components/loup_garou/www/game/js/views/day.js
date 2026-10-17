@@ -13,7 +13,7 @@ export function init(send, getState) {
 
 export function render(nightDeaths) {
   const state = _getState();
-  document.getElementById('day-night-num').textContent = state.night_number;
+  document.getElementById('day-title').textContent = t('ui.day.title', { number: state.night_number });
 
   _renderAnnouncement(nightDeaths);
   _renderGrid();
@@ -68,5 +68,5 @@ export function updateGrid() {
 // French grammatical gender approximation for role articles
 function _genderArticle(roleId) {
   const feminine = ['seer', 'witch', 'little_girl'];
-  return feminine.includes(roleId) ? 'une' : 'un';
+  return t(feminine.includes(roleId) ? 'article.female' : 'article.male');
 }

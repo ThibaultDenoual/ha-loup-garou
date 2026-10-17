@@ -159,286 +159,420 @@ a.btn-play:hover { opacity:0.85 }
   text-align:center;font-size:0.85rem;color:var(--sage);font-style:italic;
   margin-top:0.6rem;min-height:1.2em;
 }
+
+/* Shared with the game: a little folklore, a lot of clarity. */
+:root { --text-muted:#b3a18b;--amber:#e0a34f;--amber-dim:#946327;--border:1px solid rgba(224,163,79,.2);--radius:12px }
+body { position:relative;padding:calc(1.4rem + env(safe-area-inset-top,0px)) 1rem calc(2rem + env(safe-area-inset-bottom,0px));background:radial-gradient(ellipse at 50% -12%,rgba(118,65,27,.25),transparent 48%),var(--bg) }
+body::before { content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.035;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") }
+.container,#version-footer { position:relative;z-index:1 }
+h1 { font-size:clamp(2rem,9vw,2.8rem);text-shadow:0 0 28px rgba(212,134,42,.16) }
+.brand-mark { display:grid;place-items:center;width:3rem;height:3rem;margin:0 auto .55rem;border:1px solid rgba(224,163,79,.38);border-radius:50%;color:var(--amber);font-size:1.45rem;box-shadow:0 0 26px rgba(212,134,42,.1) }
+.subtitle { margin-bottom:1.6rem;color:var(--text-muted);font-size:.72rem;letter-spacing:.17em;text-transform:uppercase }
+.container { max-width:560px }
+.tabs { gap:.35rem;padding:.3rem;background:rgba(26,18,14,.82);border:1px solid rgba(224,163,79,.14);border-radius:14px }
+.tab-btn { min-height:44px;padding:.65rem .35rem;border:0;border-radius:10px;font-size:.66rem;letter-spacing:.075em }
+.tab-btn.active { background:rgba(224,163,79,.13);border:0;color:#f1bd70;box-shadow:inset 0 0 0 1px rgba(224,163,79,.18) }
+.play-card,.ha-info { border-radius:18px;border-color:rgba(224,163,79,.19);background:linear-gradient(145deg,rgba(36,29,24,.94),rgba(22,18,16,.94));box-shadow:0 16px 38px rgba(0,0,0,.2) }
+.play-card { padding:clamp(1.25rem,7vw,2rem) }
+.play-card::before { content:'☾';display:block;margin-bottom:.7rem;color:var(--amber);font-size:1.5rem }
+.play-card h2 { margin-bottom:.55rem;color:var(--text);font-family:var(--font-d);font-size:1rem;letter-spacing:.06em }
+.play-card p { max-width:28rem;margin:0 auto 1.35rem;font-size:1.08rem;line-height:1.55 }
+a.btn-play,.btn-save { display:flex;align-items:center;justify-content:center;gap:.65rem;min-height:54px;padding:.85rem 1rem;border-radius:12px;background:linear-gradient(135deg,#e8b05c,#d4862a);box-shadow:0 8px 24px rgba(212,134,42,.19);font-size:.75rem }
+a.btn-play::after { content:'↗';font-size:1rem }
+.ha-info { border-left:3px solid var(--amber-dim);padding:1rem 1.1rem;line-height:1.5 }
+.ha-info strong { color:var(--amber);font-size:.67rem }
+.connection-status { display:flex;align-items:center;gap:.5rem;margin-top:.75rem;color:var(--text-muted);font-size:.8rem }
+.connection-status::before { content:'';width:8px;height:8px;border-radius:50%;background:var(--amber-dim) }
+.connection-status.connected::before { background:#83b981;box-shadow:0 0 8px rgba(131,185,129,.45) }
+.rules-section { padding:1rem 0;border-bottom:1px solid rgba(224,163,79,.1) }
+.rules-title { color:var(--amber);font-size:.72rem }
+.rules-body { color:var(--text-muted);font-size:1.02rem;line-height:1.65 }
+.rules-body strong { color:var(--text) }
+.role-row { align-items:flex-start;padding:.8rem .45rem;border-color:rgba(232,216,192,.07);line-height:1.45 }
+.role-name { min-width:7rem;color:var(--text);font-size:.76rem }
+.role-desc { font-size:.92rem }
+.config-group { margin-bottom:1.1rem;padding:1rem;background:rgba(26,21,18,.65);border:1px solid rgba(224,163,79,.12);border-radius:14px }
+.config-label { color:var(--amber);font-size:.67rem }
+.config-select,.config-input { min-height:48px;padding:.65rem .8rem;border-radius:10px;background:#17120f;border-color:rgba(224,163,79,.2);font-size:1rem }
+.config-hint { line-height:1.45 }
+.checkbox-list { max-height:14rem;border-radius:10px }
+.checkbox-row { min-height:48px;padding:.55rem .8rem;font-size:.98rem }
+.checkbox-row input[type=checkbox] { width:1.2rem;height:1.2rem }
+.delay-row { min-height:45px;font-size:.9rem }
+.delay-input { min-height:42px;border-radius:8px;font-size:1rem }
+.save-feedback { font-style:normal }
+.save-feedback.error { color:#e99a8a }
+button,a,input,select { -webkit-tap-highlight-color:transparent }
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline:3px solid #f3c579;outline-offset:3px }
+.tab-btn:focus-visible { outline-offset:-2px }
+#version-footer { position:static!important;margin-top:1rem;text-align:center;opacity:.7 }
+@media(max-width:380px) { .role-row { gap:.5rem;flex-wrap:wrap }.role-name { min-width:6.25rem } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important } }
 </style>
 </head>
 <body>
 
 <div class="container">
+  <div class="brand-mark" aria-hidden="true">✦</div>
   <h1>Loup Garou</h1>
-  <p class="subtitle">Hub de configuration</p>
+  <p class="subtitle" data-i18n="launcher.subtitle">Le maître du jeu de votre village</p>
 
-  <div class="tabs">
-    <button class="tab-btn active" data-tab="play">Jouer</button>
-    <button class="tab-btn" data-tab="rules">Règles</button>
-    <button class="tab-btn" data-tab="config">Config HA</button>
+  <div class="tabs" role="tablist" aria-label="Navigation" data-i18n-aria-label="launcher.tab.navigation">
+    <button id="tab-btn-play" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="tab-play" data-tab="play" data-i18n="launcher.tab.play">Jouer</button>
+    <button id="tab-btn-rules" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tab-rules" data-tab="rules" data-i18n="launcher.tab.rules">Règles</button>
+    <button id="tab-btn-config" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="tab-config" data-tab="config" data-i18n="launcher.tab.config">Configuration</button>
   </div>
 
   <!-- ── PLAY TAB ─────────────────────────────────────────────────────────── -->
-  <div id="tab-play" class="tab-content active">
+  <div id="tab-play" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-play">
     <div class="play-card">
-      <p>Rassemblez les joueurs autour d'un appareil. Le meneur de jeu gère l'interface pendant que les joueurs ferment les yeux.</p>
-      <a href="/loup_garou/game/index.html" class="btn-play">Ouvrir le jeu</a>
+      <h2 data-i18n="launcher.play.title">Rassemblez le village</h2>
+      <p data-i18n="launcher.play.description">Faites passer un téléphone autour de la table. Le maître du jeu guide chaque tour secret.</p>
+      <a href="/loup_garou/game/index.html" class="btn-play" data-i18n="launcher.play.button">Commencer une partie</a>
     </div>
 
     <div class="ha-info" id="ha-config-summary">
-      <strong>Configuration</strong>
-      <span id="config-summary-text">Chargement…</span>
+      <strong data-i18n="launcher.config.summary">Votre configuration</strong>
+      <span id="config-summary-text" data-i18n="launcher.config.loading">Chargement de la configuration…</span>
+      <span id="ha-connection" class="connection-status" data-i18n="launcher.config.disconnected">Connexion à Home Assistant…</span>
     </div>
   </div>
 
   <!-- ── RULES TAB ─────────────────────────────────────────────────────────── -->
-  <div id="tab-rules" class="tab-content">
+  <div id="tab-rules" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-rules">
     <div class="rules-section">
-      <div class="rules-title">Principe</div>
+      <div class="rules-title" data-i18n="launcher.rules.principle">L'histoire</div>
       <div class="rules-body">
-        <p>Loup-Garou est un jeu de rôle et de déduction sociale. Deux camps s'affrontent :</p>
-        <ul style="margin-top:0.5rem">
-          <li>Les <strong>Loups-Garous</strong> cherchent à éliminer tous les villageois.</li>
-          <li>Le <strong>Village</strong> cherche à identifier et éliminer tous les loups.</li>
-        </ul>
+        <p data-i18n="launcher.rules.principle_text">Les villageois doivent démasquer les loups-garous cachés parmi eux.</p>
       </div>
     </div>
 
     <div class="rules-section">
-      <div class="rules-title">Déroulement</div>
+      <div class="rules-title" data-i18n="launcher.rules.how_to_play">Déroulement</div>
       <div class="rules-body">
         <ol>
-          <li>Chaque joueur reçoit un rôle secret.</li>
-          <li><strong>La Nuit</strong> — les rôles spéciaux agissent dans l'ordre (Cupidon → Voyante → Loups → Sorcière…).</li>
-          <li><strong>Le Jour</strong> — le village discute et vote pour éliminer un suspect.</li>
-          <li>On recommence jusqu'à la victoire d'un camp.</li>
+          <li data-i18n="launcher.rules.step_one">Chaque joueur reçoit un rôle secret.</li>
+          <li data-i18n="launcher.rules.step_two">La nuit, les rôles spéciaux jouent leur tour.</li>
+          <li data-i18n="launcher.rules.step_three">Le jour, le village débat et vote.</li>
+          <li data-i18n="launcher.rules.step_four">La partie continue jusqu'à la victoire d'un camp.</li>
         </ol>
       </div>
     </div>
 
     <div class="rules-section">
-      <div class="rules-title">Victoire</div>
+      <div class="rules-title" data-i18n="launcher.rules.victory">Conditions de victoire</div>
       <div class="rules-body">
         <ul>
-          <li><strong>Loups</strong> — Les loups sont en nombre ≥ aux villageois restants.</li>
-          <li><strong>Village</strong> — Tous les loups sont éliminés.</li>
-          <li><strong>Amoureux</strong> — Les deux amoureux sont les seuls survivants.</li>
+          <li data-i18n="launcher.rules.wolves_win">Les loups sont aussi nombreux ou plus nombreux que le village.</li>
+          <li data-i18n="launcher.rules.village_win">Tous les loups-garous sont éliminés.</li>
+          <li data-i18n="launcher.rules.lovers_win">Seuls les deux amoureux liés sont encore en vie.</li>
         </ul>
       </div>
     </div>
 
     <div class="rules-section">
-      <div class="rules-title">Rôles</div>
+      <div class="rules-title" data-i18n="launcher.rules.roles">Les rôles du village</div>
       <div id="role-ref" class="role-grid">Chargement…</div>
     </div>
   </div>
 
   <!-- ── CONFIG TAB ─────────────────────────────────────────────────────────── -->
-  <div id="tab-config" class="tab-content">
+  <div id="tab-config" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-config">
     <div class="config-group">
-      <label class="config-label" for="cfg-tts-mode">Mode TTS</label>
+      <label class="config-label" for="cfg-tts-mode" data-i18n="launcher.config.tts_mode">Narration</label>
       <select id="cfg-tts-mode" class="config-select">
-        <option value="ha">Home Assistant (media_player)</option>
-        <option value="browser">Navigateur (Web Speech API)</option>
+        <option value="ha" data-i18n="launcher.config.tts_ha">Haut-parleur Home Assistant</option>
+        <option value="browser" data-i18n="launcher.config.tts_browser">Voix de cet appareil</option>
       </select>
     </div>
 
     <div id="cfg-ha-fields">
       <div class="config-group">
-        <label class="config-label" for="cfg-speaker">Haut-parleur (media_player)</label>
+        <label class="config-label" for="cfg-speaker" data-i18n="launcher.config.speaker">Haut-parleur</label>
         <select id="cfg-speaker" class="config-select">
-          <option value="">— Aucun —</option>
+          <option value="" data-i18n="launcher.config.none">— Aucun —</option>
         </select>
       </div>
 
       <div class="config-group">
-        <label class="config-label" for="cfg-tts-engine">Moteur TTS</label>
+        <label class="config-label" for="cfg-tts-engine" data-i18n="launcher.config.tts_engine">Service de synthèse vocale</label>
         <input id="cfg-tts-engine" class="config-input" type="text" placeholder="tts.home_assistant_cloud">
       </div>
 
       <div class="config-group">
-        <span class="config-sublabel">Délais après narration (secondes)</span>
+        <span class="config-sublabel" data-i18n="launcher.config.delays">Pause après narration (secondes)</span>
         <div class="delay-grid">
-          <div class="delay-row"><span class="delay-name">Début de nuit</span>          <input type="number" class="delay-input" id="delay-night_start"      min="0" max="30" step="0.5"></div>
-          <div class="delay-row"><span class="delay-name">Réveil d'un rôle</span>       <input type="number" class="delay-input" id="delay-role_wake"         min="0" max="30" step="0.5"></div>
-          <div class="delay-row"><span class="delay-name">Endormissement d'un rôle</span><input type="number" class="delay-input" id="delay-role_sleep"        min="0" max="30" step="0.5"></div>
-          <div class="delay-row"><span class="delay-name">Jour — aucune mort</span>     <input type="number" class="delay-input" id="delay-day_no_death"      min="0" max="30" step="0.5"></div>
-          <div class="delay-row"><span class="delay-name">Jour — mort annoncée</span>   <input type="number" class="delay-input" id="delay-day_with_death"    min="0" max="30" step="0.5"></div>
-          <div class="delay-row"><span class="delay-name">Début du vote</span>          <input type="number" class="delay-input" id="delay-vote_start"         min="0" max="30" step="0.5"></div>
-          <div class="delay-row"><span class="delay-name">Résultat du vote</span>       <input type="number" class="delay-input" id="delay-vote_result"        min="0" max="30" step="0.5"></div>
-          <div class="delay-row"><span class="delay-name">Élimination en direct</span>  <input type="number" class="delay-input" id="delay-elimination_live"   min="0" max="30" step="0.5"></div>
-          <div class="delay-row"><span class="delay-name">Fin de partie</span>          <input type="number" class="delay-input" id="delay-game_over"          min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-night_start" class="delay-name" data-i18n="launcher.delay.night_start">La nuit tombe</span><input type="number" class="delay-input" id="delay-night_start" aria-labelledby="label-delay-night_start" min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-role_wake" class="delay-name" data-i18n="launcher.delay.role_wake">Un rôle se réveille</span><input type="number" class="delay-input" id="delay-role_wake" aria-labelledby="label-delay-role_wake" min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-role_sleep" class="delay-name" data-i18n="launcher.delay.role_sleep">Un rôle se rendort</span><input type="number" class="delay-input" id="delay-role_sleep" aria-labelledby="label-delay-role_sleep" min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-day_no_death" class="delay-name" data-i18n="launcher.delay.day_no_death">Matin — aucun mort</span><input type="number" class="delay-input" id="delay-day_no_death" aria-labelledby="label-delay-day_no_death" min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-day_with_death" class="delay-name" data-i18n="launcher.delay.day_with_death">Matin — mort annoncée</span><input type="number" class="delay-input" id="delay-day_with_death" aria-labelledby="label-delay-day_with_death" min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-vote_start" class="delay-name" data-i18n="launcher.delay.vote_start">Début du vote</span><input type="number" class="delay-input" id="delay-vote_start" aria-labelledby="label-delay-vote_start" min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-vote_result" class="delay-name" data-i18n="launcher.delay.vote_result">Résultat du vote</span><input type="number" class="delay-input" id="delay-vote_result" aria-labelledby="label-delay-vote_result" min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-elimination_live" class="delay-name" data-i18n="launcher.delay.elimination_live">Élimination</span><input type="number" class="delay-input" id="delay-elimination_live" aria-labelledby="label-delay-elimination_live" min="0" max="30" step="0.5"></div>
+          <div class="delay-row"><span id="label-delay-game_over" class="delay-name" data-i18n="launcher.delay.game_over">Fin de partie</span><input type="number" class="delay-input" id="delay-game_over" aria-labelledby="label-delay-game_over" min="0" max="30" step="0.5"></div>
         </div>
-        <div class="config-hint">Durée d'attente estimée après chaque narration en mode HA.</div>
+        <div class="config-hint" data-i18n="launcher.config.delay_hint">Utilisé lorsque Home Assistant raconte la partie.</div>
       </div>
     </div>
 
     <div class="config-group">
-      <label class="config-label">Lumières d'ambiance</label>
-      <div id="cfg-lights-list" class="checkbox-list"><span class="no-entities">Chargement…</span></div>
-      <div class="config-hint">Sélectionnez une ou plusieurs lumières.</div>
+      <span id="cfg-lights-label" class="config-label" data-i18n="launcher.config.lights">Lumières d'ambiance</span>
+      <div id="cfg-lights-list" class="checkbox-list" role="group" aria-labelledby="cfg-lights-label"><span class="no-entities" data-i18n="launcher.config.loading_entities">Recherche des appareils Home Assistant…</span></div>
+      <div class="config-hint" data-i18n="launcher.config.lights_hint">Choisissez les lumières qui donneront le ton au village.</div>
     </div>
 
     <div class="config-group">
-      <label class="config-label" for="cfg-language">Langue</label>
+      <label class="config-label" for="cfg-language" data-i18n="launcher.config.language">Langue</label>
       <select id="cfg-language" class="config-select">
         <option value="fr">Français</option>
         <option value="en">English</option>
       </select>
     </div>
 
-    <button class="btn-save" id="btn-save-config">Enregistrer</button>
+    <button class="btn-save" id="btn-save-config" data-i18n="launcher.config.save">Enregistrer la configuration</button>
     <div class="save-feedback" id="save-feedback"></div>
   </div>
 </div>
 
 <script>
-// Tab switching
+const ROLES = ['villager','werewolf','seer','hunter','elder','scapegoat','little_girl','witch','cupid','alpha_wolf','minion','sheriff'];
+const TEAMS = { werewolf:'wolves', alpha_wolf:'wolves', minion:'wolves', cupid:'lovers' };
+const DELAY_KEYS = ['night_start','role_wake','role_sleep','day_no_death','day_with_death','vote_start','vote_result','elimination_live','game_over'];
+let locale = {};
+let language = 'fr';
+let config = {};
+let entities = { speakers: [], lights: [] };
+let socket;
+let reconnectTimer;
+let reconnectAttempt = 0;
+
+function t(key) { return locale[key] || key; }
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-aria-label]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAriaLabel)));
+}
+
+async function setLanguage(lang) {
+  language = ['en', 'fr'].includes(lang) ? lang : 'fr';
+  const response = await fetch(`/loup_garou/locales/${language}.json`);
+  if (!response.ok) throw new Error('Locale unavailable');
+  locale = await response.json();
+  document.documentElement.lang = language;
+  applyTranslations();
+  renderRoleReference();
+}
+
+function setTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const selected = btn.dataset.tab === tab;
+    btn.classList.toggle('active', selected);
+    btn.setAttribute('aria-selected', String(selected));
+    btn.tabIndex = selected ? 0 : -1;
+  });
+  document.querySelectorAll('.tab-content').forEach(panel => {
+    const selected = panel.id === `tab-${tab}`;
+    panel.classList.toggle('active', selected);
+    panel.hidden = !selected;
+  });
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+  btn.addEventListener('click', () => setTab(btn.dataset.tab));
+  btn.addEventListener('keydown', e => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
+    const tabs = [...document.querySelectorAll('.tab-btn')];
+    const index = tabs.indexOf(btn);
+    const next = tabs[(index + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+    setTab(next.dataset.tab);
+    next.focus();
+  });
+});
+setTab('play');
+
+function teamClass(id) {
+  const team = TEAMS[id];
+  return team === 'wolves' ? 'team-wolves' : team === 'lovers' ? 'team-lovers' : 'team-village';
+}
+
+function renderRoleReference() {
+  const root = document.getElementById('role-ref');
+  root.replaceChildren();
+  ROLES.forEach(id => {
+    const row = document.createElement('div');
+    row.className = 'role-row';
+    const dot = document.createElement('span');
+    dot.className = `team-dot ${teamClass(id)}`;
+    dot.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('span');
+    name.className = 'role-name';
+    name.textContent = t(`role.${id}.name`);
+    const description = document.createElement('span');
+    description.className = 'role-desc';
+    description.textContent = t(`role.${id}.description`);
+    row.append(dot, name, description);
+    root.appendChild(row);
+  });
+}
+
+const ttsModeSelect = document.getElementById('cfg-tts-mode');
+const haFields = document.getElementById('cfg-ha-fields');
+function applyTtsModeVisibility() { haFields.hidden = ttsModeSelect.value !== 'ha'; }
+ttsModeSelect.addEventListener('change', applyTtsModeVisibility);
+document.getElementById('cfg-language').addEventListener('change', e => {
+  setLanguage(e.target.value).catch(() => showFeedback(t('launcher.config.invalid'), true));
+});
+
+function send(cmd, data = {}) {
+  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ cmd, data }));
+}
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  socket = new WebSocket(`${proto}//${location.host}/loup_garou/ws`);
+  socket.onopen = () => {
+    reconnectAttempt = 0;
+    setConnection(true);
+    send('get_config');
+    send('get_entities');
+  };
+  socket.onmessage = async event => {
+    try {
+      const message = JSON.parse(event.data);
+      if (message.type === 'config') await applyConfig(message.config || {});
+      if (message.type === 'entities') applyEntities(message.data || {});
+      if (message.type === 'error') showFeedback(message.msg || t('launcher.config.invalid'), true);
+      if (message.type === 'config' && document.getElementById('save-feedback').dataset.pending) {
+        showFeedback(t('launcher.config.saved'));
+        document.getElementById('save-feedback').dataset.pending = '';
+      }
+    } catch (err) {
+      console.error('Invalid settings response', err);
+      showFeedback(t('launcher.config.invalid'), true);
+    }
+  };
+  socket.onclose = () => {
+    setConnection(false);
+    const delay = Math.min(1000 * (2 ** reconnectAttempt), 30000);
+    reconnectAttempt += 1;
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, delay);
+  };
+  socket.onerror = () => socket.close();
+}
+
+function setConnection(connected) {
+  const status = document.getElementById('ha-connection');
+  status.classList.toggle('connected', connected);
+  status.dataset.i18n = connected ? 'launcher.config.connected' : 'launcher.config.disconnected';
+  status.textContent = t(status.dataset.i18n);
+}
+
+function populateSelect(selectId, options, selectedValues) {
+  const select = document.getElementById(selectId);
+  const selected = Array.isArray(selectedValues) ? selectedValues : [selectedValues];
+  select.replaceChildren();
+  options.forEach(optionData => {
+    const option = document.createElement('option');
+    option.value = optionData.value;
+    option.textContent = optionData.label;
+    option.selected = selected.includes(optionData.value);
+    select.appendChild(option);
+  });
+}
+
+function renderLightCheckboxes(lights, selected) {
+  const root = document.getElementById('cfg-lights-list');
+  root.replaceChildren();
+  if (!lights.length) {
+    const empty = document.createElement('span');
+    empty.className = 'no-entities';
+    empty.textContent = t('launcher.config.no_lights');
+    root.appendChild(empty);
+    return;
+  }
+  lights.forEach(id => {
+    const label = document.createElement('label');
+    label.className = 'checkbox-row';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = id;
+    checkbox.checked = selected.includes(id);
+    const name = document.createElement('span');
+    name.textContent = id;
+    label.append(checkbox, name);
+    root.appendChild(label);
+  });
+}
+
+async function applyConfig(nextConfig) {
+  config = nextConfig;
+  const selectedLanguage = config.language || 'fr';
+  if (selectedLanguage !== language) await setLanguage(selectedLanguage);
+  ttsModeSelect.value = config.tts_mode || 'ha';
+  applyTtsModeVisibility();
+  document.getElementById('cfg-tts-engine').value = config.tts_engine || '';
+  document.getElementById('cfg-language').value = selectedLanguage;
+  populateSelect('cfg-speaker', [{ value:'', label:t('launcher.config.none') }, ...entities.speakers.map(id => ({ value:id, label:id }))], config.speaker || '');
+  renderLightCheckboxes(entities.lights, config.lights || []);
+  const delays = config.tts_delays || {};
+  DELAY_KEYS.forEach(key => {
+    const input = document.getElementById(`delay-${key}`);
+    if (input && delays[key] !== undefined) input.value = delays[key];
+  });
+  const parts = [selectedLanguage.toUpperCase()];
+  if (config.speaker) parts.push('🔊');
+  if (config.lights?.length) parts.push(`💡×${config.lights.length}`);
+  document.getElementById('config-summary-text').textContent = parts.join('  ') || t('launcher.config.none');
+  const footer = document.getElementById('version-footer');
+  if (footer && config.version) footer.textContent = `#${config.version}`;
+}
+
+function applyEntities(nextEntities) {
+  entities = { speakers:nextEntities.speakers || [], lights:nextEntities.lights || [] };
+  populateSelect('cfg-speaker', [{ value:'', label:t('launcher.config.none') }, ...entities.speakers.map(id => ({ value:id, label:id }))], config.speaker || '');
+  renderLightCheckboxes(entities.lights, config.lights || []);
+}
+
+function showFeedback(message, isError = false) {
+  const feedback = document.getElementById('save-feedback');
+  feedback.textContent = message;
+  feedback.classList.toggle('error', isError);
+  if (!isError) setTimeout(() => { feedback.textContent = ''; }, 3500);
+}
+
+document.getElementById('btn-save-config').addEventListener('click', () => {
+  if (socket?.readyState !== WebSocket.OPEN) {
+    showFeedback(t('launcher.config.invalid'), true);
+    return;
+  }
+  const ttsDelays = {};
+  DELAY_KEYS.forEach(key => {
+    const input = document.getElementById(`delay-${key}`);
+    if (input?.value !== '') ttsDelays[key] = parseFloat(input.value);
+  });
+  document.getElementById('save-feedback').dataset.pending = '1';
+  send('save_config', {
+    tts_mode:ttsModeSelect.value,
+    speaker:document.getElementById('cfg-speaker').value,
+    lights:[...document.querySelectorAll('#cfg-lights-list input:checked')].map(input => input.value),
+    language:document.getElementById('cfg-language').value,
+    tts_engine:document.getElementById('cfg-tts-engine').value,
+    tts_delays:ttsDelays,
   });
 });
 
-const ROLES = ['villager','werewolf','seer','hunter','elder','scapegoat','little_girl','witch','cupid','alpha_wolf','minion','sheriff'];
-const TEAMS = {
-  werewolf:'wolves', alpha_wolf:'wolves', minion:'wolves',
-  cupid:'lovers',
-};
-function teamClass(id) {
-  const t = TEAMS[id];
-  if (t === 'wolves') return 'team-wolves';
-  if (t === 'lovers') return 'team-lovers';
-  return 'team-village';
-}
-
-// ── TTS mode toggle ───────────────────────────────────────────────────────────
-const ttsModeSelect = document.getElementById('cfg-tts-mode');
-const haFields = document.getElementById('cfg-ha-fields');
-function applyTtsModeVisibility() {
-  haFields.style.display = ttsModeSelect.value === 'ha' ? '' : 'none';
-}
-ttsModeSelect.addEventListener('change', applyTtsModeVisibility);
-applyTtsModeVisibility();
-
-// ── WebSocket + config form ───────────────────────────────────────────────────
 (async () => {
-  const lang = document.documentElement.lang || 'fr';
-  const localeR = await fetch(`/loup_garou/locales/${lang}.json`);
-  const locale = await localeR.json();
-
-  // Role reference
-  const el = document.getElementById('role-ref');
-  el.innerHTML = ROLES.map(id => `
-    <div class="role-row">
-      <span class="team-dot ${teamClass(id)}"></span>
-      <span class="role-name">${locale[`role.${id}.name`] || id}</span>
-      <span class="role-desc">${locale[`role.${id}.description`] || ''}</span>
-    </div>`).join('');
-
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(`${proto}//${location.host}/loup_garou/ws`);
-
-  let _cfg = {};
-  let _entities = { speakers: [], lights: [] };
-
-  function populateSelect(selectId, options, selectedValues) {
-    const sel = document.getElementById(selectId);
-    sel.innerHTML = options.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
-    const vals = Array.isArray(selectedValues) ? selectedValues : [selectedValues];
-    Array.from(sel.options).forEach(o => { o.selected = vals.includes(o.value); });
-  }
-
-  function renderLightCheckboxes(lights, selected) {
-    const el = document.getElementById('cfg-lights-list');
-    if (!lights.length) {
-      el.innerHTML = '<span class="no-entities">Aucune lumière disponible</span>';
-      return;
-    }
-    el.innerHTML = lights.map(id => `
-      <label class="checkbox-row">
-        <input type="checkbox" value="${id}" ${selected.includes(id) ? 'checked' : ''}>
-        <span>${id}</span>
-      </label>`).join('');
-  }
-
-  function applyConfig(cfg) {
-    _cfg = cfg;
-    ttsModeSelect.value = cfg.tts_mode || 'ha';
+  try {
+    await setLanguage(document.documentElement.lang || 'fr');
     applyTtsModeVisibility();
-    document.getElementById('cfg-tts-engine').value = cfg.tts_engine || '';
-    document.getElementById('cfg-language').value = cfg.language || 'fr';
-
-    populateSelect('cfg-speaker',
-      [{value:'', label:'— Aucun —'}, ..._entities.speakers.map(e => ({value:e, label:e}))],
-      cfg.speaker || '');
-    renderLightCheckboxes(_entities.lights, cfg.lights || []);
-
-    // Delay inputs
-    const delays = cfg.tts_delays || {};
-    ['night_start','role_wake','role_sleep','day_no_death','day_with_death',
-     'vote_start','vote_result','elimination_live','game_over'].forEach(key => {
-      const el = document.getElementById(`delay-${key}`);
-      if (el && delays[key] !== undefined) el.value = delays[key];
-    });
-
-    // Summary bar
-    const parts = [];
-    if (cfg.language) parts.push(cfg.language.toUpperCase());
-    if (cfg.speaker) parts.push('🔊');
-    const lights = cfg.lights || [];
-    if (lights.length) parts.push(`💡×${lights.length}`);
-    document.getElementById('config-summary-text').textContent = parts.join('  ') || 'Aucune configuration';
-
-    const vf = document.getElementById('version-footer');
-    if (vf && cfg.version) vf.textContent = '#' + cfg.version;
+    connect();
+  } catch (err) {
+    console.error('Could not initialize game launcher', err);
+    showFeedback(t('launcher.config.invalid'), true);
   }
-
-  function applyEntities(entities) {
-    _entities = entities;
-    populateSelect('cfg-speaker',
-      [{value:'', label:'— Aucun —'}, ...(entities.speakers || []).map(e => ({value:e, label:e}))],
-      _cfg.speaker || '');
-    renderLightCheckboxes(entities.lights || [], _cfg.lights || []);
-  }
-
-  ws.onopen = () => {
-    ws.send(JSON.stringify({cmd:'get_config', data:{}}));
-    ws.send(JSON.stringify({cmd:'get_entities', data:{}}));
-  };
-
-  ws.onmessage = e => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'config') applyConfig(msg.config || {});
-    if (msg.type === 'entities') applyEntities(msg.data || {});
-    if (msg.type === 'config' && document.getElementById('save-feedback').dataset.pending) {
-      const fb = document.getElementById('save-feedback');
-      fb.textContent = 'Configuration enregistrée.';
-      fb.dataset.pending = '';
-      setTimeout(() => { fb.textContent = ''; }, 3000);
-    }
-  };
-
-  // ── Save button ─────────────────────────────────────────────────────────────
-  document.getElementById('btn-save-config').addEventListener('click', () => {
-    const selectedLights = Array.from(
-      document.querySelectorAll('#cfg-lights-list input[type=checkbox]:checked')
-    ).map(cb => cb.value);
-    const tts_delays = {};
-    ['night_start','role_wake','role_sleep','day_no_death','day_with_death',
-     'vote_start','vote_result','elimination_live','game_over'].forEach(key => {
-      const el = document.getElementById(`delay-${key}`);
-      if (el && el.value !== '') tts_delays[key] = parseFloat(el.value);
-    });
-    const payload = {
-      tts_mode:   ttsModeSelect.value,
-      speaker:    document.getElementById('cfg-speaker').value,
-      lights:     selectedLights,
-      language:   document.getElementById('cfg-language').value,
-      tts_engine: document.getElementById('cfg-tts-engine').value,
-      tts_delays,
-    };
-    document.getElementById('save-feedback').dataset.pending = '1';
-    ws.send(JSON.stringify({cmd:'save_config', data: payload}));
-  });
 })();
 </script>
 <footer id="version-footer" style="position:fixed;bottom:6px;right:10px;font-size:0.65rem;color:var(--text-muted);font-family:monospace;pointer-events:none;letter-spacing:0.04em"></footer>

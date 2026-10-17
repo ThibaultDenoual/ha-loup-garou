@@ -135,7 +135,7 @@ function _showNightAction(data) {
   const confirm = document.getElementById('btn-na-confirm');
   confirm.disabled = true;
   confirm.className = 'primary';
-  confirm.textContent = t('ui.vote.confirm') || 'Confirmer';
+  confirm.textContent = t('ui.night.confirm');
 
   const state = _getState();
   const alive = state.players.filter(p => p.alive);
@@ -192,7 +192,7 @@ function _showSeerResult(data) {
     box.classList.add('seer-reveal');
   }
 
-  document.getElementById('btn-seer-ack').textContent = t('ui.reveal.seen') || 'Compris';
+  document.getElementById('btn-seer-ack').textContent = t('ui.reveal.seen');
   _setSection('seer');
 }
 
@@ -211,7 +211,7 @@ function _showHunterAction(data) {
   const confirm = document.getElementById('btn-na-confirm');
   confirm.disabled = true;
   confirm.className = 'primary hunter-aim';
-  confirm.textContent = '🔫 Tirer';
+  confirm.textContent = `🔫 ${t('ui.night.hunter_shoot')}`;
 
   const state = _getState();
   const targets = state.players.filter(p => p.alive && p.id !== hunterId);
@@ -232,8 +232,10 @@ function _renderTargetGrid(players, selectionClass, onSelect) {
     const card = _makePlayerCard(p, () => {
       grid.querySelectorAll('.player-card').forEach(c => {
         c.classList.remove('selected', 'wolf-locked', 'lover-pick');
+        c.setAttribute('aria-pressed', 'false');
       });
       card.classList.add('selected');
+      card.setAttribute('aria-pressed', 'true');
       if (selectionClass !== 'selected') card.classList.add(selectionClass);
       onSelect(p.id);
     });
@@ -253,7 +255,7 @@ function _renderWitch(data, alive) {
   if (victims.length) {
     const victimBox = document.getElementById('na-victim');
     victimBox.style.display = '';
-    victimBox.textContent = `Victime cette nuit : ${victims.map(p => p.name).join(', ')}`;
+    victimBox.textContent = t('ui.night.victim', { names: victims.map(p => p.name).join(', ') });
   }
 
   const witchBox = document.getElementById('na-witch-potions');
@@ -309,6 +311,7 @@ function _renderPoisonGrid(players) {
     const card = _makePlayerCard(p, () => {
       grid.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected', 'wolf-locked', 'lover-pick', 'targeted'));
       card.classList.add('targeted');
+      grid.querySelectorAll('.player-card').forEach(c => c.setAttribute('aria-pressed', String(c === card)));
       _witchPoisonTarget = p.id;
     });
     grid.appendChild(card);
@@ -325,9 +328,11 @@ function _renderCupid(alive) {
       if (_cupidLovers.includes(p.id)) {
         _cupidLovers = _cupidLovers.filter(id => id !== p.id);
         card.classList.remove('selected', 'lover-pick');
+        card.setAttribute('aria-pressed', 'false');
       } else if (_cupidLovers.length < 2) {
         _cupidLovers.push(p.id);
         card.classList.add('selected', 'lover-pick');
+        card.setAttribute('aria-pressed', 'true');
       }
       confirm.disabled = _cupidLovers.length !== 2;
     });
@@ -348,8 +353,12 @@ function _renderAlphaWolf(alive) {
 
   targets.forEach(p => {
     const card = _makePlayerCard(p, () => {
-      grid.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
+      grid.querySelectorAll('.player-card').forEach(c => {
+        c.classList.remove('selected');
+        c.setAttribute('aria-pressed', 'false');
+      });
       card.classList.add('selected');
+      card.setAttribute('aria-pressed', 'true');
       _naSelected = p.id;
     });
     grid.appendChild(card);
@@ -415,6 +424,10 @@ function _onConfirm() {
 function _makePlayerCard(player, onClick) {
   const card = document.createElement('div');
   card.className = 'player-card';
+  card.setAttribute('role', 'button');
+  card.tabIndex = 0;
+  card.setAttribute('aria-pressed', 'false');
+  card.setAttribute('aria-label', `${t('ui.night.choose_player')}: ${player.name}`);
   const name = document.createElement('div');
   name.className = 'player-name';
   name.textContent = player.name;
@@ -422,5 +435,11 @@ function _makePlayerCard(player, onClick) {
   role.className = 'player-role';
   card.append(name, role);
   card.addEventListener('click', onClick);
+  card.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  });
   return card;
 }

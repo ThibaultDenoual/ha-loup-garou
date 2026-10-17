@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 let _ws = null;
 let _onMessage = null;
 let _reconnectTimer = null;
@@ -24,9 +26,8 @@ function _doConnect() {
 
   _ws.onopen = () => {
     _reconnectAttempts = 0;
-    _setStatus('Connecté', 'connected');
+    _setStatus('ui.status.connected', 'connected');
     if (_onConnect) _onConnect();
-    send('get_state');
   };
 
   _ws.onmessage = e => {
@@ -40,12 +41,14 @@ function _doConnect() {
   _ws.onclose = () => {
     const delay = Math.min(1000 * (2 ** _reconnectAttempts), MAX_RECONNECT_DELAY);
     _reconnectAttempts += 1;
-    _setStatus('Reconnexion…', 'disconnected');
+    _setStatus('ui.status.disconnected', 'disconnected');
     _reconnectTimer = setTimeout(_doConnect, delay);
   };
 }
 
 function _setStatus(text, className) {
   const el = document.getElementById('ws-status');
-  if (el) { el.textContent = text; el.className = className; }
+  if (el) { el.dataset.i18n = text; el.textContent = t(text); el.className = className; }
+  const label = document.querySelector('.bar-connection');
+  if (label) label.classList.toggle('connected', className === 'connected');
 }

@@ -1,8 +1,33 @@
 let _locale = {};
+let _language = null;
 
 export async function loadLocale(lang) {
-  const r = await fetch(`/loup_garou/locales/${lang}.json`);
+  const language = ['en', 'fr'].includes(lang) ? lang : 'fr';
+  if (_language === language) return language;
+
+  const r = await fetch(`/loup_garou/locales/${language}.json`);
+  if (!r.ok) throw new Error(`Could not load ${language} locale`);
   _locale = await r.json();
+  _language = language;
+  document.documentElement.lang = language;
+  applyTranslations();
+  return language;
+}
+
+export function currentLanguage() {
+  return _language;
+}
+
+export function applyTranslations(root = document) {
+  root.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  root.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder));
+  });
+  root.querySelectorAll('[data-i18n-aria-label]').forEach(el => {
+    el.setAttribute('aria-label', t(el.dataset.i18nAriaLabel));
+  });
 }
 
 export function t(key, vars = {}) {

@@ -20,16 +20,22 @@ function _teamClass(roleId) {
 }
 
 function _teamLabel(roleId) {
-  const t = ROLE_TEAMS[roleId];
-  if (t === 'wolf') return 'Loups';
-  if (t === 'lovers') return 'Amoureux';
-  return 'Village';
+  const team = ROLE_TEAMS[roleId];
+  if (team === 'wolf') return t('team.wolves');
+  if (team === 'lovers') return t('team.lovers');
+  return t('team.village');
 }
 
 export function init(send) {
   _send = send;
 
   document.getElementById('reveal-card').addEventListener('click', _onCardClick);
+  document.getElementById('reveal-card').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      _onCardClick();
+    }
+  });
   document.getElementById('btn-reveal-seen').addEventListener('click', _onSeen);
 }
 
@@ -58,14 +64,18 @@ function _showCurrent() {
 
   const card = document.getElementById('reveal-card');
   card.classList.remove('flipped');
+  card.setAttribute('aria-expanded', 'false');
+  card.setAttribute('aria-label', t('ui.reveal.tap_to_reveal'));
 
   const front = card.querySelector('.card-front');
+  front.setAttribute('aria-hidden', 'false');
   const tap = document.createElement('span');
   tap.className = 'reveal-tap';
   tap.textContent = t('ui.reveal.tap_to_reveal');
   front.replaceChildren(tap);
 
   const back = card.querySelector('.card-back');
+  back.setAttribute('aria-hidden', 'true');
   back.className = `card-face card-back ${_teamClass(p.role_id)}`;
   const name = document.createElement('div');
   name.className = 'reveal-role-name';
@@ -86,6 +96,10 @@ function _onCardClick() {
   const card = document.getElementById('reveal-card');
   if (card.classList.contains('flipped')) return;
   card.classList.add('flipped');
+  card.setAttribute('aria-expanded', 'true');
+  card.setAttribute('aria-label', t('ui.reveal.role_revealed', { role: roleName(_players[_idx].role_id) }));
+  card.querySelector('.card-front').setAttribute('aria-hidden', 'true');
+  card.querySelector('.card-back').setAttribute('aria-hidden', 'false');
   document.getElementById('btn-reveal-seen').style.display = '';
 }
 
@@ -96,7 +110,10 @@ function _onSeen() {
   // Only update the back face (new team color + role name) after the animation completes,
   // so the next player's team is never visible during the flip.
   card.classList.remove('flipped');
+  card.setAttribute('aria-expanded', 'false');
   document.getElementById('btn-reveal-seen').style.display = 'none';
+  card.querySelector('.card-front').setAttribute('aria-hidden', 'false');
+  card.querySelector('.card-back').setAttribute('aria-hidden', 'true');
 
   setTimeout(() => {
     _idx++;

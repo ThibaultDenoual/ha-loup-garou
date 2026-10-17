@@ -43,11 +43,11 @@ function _renderCurrent() {
 
   const done = Object.keys(_votes).length;
   const total = state.players.filter(p => p.alive).length;
-  document.getElementById('vote-progress').textContent = `${done} / ${total} votes`;
+  document.getElementById('vote-progress').textContent = t('ui.vote.progress', { done, total });
 
   const confirm = document.getElementById('btn-vote-confirm');
   confirm.disabled = true;
-  confirm.textContent = t('ui.vote.confirm') || 'Voter';
+  confirm.textContent = t('ui.vote.submit');
 
   _renderGrid(voterId);
 }
@@ -60,17 +60,29 @@ function _renderGrid(excludeId) {
   state.players.filter(p => p.alive && p.id !== excludeId).forEach(p => {
     const card = document.createElement('div');
     card.className = 'player-card';
+    card.setAttribute('role', 'button');
+    card.tabIndex = 0;
+    card.setAttribute('aria-pressed', 'false');
+    card.setAttribute('aria-label', `${t('ui.vote.instruction')}: ${p.name}`);
     const name = document.createElement('div');
     name.className = 'player-name';
     name.textContent = p.name;
     const role = document.createElement('div');
     role.className = 'player-role';
     card.append(name, role);
-    card.addEventListener('click', () => {
-      grid.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
+    const select = () => {
+      grid.querySelectorAll('.player-card').forEach(c => {
+        c.classList.remove('selected');
+        c.setAttribute('aria-pressed', 'false');
+      });
       card.classList.add('selected');
+      card.setAttribute('aria-pressed', 'true');
       _selected = p.id;
       document.getElementById('btn-vote-confirm').disabled = false;
+    };
+    card.addEventListener('click', select);
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); }
     });
     grid.appendChild(card);
   });
