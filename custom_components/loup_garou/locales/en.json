@@ -58,6 +58,7 @@
   "role.witch.team": "Village",
   "role.witch.wake": "The Witch opens her eyes.",
   "role.witch.sleep": "The Witch goes back to sleep.",
+  "role.witch.action_prompt": "Choose whether to use your healing potion, poison, or neither.",
   "role.witch.save_prompt": "Do you want to use your healing potion to save {name}?",
   "role.witch.poison_prompt": "Do you want to use your poison to kill someone?",
   "role.witch.no_save_potion": "You have already used your healing potion.",

@@ -38,6 +38,12 @@ def test_frontend_static_translation_keys_exist_in_both_locales() -> None:
         locale = json.loads((LOCALES / f"{language}.json").read_text(encoding="utf-8"))
         missing = sorted(key for key in used_keys if key not in locale)
         assert not missing, f"{language} locale is missing frontend keys: {missing}"
+        dynamic_role_keys = [
+            *(f"role.{role}.action_prompt" for role in ("werewolf", "seer", "witch", "cupid", "alpha_wolf")),
+            "role.hunter.death_prompt",
+        ]
+        missing_dynamic = sorted(key for key in dynamic_role_keys if key not in locale)
+        assert not missing_dynamic, f"{language} locale is missing dynamic role prompts: {missing_dynamic}"
 
 
 def test_frontend_pages_have_unique_element_ids() -> None:

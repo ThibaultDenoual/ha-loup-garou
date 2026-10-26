@@ -2,8 +2,9 @@
 pycache/
 .venv/
 archive/
+node_modules/
+test-results/
+playwright-report/
 
 # Private documentation
-*.md
-!README.md
 docs/

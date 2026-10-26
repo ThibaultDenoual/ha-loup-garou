@@ -58,6 +58,7 @@
   "role.witch.team": "Village",
   "role.witch.wake": "La Sorcière ouvre les yeux.",
   "role.witch.sleep": "La Sorcière se rendort.",
+  "role.witch.action_prompt": "Choisissez si vous utilisez la potion de guérison, le poison, ou aucun des deux.",
   "role.witch.save_prompt": "Voulez-vous utiliser votre potion de guérison pour sauver {name} ?",
   "role.witch.poison_prompt": "Voulez-vous utiliser votre poison pour tuer quelqu'un ?",
   "role.witch.no_save_potion": "Vous avez déjà utilisé votre potion de guérison.",

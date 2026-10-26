@@ -262,6 +262,7 @@ function _renderWitch(data, alive) {
   witchBox.style.display = '';
 
   const grid = document.getElementById('na-grid');
+  grid.replaceChildren();
 
   const saveBtn = document.getElementById('witch-save-btn');
   const poisonBtn = document.getElementById('witch-poison-btn');
