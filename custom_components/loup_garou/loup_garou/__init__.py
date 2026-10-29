@@ -24,6 +24,11 @@ from .atmosphere import Atmosphere
 
 _LOGGER = logging.getLogger(__name__)
 
+# aiohttp cannot unregister routes, and it dispatches to the first match, so the
+# WebSocket view and static paths are registered once per HA run. The view looks
+# up the current entry's server on each request, which keeps reloads working.
+_ROUTES_REGISTERED = f"{DOMAIN}_routes_registered"
+
 
 def describe_light(hass: HomeAssistant, entity_id: str) -> dict:
     """Build a display payload for one light entity.
@@ -136,26 +141,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     server.set_save_callback(_save_config)
     server.set_entities_callback(_get_entities)
     server.set_test_audio_callback(_test_audio)
+    # A browser WebSocket cannot send an Authorization header, so the view is
+    # open and the game page authenticates with its first message instead.
+    server.set_auth_callback(
+        lambda token: hass.auth.async_validate_access_token(token) is not None
+    )
 
     from homeassistant.components.frontend import async_register_built_in_panel
-    from homeassistant.components.http import HomeAssistantView
 
-    class _WebSocketView(HomeAssistantView):
-        """Thin aiohttp view wrapper."""
-
-        url = f"/{DOMAIN}/ws"
-        name = f"{DOMAIN}_ws"
-        requires_auth = True
-
-        def __init__(self, server: LoupGarouServer) -> None:
-            self._server = server
-
-        async def get(self, request):
-            return await self._server.handle_ws(request)
-
-    hass.http.register_view(_WebSocketView(server))
-
-    await _register_static_paths(hass)
+    if not hass.data.get(_ROUTES_REGISTERED):
+        hass.http.register_view(_make_websocket_view(hass))
+        await _register_static_paths(hass)
+        hass.data[_ROUTES_REGISTERED] = True
 
     async_register_built_in_panel(
         hass,
@@ -174,9 +171,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from homeassistant.components.frontend import async_remove_panel
 
-    hass.data[DOMAIN].pop(entry.entry_id, None)
+    runtime = hass.data[DOMAIN].pop(entry.entry_id, None)
+    if runtime is not None:
+        # Disconnected pages reconnect, and reach the new server after a reload.
+        await runtime["server"].async_shutdown()
     async_remove_panel(hass, "loup_garou")
     return True
+
+
+def _make_websocket_view(hass: HomeAssistant):
+    from aiohttp import web
+    from homeassistant.components.http import HomeAssistantView
+
+    class _WebSocketView(HomeAssistantView):
+        """Routes /loup_garou/ws to the server of the currently loaded entry."""
+
+        url = f"/{DOMAIN}/ws"
+        name = f"{DOMAIN}_ws"
+        requires_auth = False  # checked by LoupGarouServer's auth handshake
+
+        async def get(self, request):
+            runtime = next(iter(hass.data.get(DOMAIN, {}).values()), None)
+            if runtime is None:
+                return web.Response(status=503, text="Loup Garou is not loaded")
+            return await runtime["server"].handle_ws(request)
+
+    return _WebSocketView()
 
 
 async def _register_static_paths(hass: HomeAssistant) -> None:

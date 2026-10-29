@@ -657,10 +657,18 @@ applyAudioVisibility();
     renderLightsPicker();
   }
 
-  ws.onopen = () => {
+  function requestInitialData() {
     ws.send(JSON.stringify({cmd:'get_config', data:{}}));
     ws.send(JSON.stringify({cmd:'get_entities', data:{}}));
     ws.send(JSON.stringify({cmd:'get_demos', data:{}}));
+  }
+
+  // Inside HA the server wants an access token first (see js/ha_auth.js).
+  ws.onopen = async () => {
+    const { haAccessToken } = await import('./js/ha_auth.js');
+    const token = await haAccessToken();
+    if (token) ws.send(JSON.stringify({type:'auth', access_token: token}));
+    else requestInitialData();
   };
 
   // ── Demo game ───────────────────────────────────────────────────────────────
@@ -732,6 +740,10 @@ applyAudioVisibility();
 
   ws.onmessage = e => {
     const msg = JSON.parse(e.data);
+    if (msg.type === 'auth_ok') requestInitialData();
+    if (msg.type === 'auth_invalid') {
+      document.getElementById('save-feedback').textContent = tr('ui.ws.open_from_ha');
+    }
     if (msg.type === 'config') applyConfig(msg.config || {});
     if (msg.type === 'entities') applyEntities(msg.data || {});
     if (msg.type === 'demo_presets') {
