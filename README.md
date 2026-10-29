@@ -167,14 +167,19 @@ python run_console.py
 pip install -r requirements_test.txt
 
 # Run all tests
-pytest tests/unit
-pytest tests/e2e
+pytest
+
+# Or one tier at a time
+pytest tests/unit         # engine, roles, server logic
+pytest tests/e2e          # WebSocket protocol on a bare aiohttp server
+pytest tests/integration  # the integration loaded inside an in-process Home Assistant
 
 # Coverage report
 pytest --cov=custom_components/loup_garou --cov-report=term-missing
 ```
 
 The test suite uses a real `GameEngine` with real role plugins — only external I/O (HA services, WebSocket clients) is mocked.
+`tests/integration` goes further: Home Assistant's own loader sets up the config entry, and tests go through HA's HTTP server (static files, the authenticated WebSocket view) and record real `light`/`tts` service calls.
 
 ---
 

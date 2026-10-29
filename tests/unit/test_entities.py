@@ -4,6 +4,9 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from homeassistant.helpers.area_registry import AreaRegistry
+from homeassistant.helpers.entity_registry import EntityRegistry
+
 from loup_garou.loup_garou import describe_light
 
 
@@ -63,10 +66,12 @@ def test_describe_light_missing_state_never_raises():
 
 def test_describe_light_resolves_area_name():
     hass = _hass_with_state("light.salon", "Salon")
-    ent_reg = MagicMock()
+    # spec= keeps the mocks honest: a method the real registries lack raises
+    # instead of silently returning a MagicMock.
+    ent_reg = MagicMock(spec=EntityRegistry)
     ent_reg.async_get.return_value = SimpleNamespace(area_id="area-1")
-    ar = MagicMock()
-    ar.async_get.return_value = SimpleNamespace(name="Salon")
+    ar = MagicMock(spec=AreaRegistry)
+    ar.async_get_area.return_value = SimpleNamespace(name="Salon")
     with patch(
         "homeassistant.helpers.entity_registry.async_get", return_value=ent_reg
     ), patch("homeassistant.helpers.area_registry.async_get", return_value=ar):
