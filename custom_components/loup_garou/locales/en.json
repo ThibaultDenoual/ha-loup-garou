@@ -15,7 +15,7 @@
   "phase.game_over.wolves_win": "The werewolves have devoured the entire village. The wolves win!",
   "phase.game_over.village_win": "All werewolves have been eliminated. The village wins!",
   "phase.game_over.lovers_win": "The lovers have survived. Love triumphs!",
-  "phase.role_reveal.start": "Each player will now discover their role.",
+  "phase.role_reveal.start": "At the foot of the mountain, a small village gets ready for the night. But some of its people are no longer quite human… Each of you will now discover your role, in secret.",
 
   "role.villager.name": "Villager",
   "role.villager.description": "You are a simple villager. Sniff out the werewolves during the vote!",

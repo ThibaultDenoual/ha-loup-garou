@@ -204,6 +204,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     runtime = hass.data[DOMAIN].pop(entry.entry_id, None)
     if runtime is not None:
+        runtime["atmosphere"].shutdown()
         # Disconnected pages reconnect, and reach the new server after a reload.
         await runtime["server"].async_shutdown()
     async_remove_panel(hass, "loup_garou")

@@ -15,7 +15,7 @@
   "phase.game_over.wolves_win": "Les loups-garous ont dévoré tout le village. Les loups ont gagné !",
   "phase.game_over.village_win": "Tous les loups ont été éliminés. Le village a gagné !",
   "phase.game_over.lovers_win": "Les amoureux ont survécu. L'amour a triomphé !",
-  "phase.role_reveal.start": "Chaque joueur va découvrir son rôle.",
+  "phase.role_reveal.start": "Au pied de la montagne, le petit village s'apprête à dormir. Mais parmi ses habitants, certains ne sont plus tout à fait humains… Chacun va maintenant découvrir son rôle, en secret.",
 
   "role.villager.name": "Villageois",
   "role.villager.description": "Vous êtes un simple villageois. Débusquez les loups-garous pendant le vote !",

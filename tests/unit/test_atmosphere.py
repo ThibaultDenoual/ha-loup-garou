@@ -116,7 +116,7 @@ def test_tts_phase_delays_has_all_keys():
         "night_start", "role_wake", "role_sleep",
         "day_no_death", "day_prelude", "day_with_death",
         "vote_start", "vote_result",
-        "elimination_live", "game_over",
+        "elimination_live", "game_over", "intro",
     }
     assert set(TTS_PHASE_DELAYS.keys()) == expected
 
@@ -303,6 +303,7 @@ def test_wire_events_registers_all_expected_events():
     atm, _, engine = make_atmosphere()
     atm.wire_events()
     registered = set(engine._handlers.keys())
+    assert GameEvent.GAME_STARTED in registered
     assert GameEvent.PHASE_CHANGED in registered
     assert GameEvent.NIGHT_ROLE_WAKE in registered
     assert GameEvent.NIGHT_ROLE_SLEEP in registered

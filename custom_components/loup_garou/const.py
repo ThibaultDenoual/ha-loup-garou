@@ -47,7 +47,56 @@ TTS_PHASE_DELAYS: dict[str, float] = {
     "vote_result":         3.5,
     "elimination_live":    3.0,
     "game_over":           5.0,
+    "intro":               9.0,
 }
+
+# Length in seconds of each recorded clip, rounded up to 0.1 s.
+# tests/unit/test_static_audio.py checks it against the files in www/audio/.
+STATIC_AUDIO_SECONDS: dict[str, dict[str, float]] = {
+    "en": {
+        "day_no_death":           4.6,
+        "day_prelude_death":      3.4,
+        "game_over_lovers":       3.6,
+        "game_over_village":      4.2,
+        "game_over_wolves":       4.5,
+        "night_start":            4.1,
+        "role_alpha_wolf_sleep":  2.8,
+        "role_alpha_wolf_wake":   2.6,
+        "role_cupid_sleep":       2.5,
+        "role_cupid_wake":        2.4,
+        "role_seer_sleep":        2.3,
+        "role_seer_wake":         2.3,
+        "role_werewolf_sleep":    2.6,
+        "role_werewolf_wake":     2.5,
+        "role_witch_sleep":       2.3,
+        "role_witch_wake":        2.2,
+        "vote_start":             3.8,
+        "vote_tie":               4.1,
+    },
+    "fr": {
+        "day_no_death":           6.1,
+        "day_prelude_death":      3.9,
+        "game_over_lovers":       4.8,
+        "game_over_village":      4.7,
+        "game_over_wolves":       5.0,
+        "night_start":            4.5,
+        "role_alpha_wolf_sleep":  2.7,
+        "role_alpha_wolf_wake":   2.6,
+        "role_cupid_sleep":       2.6,
+        "role_cupid_wake":        2.5,
+        "role_seer_sleep":        2.7,
+        "role_seer_wake":         2.5,
+        "role_werewolf_sleep":    2.8,
+        "role_werewolf_wake":     2.6,
+        "role_witch_sleep":       2.6,
+        "role_witch_wake":        2.5,
+        "vote_start":             4.1,
+        "vote_tie":               4.7,
+    },
+}
+
+# Extra wait after a clip on an HA speaker, which takes a moment to start.
+STATIC_AUDIO_MARGIN = 1.0
 
 
 # ── Game events (used by engine.on() / engine._emit()) ───────────────────────

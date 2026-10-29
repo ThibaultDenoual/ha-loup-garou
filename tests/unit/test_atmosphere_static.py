@@ -22,11 +22,14 @@ for _mod in [
 ]:
     sys.modules.setdefault(_mod, MagicMock())
 
+import asyncio  # noqa: E402
 from unittest.mock import AsyncMock, call, patch  # noqa: E402
 
 import pytest  # noqa: E402
 
-from loup_garou.const import STATIC_AUDIO_MAP  # noqa: E402
+from loup_garou.const import (  # noqa: E402
+    STATIC_AUDIO_MAP, STATIC_AUDIO_MARGIN, STATIC_AUDIO_SECONDS, TTS_PHASE_DELAYS,
+)
 from loup_garou.loup_garou.atmosphere import Atmosphere  # noqa: E402
 from loup_garou.narration import NarrationMessage  # noqa: E402
 
@@ -203,3 +206,29 @@ async def test_on_day_started_death_prelude_sends_audio_url():
     assert server.narrate.await_count == 2
     prelude_msg = server.narrate.call_args_list[0][0][0]
     assert prelude_msg.audio_url == "/loup_garou/audio/fr/day_prelude_death.mp3"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Static clips on an HA speaker wait for the whole clip
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.parametrize("lang", ["fr", "en"])
+async def test_static_ha_waits_for_the_whole_clip(lang):
+    atm, _ = make_atmosphere("static", audio_output="ha", lang=lang)
+    atm._hass.config.internal_url = "http://ha.local:8123"
+    clip = STATIC_AUDIO_SECONDS[lang]["role_seer_sleep"]
+    with patch(_SLEEP, new_callable=AsyncMock) as sleep:
+        await atm.speak(atm._narrate("role.seer.sleep", delay_key="role_sleep"))
+    # Longer than the fixed role_sleep pause, which cut the next clip.
+    assert clip + STATIC_AUDIO_MARGIN > TTS_PHASE_DELAYS["role_sleep"]
+    sleep.assert_awaited_once_with(clip + STATIC_AUDIO_MARGIN)
+
+
+async def test_game_start_narrates_the_intro():
+    atm, server = make_atmosphere("static")
+    atm._locale["phase.role_reveal.start"] = "Au pied de la montagne…"
+    await atm._on_game_started({})
+    await asyncio.sleep(0)  # the intro runs as a task
+    msg = server.narrate.call_args[0][0]
+    assert msg.text == "Au pied de la montagne…"
+    assert msg.delay_key == "intro"

@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING
 from homeassistant.core import HomeAssistant
 
 from ..const import (
-    GameEvent, LIGHT_SCENES, ROLE_SCENE, STATIC_AUDIO_MAP, TTS_PHASE_DELAYS,
+    GameEvent, LIGHT_SCENES, ROLE_SCENE, STATIC_AUDIO_MAP, STATIC_AUDIO_MARGIN,
+    STATIC_AUDIO_SECONDS, TTS_PHASE_DELAYS,
     CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
 )
 
@@ -51,6 +52,7 @@ class Atmosphere:
         self._audio_source = audio_source
         self._audio_output = audio_output
         self._server = server
+        self._intro_task: asyncio.Task | None = None
 
     @property
     def language(self) -> str:
@@ -99,6 +101,7 @@ class Atmosphere:
 
     def wire_events(self) -> None:
         e = self._engine
+        e.on(GameEvent.GAME_STARTED, self._on_game_started)
         e.on(GameEvent.PHASE_CHANGED, self._on_phase_changed)
         e.on(GameEvent.NIGHT_ROLE_WAKE, self._on_role_wake)
         e.on(GameEvent.NIGHT_ROLE_SLEEP, self._on_role_sleep)
@@ -110,6 +113,19 @@ class Atmosphere:
         e.on(GameEvent.GAME_OVER, self._on_game_over)
 
     # ── Handlers ──────────────────────────────────────────────────────────────
+
+    async def _on_game_started(self, data: dict) -> None:
+        # Set the scene while the phone goes round for the secret roles. Not
+        # awaited: start_game runs inside the WebSocket handler, which must stay
+        # free to receive the browser's tts_done.
+        self._intro_task = asyncio.create_task(
+            self.speak(self._narrate("phase.role_reveal.start", delay_key="intro"))
+        )
+
+    def shutdown(self) -> None:
+        """Stop narration still running in the background (entry unload)."""
+        if self._intro_task and not self._intro_task.done():
+            self._intro_task.cancel()
 
     async def _on_phase_changed(self, data: dict) -> None:
         phase = data.get("phase")
@@ -288,10 +304,15 @@ class Atmosphere:
         """
         text = self.t(key, **params)
         audio_url: str | None = None
+        audio_seconds: float | None = None
         if self._audio_source == "static" and not params and key in STATIC_AUDIO_MAP:
             stem = STATIC_AUDIO_MAP[key]
             audio_url = f"/loup_garou/audio/{self._language}/{stem}.mp3"
-        return NarrationMessage(text=text, lang=self._language, audio_url=audio_url, delay_key=delay_key)
+            audio_seconds = STATIC_AUDIO_SECONDS.get(self._language, {}).get(stem)
+        return NarrationMessage(
+            text=text, lang=self._language, audio_url=audio_url,
+            delay_key=delay_key, audio_seconds=audio_seconds,
+        )
 
     async def speak(self, msg: NarrationMessage) -> None:
         """Route a narration message to the configured output (browser or HA).
@@ -307,7 +328,7 @@ class Atmosphere:
                 await self._server.narrate(msg)
             return
         if msg.audio_url:
-            await self._play_static_ha(msg.audio_url, msg.delay_key)
+            await self._play_static_ha(msg.audio_url, msg.delay_key, msg.audio_seconds)
         else:
             await self._speak_tts_ha(msg.text, msg.delay_key)
 
@@ -330,9 +351,16 @@ class Atmosphere:
             _LOGGER.exception("Failed to speak via TTS: %s", text)
         await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))
 
-    async def _play_static_ha(self, audio_url: str, delay_key: str) -> None:
+    async def _play_static_ha(
+        self, audio_url: str, delay_key: str, audio_seconds: float | None = None
+    ) -> None:
         if not self._speaker:
             return
+        # Wait out the whole clip: a speaker given the next play_media while
+        # still playing (or loading) cuts or drops one of the two.
+        wait = TTS_PHASE_DELAYS.get(delay_key, 2.5)
+        if audio_seconds:
+            wait = max(wait, audio_seconds + STATIC_AUDIO_MARGIN)
         base_url = (
             getattr(self._hass.config, "internal_url", None)
             or getattr(self._hass.config, "external_url", None)
@@ -340,7 +368,7 @@ class Atmosphere:
         ).rstrip("/")
         if not base_url:
             _LOGGER.warning("static+ha: no HA base URL configured; cannot play %s", audio_url)
-            await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))
+            await asyncio.sleep(wait)
             return
         try:
             await self._hass.services.async_call(
@@ -355,4 +383,4 @@ class Atmosphere:
             )
         except Exception:
             _LOGGER.exception("Failed to play static audio on HA: %s", audio_url)
-        await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))
+        await asyncio.sleep(wait)

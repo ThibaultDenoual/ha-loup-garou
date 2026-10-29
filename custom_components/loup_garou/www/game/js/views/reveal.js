@@ -56,6 +56,8 @@ function _showCurrent() {
   }
 
   const p = _players[_idx];
+  // The narrator sets the scene once, while the first player takes the phone.
+  $('reveal-intro').hidden = _idx !== 0;
   $('reveal-player-label').textContent = p.name;
   translate($('reveal-progress'), 'ui.reveal.progress', { done: _idx + 1, total: _players.length });
 

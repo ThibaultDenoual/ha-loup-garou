@@ -369,6 +369,7 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 
 /* ── Reveal ───────────────────────────────────────────────────────────────── */
 
+.intro { text-align: center; font-style: italic; color: var(--ink-dim); margin: 0 auto; }
 .handoff { text-align: center; align-items: center; gap: 4px; }
 .handoff h1 { font-size: 2.5rem; overflow-wrap: anywhere; }
 
