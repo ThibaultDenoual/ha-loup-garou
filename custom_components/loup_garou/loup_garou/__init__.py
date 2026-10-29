@@ -52,7 +52,7 @@ def describe_light(hass: HomeAssistant, entity_id: str) -> dict:
         area_id = getattr(entry, "area_id", None)
         if area_id:
             ar = _area_reg.async_get(hass)
-            area_entry = ar.async_get(area_id) if ar is not None else None
+            area_entry = ar.async_get_area(area_id) if ar is not None else None
             area = getattr(area_entry, "name", None)
     except Exception:
         _LOGGER.debug("describe_light: no area for %s", entity_id, exc_info=True)
