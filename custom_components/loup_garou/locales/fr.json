@@ -101,6 +101,7 @@
   "ui.setup.player_name_placeholder": "Nom du joueur",
   "ui.setup.title": "Nouvelle partie",
   "ui.reveal.tap_to_reveal": "Touchez pour révéler votre rôle",
+  "ui.ws.open_from_ha": "Ouvrez Loup Garou depuis Home Assistant",
   "ui.reveal.seen": "J'ai vu mon rôle",
   "ui.reveal.title": "Révélation des rôles",
   "ui.vote.confirm": "Voter",

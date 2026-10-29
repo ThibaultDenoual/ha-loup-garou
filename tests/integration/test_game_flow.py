@@ -66,13 +66,12 @@ async def _receive_until(ws, msg_type: str, limit: int = 500) -> list[dict]:
 
 
 async def test_demo_game_drives_ha_tts_and_lights(
-    hass: HomeAssistant, fast_demo, hass_client
+    hass: HomeAssistant, fast_demo, game_ws
 ) -> None:
     tts_calls = async_mock_service(hass, "tts", "speak")
     light_calls = async_mock_service(hass, "light", "turn_on")
-    client = await hass_client()
 
-    async with client.ws_connect("/loup_garou/ws") as ws:
+    async with game_ws() as ws:
         await ws.send_json({"cmd": "run_demo", "data": {"preset": "smoke_test"}})
         msgs = await _receive_until(ws, "demo_finished")
     await hass.async_block_till_done()
@@ -94,11 +93,9 @@ async def test_demo_game_drives_ha_tts_and_lights(
 
 
 async def test_save_config_persists_to_the_config_entry(
-    hass: HomeAssistant, setup_entry, hass_client
+    hass: HomeAssistant, setup_entry, game_ws
 ) -> None:
-    client = await hass_client()
-
-    async with client.ws_connect("/loup_garou/ws") as ws:
+    async with game_ws() as ws:
         await ws.send_json({
             "cmd": "save_config",
             "data": {"light_entities": ["light.cuisine"], "language": "en"},
@@ -112,7 +109,7 @@ async def test_save_config_persists_to_the_config_entry(
 
 
 async def test_get_entities_reads_real_states_and_registries(
-    hass: HomeAssistant, setup_entry, hass_client
+    hass: HomeAssistant, setup_entry, game_ws
 ) -> None:
     area = ar.async_get(hass).async_create("Salon")
     er.async_get(hass).async_get_or_create(
@@ -122,9 +119,8 @@ async def test_get_entities_reads_real_states_and_registries(
     hass.states.async_set(LIGHT, "on", {"friendly_name": "Lampe du salon"})
     hass.states.async_set("light.cave", "off")
     hass.states.async_set(SPEAKER, "idle")
-    client = await hass_client()
 
-    async with client.ws_connect("/loup_garou/ws") as ws:
+    async with game_ws() as ws:
         await ws.send_json({"cmd": "get_entities"})
         msgs = await _receive_until(ws, "entities")
 

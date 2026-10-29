@@ -6,6 +6,8 @@ import contextlib
 import json
 import logging
 
+from typing import Callable
+
 from aiohttp import WSMsgType, web
 
 from .const import Phase
@@ -14,6 +16,9 @@ from .game_engine import GameEngine
 from .narration import NarrationMessage
 
 _LOGGER = logging.getLogger(__name__)
+
+# How long a new connection may take to send its auth message.
+AUTH_TIMEOUT = 10.0
 
 
 class LoupGarouServer:
@@ -38,6 +43,7 @@ class LoupGarouServer:
         self._save_config_cb = None
         self._get_entities_cb = None
         self._test_audio_cb = None
+        self._auth_cb: Callable[[str], bool] | None = None
 
     def set_save_callback(self, fn) -> None:
         self._save_config_cb = fn
@@ -48,11 +54,22 @@ class LoupGarouServer:
     def set_test_audio_callback(self, fn) -> None:
         self._test_audio_cb = fn
 
+    def set_auth_callback(self, fn: Callable[[str], bool]) -> None:
+        """Require every connection to open with {"type": "auth", "access_token": ...}.
+
+        fn returns whether the token is valid. Without it (standalone dev server)
+        connections are trusted and an auth message is simply acknowledged.
+        """
+        self._auth_cb = fn
+
     # ── aiohttp request handler ───────────────────────────────────────────────
 
     async def handle_ws(self, request: web.Request) -> web.WebSocketResponse:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
+        if self._auth_cb is not None and not await self._authenticate(ws):
+            await ws.close()
+            return ws
         self._clients.add(ws)
         _LOGGER.debug("WS client connected")
 
@@ -75,6 +92,10 @@ class LoupGarouServer:
                             "msg": "WebSocket message must be a JSON object.",
                         })
                         continue
+                    if payload.get("type") == "auth":
+                        # Already authenticated, or no auth required.
+                        await ws.send_json({"type": "auth_ok"})
+                        continue
                     await self._dispatch(ws, payload)
                 elif msg.type == WSMsgType.ERROR:
                     _LOGGER.warning("WS error: %s", ws.exception())
@@ -83,6 +104,37 @@ class LoupGarouServer:
             _LOGGER.debug("WS client disconnected")
 
         return ws
+
+    async def _authenticate(self, ws: web.WebSocketResponse) -> bool:
+        """Wait for the opening auth message; reply auth_ok or auth_invalid."""
+        token = None
+        try:
+            msg = await ws.receive(timeout=AUTH_TIMEOUT)
+            if msg.type == WSMsgType.TEXT:
+                payload = json.loads(msg.data)
+                if isinstance(payload, dict) and payload.get("type") == "auth":
+                    token = payload.get("access_token")
+        except (asyncio.TimeoutError, json.JSONDecodeError):
+            pass
+        if isinstance(token, str) and token and self._auth_cb(token):
+            await ws.send_json({"type": "auth_ok"})
+            return True
+        _LOGGER.info("Rejected WebSocket connection without a valid access token")
+        with contextlib.suppress(Exception):
+            await ws.send_json({"type": "auth_invalid"})
+        return False
+
+    async def async_shutdown(self) -> None:
+        """Stop any game task and disconnect every client (entry unload)."""
+        for task in (self._demo_task, self._night_task):
+            if task and not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+        for ws in list(self._clients):
+            with contextlib.suppress(Exception):
+                await ws.close()
+        self._clients.clear()
 
     # ── Broadcast + browser TTS ───────────────────────────────────────────────
 

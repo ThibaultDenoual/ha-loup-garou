@@ -6,6 +6,8 @@ exactly as it is on a real instance.
 """
 from __future__ import annotations
 
+import contextlib
+
 # The `hass` fixture mounts the plugin's own testing_config (which has a
 # `custom_components` package) at the front of sys.path. Importing ours first
 # pins it in sys.modules so HA's loader finds loup_garou.
@@ -24,6 +26,21 @@ DOMAIN = "loup_garou"
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Let HA's loader find custom_components/loup_garou."""
     yield
+
+
+@pytest.fixture
+async def game_ws(hass_client_no_auth, hass_access_token):
+    """Open /loup_garou/ws the way the panel does: no auth header, token in the first message."""
+    client = await hass_client_no_auth()
+
+    @contextlib.asynccontextmanager
+    async def _connect():
+        async with client.ws_connect("/loup_garou/ws") as ws:
+            await ws.send_json({"type": "auth", "access_token": hass_access_token})
+            assert (await ws.receive_json(timeout=2))["type"] == "auth_ok"
+            yield ws
+
+    return _connect
 
 
 @pytest.fixture
