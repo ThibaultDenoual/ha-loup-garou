@@ -1,24 +1,26 @@
-import { t, roleName } from '../i18n.js';
+import { translate } from '../i18n.js';
+import { h, $ } from '../dom.js';
+import { ROLE_ORDER, roleNameRef } from '../roles.js';
+import { avatar, sprite } from '../sprites.js';
 
-const ROLE_ORDER = [
-  'villager', 'werewolf', 'seer', 'hunter', 'elder', 'scapegoat',
-  'little_girl', 'witch', 'cupid', 'alpha_wolf', 'minion', 'sheriff',
-];
+const MIN_PLAYERS = 3;
+const MAX_NAME = 20;
 
 let _send;
+// Kept across games so the same group can replay without retyping.
 let _names = [];
 let _roleConfig = {};
 
 export function init(send) {
   _send = send;
 
-  document.getElementById('btn-add-player').addEventListener('click', () => {
+  $('btn-add-player').addEventListener('click', () => {
     _names.push('');
     _renderPlayers();
     _validate();
+    $('setup-player-list').querySelector('.player-row:last-child input').focus();
   });
-
-  document.getElementById('btn-start-game').addEventListener('click', _startGame);
+  $('btn-start-game').addEventListener('click', _startGame);
 
   _renderPlayers();
   _renderRoles();
@@ -26,116 +28,108 @@ export function init(send) {
 }
 
 export function reset() {
-  _names = [];
-  _roleConfig = {};
   _renderPlayers();
   _renderRoles();
   _validate();
 }
 
+const _assigned = () => Object.values(_roleConfig).reduce((a, b) => a + b, 0);
+
 function _renderPlayers() {
-  const el = document.getElementById('setup-player-list');
-  el.innerHTML = '';
-  _names.forEach((name, i) => {
-    const row = document.createElement('div');
-    row.className = 'player-row';
-
-    const inp = document.createElement('input');
-    inp.type = 'text';
-    inp.value = name;
-    inp.placeholder = t('ui.setup.player_name_placeholder');
-    inp.addEventListener('input', e => { _names[i] = e.target.value; _validate(); });
-
-    const del = document.createElement('button');
-    del.className = 'ghost icon-btn';
-    del.textContent = '✕';
-    del.addEventListener('click', () => { _names.splice(i, 1); _renderPlayers(); _validate(); });
-
-    row.append(inp, del);
-    el.appendChild(row);
-  });
+  $('setup-player-list').replaceChildren(..._names.map((name, i) => {
+    const face = h('span', { class: 'avatar' }, avatar(name, 4));
+    const input = h('input', {
+      class: 'field',
+      type: 'text',
+      maxlength: MAX_NAME + 5,
+      autocomplete: 'off',
+      i18nPlaceholder: 'ui.setup.player_name_placeholder',
+      on: {
+        input: e => {
+          _names[i] = e.target.value;
+          face.replaceChildren(avatar(e.target.value, 4));
+          _validate();
+        },
+      },
+    });
+    input.value = name;
+    const remove = h('button', {
+      type: 'button',
+      class: 'btn btn-icon',
+      i18nLabel: 'ui.setup.remove_player',
+      on: { click: () => { _names.splice(i, 1); _renderPlayers(); _validate(); } },
+    }, sprite('cross', 2));
+    return h('div', { class: 'player-row' }, face, input, remove);
+  }));
 }
 
 function _renderRoles() {
-  const el = document.getElementById('setup-role-slots');
-  el.innerHTML = '';
-
-  ROLE_ORDER.forEach(rid => {
-    const cnt = _roleConfig[rid] || 0;
-    const row = document.createElement('div');
-    row.className = 'role-slot-row';
-
-    const name = document.createElement('span');
-    name.className = 'role-slot-name';
-    name.textContent = roleName(rid);
-
-    const dec = document.createElement('button');
-    dec.className = 'secondary icon-btn role-slot-btn';
-    dec.textContent = '−';
-    dec.addEventListener('click', () => {
-      _roleConfig[rid] = Math.max(0, (_roleConfig[rid] || 0) - 1);
-      _updateRoleRow(row, rid);
-      _validate();
-    });
-
-    const count = document.createElement('span');
-    count.className = 'role-slot-count';
-    count.textContent = cnt;
-    count.dataset.rid = rid;
-
-    const inc = document.createElement('button');
-    inc.className = 'secondary icon-btn role-slot-btn';
-    inc.textContent = '+';
-    inc.addEventListener('click', () => {
-      _roleConfig[rid] = (_roleConfig[rid] || 0) + 1;
-      _updateRoleRow(row, rid);
-      _validate();
-    });
-
-    row.append(name, dec, count, inc);
-    el.appendChild(row);
-  });
+  $('setup-role-slots').replaceChildren(...ROLE_ORDER.map(rid => {
+    const count = h('span', { class: 'role-slot-count', 'aria-live': 'polite' });
+    const less = h('button', {
+      type: 'button',
+      class: 'btn btn-icon',
+      i18nLabel: ['ui.setup.role_less', { role: roleNameRef(rid) }],
+      on: { click: () => _bump(rid, -1) },
+    }, sprite('minus', 2));
+    const more = h('button', {
+      type: 'button',
+      class: 'btn btn-icon',
+      i18nLabel: ['ui.setup.role_more', { role: roleNameRef(rid) }],
+      on: { click: () => _bump(rid, 1) },
+    }, sprite('plus', 2));
+    return h('div', { class: 'role-slot-row', data: { roleId: rid } },
+      sprite(rid, 3),
+      h('div', {},
+        h('div', { class: 'role-slot-name', i18n: `role.${rid}.name` }),
+        h('div', { class: 'role-slot-desc', i18n: `role.${rid}.description` })),
+      h('div', { class: 'stepper' }, less, count, more));
+  }));
 }
 
-function _updateRoleRow(row, rid) {
-  row.querySelector('[data-rid]').textContent = _roleConfig[rid] || 0;
-  _updateTotalLabel();
+function _bump(rid, delta) {
+  _roleConfig[rid] = Math.max(0, (_roleConfig[rid] || 0) + delta);
+  _validate();
 }
 
-function _updateTotalLabel() {
-  const total = Object.values(_roleConfig).reduce((a, b) => a + b, 0);
-  const el = document.getElementById('role-total-label');
-  if (el) el.textContent = `${total} / ${_names.length}`;
+// Returns the first unmet condition as a locale key (+ vars), or null.
+function _problem() {
+  const names = _names.map(n => n.trim());
+  if (names.length < MIN_PLAYERS) return ['ui.setup.hint.need_players'];
+  if (names.some(n => !n)) return ['ui.setup.hint.empty_name'];
+  if (names.some(n => n.length > MAX_NAME)) return ['ui.setup.hint.long_name'];
+  if (names.some(n => /[{}]/.test(n))) return ['ui.setup.hint.bad_chars'];
+  if (new Set(names.map(n => n.toLowerCase())).size !== names.length) return ['ui.setup.hint.duplicate'];
+  const gap = names.length - _assigned();
+  if (gap > 0) return ['ui.setup.hint.roles_short', { count: gap }];
+  if (gap < 0) return ['ui.setup.hint.roles_over', { count: -gap }];
+  return null;
 }
 
 function _validate() {
-  const total = Object.values(_roleConfig).reduce((a, b) => a + b, 0);
+  const assigned = _assigned();
+  const players = _names.length;
 
-  const namesValid =
-    _names.length >= 3 &&
-    total === _names.length &&
-    _names.every(name =>
-      typeof name === 'string' &&
-      name.length > 0 &&
-      name.length <= 20 &&
-      name === name.trim() &&
-      !/[{}]/.test(name)
-    );
+  document.querySelectorAll('#setup-role-slots .role-slot-row').forEach(row => {
+    const n = _roleConfig[row.dataset.roleId] || 0;
+    row.dataset.count = n;
+    row.querySelector('.role-slot-count').textContent = n;
+    const [less, more] = row.querySelectorAll('button');
+    less.disabled = n === 0;
+    more.disabled = assigned >= players;
+  });
 
-  const uniqueNames =
-    new Set(_names.map(name => name.toLowerCase())).size === _names.length;
+  translate($('role-total-label'), 'ui.setup.role_count', { assigned, players });
 
-  const ok = namesValid && uniqueNames;
-
-  document.getElementById('btn-start-game').disabled = !ok;
-  _updateTotalLabel();
+  const problem = _problem();
+  const hint = $('setup-hint');
+  translate(hint, ...(problem || ['ui.setup.hint.ready']));
+  hint.dataset.ok = String(!problem);
+  $('btn-start-game').disabled = Boolean(problem);
 }
 
 function _startGame() {
-  const roles = [];
-  ROLE_ORDER.forEach(rid => {
-    for (let i = 0; i < (_roleConfig[rid] || 0); i++) roles.push(rid);
-  });
+  const roles = ROLE_ORDER.flatMap(rid => Array(_roleConfig[rid] || 0).fill(rid));
   // Fisher-Yates shuffle
   for (let i = roles.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));

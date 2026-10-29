@@ -1,4 +1,8 @@
-import { t, roleName } from '../i18n.js';
+import { translate } from '../i18n.js';
+import { h, $ } from '../dom.js';
+import { articleRef, roleNameRef } from '../roles.js';
+import { sprite } from '../sprites.js';
+import { playerGrid } from '../ui.js';
 
 let _send;
 let _getState;
@@ -7,62 +11,36 @@ export function init(send, getState) {
   _send = send;
   _getState = getState;
 
-  document.getElementById('btn-day-vote').addEventListener('click', () => _send('begin_vote'));
-  document.getElementById('btn-day-night').addEventListener('click', () => _send('begin_night'));
+  $('btn-day-vote').addEventListener('click', () => _send('begin_vote'));
+  $('btn-day-night').addEventListener('click', () => _send('begin_night'));
 }
 
 export function render(nightDeaths) {
-  const state = _getState();
-  document.getElementById('day-night-num').textContent = state.night_number;
-
-  _renderAnnouncement(nightDeaths);
-  _renderGrid();
+  translate($('day-heading'), 'ui.day.heading', { n: _getState().night_number });
+  _renderAnnouncement(nightDeaths || []);
+  updateGrid();
 }
 
 function _renderAnnouncement(deaths) {
-  const el = document.getElementById('day-announcement');
-  if (!deaths || deaths.length === 0) {
-    el.textContent = t('phase.day.start_no_death');
-    el.className = 'day-announcement';
-    return;
-  }
-
-  el.className = 'day-announcement deaths';
-
-  if (deaths.length === 1) {
+  const text = h('p');
+  if (deaths.length === 0) {
+    translate(text, 'phase.day.start_no_death');
+  } else if (deaths.length === 1) {
     const d = deaths[0];
-    const article = _genderArticle(d.role);
-    el.textContent = t('phase.day.start_with_death', {
+    translate(text, 'phase.day.start_with_death', {
       name: d.name,
-      article,
-      role: roleName(d.role),
+      article: articleRef(d.role),
+      role: roleNameRef(d.role),
     });
   } else {
-    const names = deaths.map(d => d.name).join(', ');
-    el.textContent = t('phase.day.start_multi_death', { names });
+    translate(text, 'phase.day.start_multi_death', { names: deaths.map(d => d.name).join(', ') });
   }
-}
-
-function _renderGrid() {
-  const state = _getState();
-  const grid = document.getElementById('day-grid');
-  grid.innerHTML = '';
-  state.players.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'player-card' + (p.alive ? '' : ' dead');
-    card.innerHTML = `
-      <div class="player-name">${p.name}</div>
-      <div class="player-role">${p.alive ? '' : roleName(p.role_id)}</div>`;
-    grid.appendChild(card);
-  });
+  $('day-announcement').replaceChildren(sprite(deaths.length ? 'skull' : 'sun', 4), text);
 }
 
 export function updateGrid() {
-  _renderGrid();
-}
-
-// French grammatical gender approximation for role articles
-function _genderArticle(roleId) {
-  const feminine = ['seer', 'witch', 'little_girl'];
-  return feminine.includes(roleId) ? 'une' : 'un';
+  const players = _getState().players;
+  translate($('day-alive'), 'ui.day.alive_count', { count: players.filter(p => p.alive).length });
+  // Dead players' roles are public knowledge.
+  $('day-grid').replaceChildren(playerGrid(players, { showRole: p => !p.alive }));
 }
