@@ -34,6 +34,25 @@ This Home Assistant integration turns your lights and speakers into an immersive
 
 ---
 
+## 📸 Preview
+
+The phone UI follows the game clock: night for secret roles and night turns, day for the morning news, dusk for the vote.
+
+<table>
+  <tr>
+    <td align="center"><img src="assets/screenshots/setup.png" width="220" alt="Setup screen: players with pixel avatars and role counters"><br><sub>Prepare the village</sub></td>
+    <td align="center"><img src="assets/screenshots/reveal.png" width="220" alt="Role reveal card showing the Werewolf"><br><sub>Secret role reveal</sub></td>
+    <td align="center"><img src="assets/screenshots/night-witch.png" width="220" alt="The Witch's night turn with heal and poison potions"><br><sub>The Witch wakes</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="assets/screenshots/day.png" width="220" alt="Day screen announcing a peaceful night"><br><sub>Morning news</sub></td>
+    <td align="center"><img src="assets/screenshots/vote.png" width="220" alt="Village vote at dusk, phone passed voter by voter"><br><sub>The village votes</sub></td>
+    <td align="center"><img src="assets/screenshots/game-over.png" width="220" alt="Game over: the village wins and every role is revealed"><br><sub>Game over</sub></td>
+  </tr>
+</table>
+
+---
+
 ## ✨ Features
 
 | Feature | Details |

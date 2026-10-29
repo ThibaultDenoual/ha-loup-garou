@@ -485,11 +485,11 @@ def test_every_emitted_step_has_a_label(lang):
 def test_launcher_references_only_existing_locale_keys(lang):
     """Every demo.* key the launcher asks for must resolve."""
     locale = read_locale(lang)
-    html = (
+    script = (
         Path(__file__).parent.parent.parent
-        / "custom_components" / "loup_garou" / "www" / "game" / "launcher.html"
+        / "custom_components" / "loup_garou" / "www" / "game" / "js" / "launcher.js"
     ).read_text()
-    assert "demo.step.${msg.data.step}" in html
-    assert "demo.rejected.${msg.data.reason}" in html
+    assert "demo.step.${msg.data.step}" in script
+    assert "demo.rejected.${msg.data.reason}" in script
     for role_id in ("seer", "werewolf", "witch", "cupid", "alpha_wolf", "hunter"):
         assert locale.get(f"demo.step.role_action:{role_id}"), role_id

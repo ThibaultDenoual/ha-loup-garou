@@ -1,36 +1,26 @@
-import { t, roleName, roleDesc } from '../i18n.js';
+import { translate } from '../i18n.js';
+import { $ } from '../dom.js';
+import { teamOf } from '../roles.js';
+import { sprite } from '../sprites.js';
+
+// Matches the .reveal-card transition in pixel.css, plus a frame of margin.
+const FLIP_MS = 650;
 
 let _send;
 let _players = [];
 let _idx = 0;
 let _active = false;   // guard: prevent re-entry if multiple state msgs arrive
 
-const ROLE_TEAMS = {
-  werewolf: 'wolf', alpha_wolf: 'wolf', minion: 'wolf',
-  seer: 'village', hunter: 'village', elder: 'village', villager: 'village',
-  scapegoat: 'village', little_girl: 'village', witch: 'village',
-  cupid: 'lovers',
-};
-
-function _teamClass(roleId) {
-  const t = ROLE_TEAMS[roleId];
-  if (t === 'wolf') return 'team-wolf';
-  if (t === 'lovers') return 'team-lovers';
-  return 'team-village';
-}
-
-function _teamLabel(roleId) {
-  const t = ROLE_TEAMS[roleId];
-  if (t === 'wolf') return 'Loups';
-  if (t === 'lovers') return 'Amoureux';
-  return 'Village';
-}
-
 export function init(send) {
   _send = send;
+  $('reveal-emblem').replaceChildren(sprite('moon', 8));
 
-  document.getElementById('reveal-card').addEventListener('click', _onCardClick);
-  document.getElementById('btn-reveal-seen').addEventListener('click', _onSeen);
+  const card = $('reveal-card');
+  card.addEventListener('click', _flip);
+  card.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _flip(); }
+  });
+  $('btn-reveal-seen').addEventListener('click', _onSeen);
 }
 
 export function start(players) {
@@ -38,12 +28,24 @@ export function start(players) {
   _active = true;
   _players = players;
   _idx = 0;
-  // Brief pause so the game-start transition feels deliberate, not instant
-  setTimeout(_showCurrent, 900);
+  _showCurrent();
 }
 
 export function reset() {
   _active = false;
+}
+
+function _setFaces(flipped) {
+  const card = $('reveal-card');
+  card.classList.toggle('flipped', flipped);
+  card.setAttribute('aria-pressed', String(flipped));
+  const [front, back] = card.querySelectorAll('.card-face');
+  // The face turned away must be invisible to screen readers too.
+  front.setAttribute('aria-hidden', String(flipped));
+  front.inert = flipped;
+  back.setAttribute('aria-hidden', String(!flipped));
+  back.inert = !flipped;
+  $('btn-reveal-seen').hidden = !flipped;
 }
 
 function _showCurrent() {
@@ -54,43 +56,32 @@ function _showCurrent() {
   }
 
   const p = _players[_idx];
-  document.getElementById('reveal-player-label').textContent = p.name;
+  $('reveal-player-label').textContent = p.name;
+  translate($('reveal-progress'), 'ui.reveal.progress', { done: _idx + 1, total: _players.length });
 
-  const card = document.getElementById('reveal-card');
-  card.classList.remove('flipped');
-
-  const front = card.querySelector('.card-front');
-  front.innerHTML = `<span class="reveal-tap">${t('ui.reveal.tap_to_reveal')}</span>`;
-
-  const back = card.querySelector('.card-back');
-  back.className = `card-face card-back ${_teamClass(p.role_id)}`;
-  back.innerHTML = `
-    <div class="reveal-role-name">${roleName(p.role_id)}</div>
-    <div class="reveal-role-desc">${roleDesc(p.role_id)}</div>
-    <span class="reveal-team-badge">${_teamLabel(p.role_id)}</span>`;
-
-  document.getElementById('btn-reveal-seen').style.display = 'none';
-  document.getElementById('btn-reveal-seen').textContent = t('ui.reveal.seen');
+  // The card is face-down here, so loading the next role cannot leak it.
+  $('reveal-card').querySelector('.card-back').dataset.team = teamOf(p.role_id);
+  $('reveal-sprite').replaceChildren(sprite(p.role_id, 10));
+  translate($('reveal-role-name'), `role.${p.role_id}.name`);
+  translate($('reveal-team'), `role.${p.role_id}.team`);
+  translate($('reveal-role-desc'), `role.${p.role_id}.description`);
+  _setFaces(false);
+  $('reveal-card').focus();
 }
 
-function _onCardClick() {
-  const card = document.getElementById('reveal-card');
-  if (card.classList.contains('flipped')) return;
-  card.classList.add('flipped');
-  document.getElementById('btn-reveal-seen').style.display = '';
+function _flip() {
+  if ($('reveal-card').classList.contains('flipped')) return;
+  _setFaces(true);
+  $('btn-reveal-seen').focus();
 }
 
 function _onSeen() {
-  const card = document.getElementById('reveal-card');
-
-  // Flip the card back to front-face first — while the CURRENT role is still on the back.
-  // Only update the back face (new team color + role name) after the animation completes,
-  // so the next player's team is never visible during the flip.
-  card.classList.remove('flipped');
-  document.getElementById('btn-reveal-seen').style.display = 'none';
-
+  // Flip face-down first; the next player's role loads only once the
+  // current one is hidden.
+  _setFaces(false);
+  $('btn-reveal-seen').hidden = true;
   setTimeout(() => {
     _idx++;
     _showCurrent();
-  }, 650);  // slightly longer than the 600ms CSS transition
+  }, FLIP_MS);
 }

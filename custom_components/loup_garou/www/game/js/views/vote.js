@@ -1,26 +1,25 @@
-import { t, roleName } from '../i18n.js';
+import { translate } from '../i18n.js';
+import { $ } from '../dom.js';
+import { choiceGrid } from '../ui.js';
 
 let _send;
 let _getState;
-let _onVoteDone;
 
+// Ballots collected so far (voter id → target id) and who still has to vote.
 let _votes = {};
 let _queue = [];
 let _selected = null;
 
-export function init(send, getState, onVoteDone) {
+export function init(send, getState) {
   _send = send;
   _getState = getState;
-  _onVoteDone = onVoteDone;
 
-  document.getElementById('btn-vote-confirm').addEventListener('click', _onConfirm);
+  $('btn-vote-confirm').addEventListener('click', _onConfirm);
 }
 
 export function start() {
-  const state = _getState();
   _votes = {};
-  _queue = state.players.filter(p => p.alive).map(p => p.id);
-  _selected = null;
+  _queue = _getState().players.filter(p => p.alive).map(p => p.id);
   _renderCurrent();
 }
 
@@ -35,48 +34,33 @@ function _renderCurrent() {
   }
 
   const state = _getState();
-  const voterId = _queue[0];
-  const voter = state.players.find(p => p.id === voterId);
-  _selected = null;
-
-  document.getElementById('vote-voter-name').textContent = voter ? voter.name : '?';
+  const voter = state.players.find(p => p.id === _queue[0]);
+  $('vote-voter-name').textContent = voter ? voter.name : '?';
 
   const done = Object.keys(_votes).length;
-  const total = state.players.filter(p => p.alive).length;
-  document.getElementById('vote-progress').textContent = `${done} / ${total} votes`;
+  const total = done + _queue.length;
+  translate($('vote-progress'), 'ui.vote.progress', { done, total });
 
-  const confirm = document.getElementById('btn-vote-confirm');
-  confirm.disabled = true;
-  confirm.textContent = t('ui.vote.confirm') || 'Voter';
-
-  _renderGrid(voterId);
+  _renderGrid(_queue[0]);
 }
 
-function _renderGrid(excludeId) {
-  const state = _getState();
-  const grid = document.getElementById('vote-grid');
-  grid.innerHTML = '';
-
-  state.players.filter(p => p.alive && p.id !== excludeId).forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'player-card';
-    card.innerHTML = `
-      <div class="player-name">${p.name}</div>
-      <div class="player-role"></div>`;
-    card.addEventListener('click', () => {
-      grid.querySelectorAll('.player-card').forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      _selected = p.id;
-      document.getElementById('btn-vote-confirm').disabled = false;
-    });
-    grid.appendChild(card);
-  });
+function _renderGrid(voterId) {
+  _selected = null;
+  $('btn-vote-confirm').disabled = true;
+  const targets = _getState().players.filter(p => p.alive && p.id !== voterId);
+  $('vote-grid').replaceChildren(choiceGrid(targets, {
+    variant: 'wolf',
+    onChange: ([picked]) => {
+      _selected = picked || null;
+      $('btn-vote-confirm').disabled = !_selected;
+    },
+  }));
 }
 
 function _onConfirm() {
   if (!_selected) return;
   const voterId = _queue.shift();
   _votes[voterId] = _selected;
-  _selected = null;
   _renderCurrent();
+  window.scrollTo(0, 0);
 }
