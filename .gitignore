@@ -6,3 +6,6 @@ archive/
 *.md
 !README.md
 docs/
+
+# Local screenshots and scratch output
+/screenshots/
