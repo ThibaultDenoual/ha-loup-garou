@@ -52,13 +52,20 @@ class Atmosphere:
         self._audio_output = audio_output
         self._server = server
 
-    def update_config(self, cfg: dict) -> None:
+    @property
+    def language(self) -> str:
+        return self._language
+
+    def update_config(self, cfg: dict, locale: dict | None = None) -> None:
+        """Apply saved settings; pass the new locale when the language changed."""
         self._audio_source = cfg.get(CONF_AUDIO_SOURCE, self._audio_source)
         self._audio_output = cfg.get(CONF_AUDIO_OUTPUT, self._audio_output)
         self._speaker      = cfg.get(CONF_SPEAKER,      self._speaker)
         self._lights       = cfg.get(CONF_LIGHTS,       self._lights)
         self._language     = cfg.get(CONF_LANGUAGE,     self._language)
         self._tts_engine   = cfg.get(CONF_TTS_ENGINE,   self._tts_engine)
+        if locale is not None:
+            self._locale = locale
 
     # ── Locale ────────────────────────────────────────────────────────────────
 
