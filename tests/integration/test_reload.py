@@ -10,14 +10,11 @@ from .conftest import DOMAIN
 
 
 @pytest.mark.xfail(
-    reason="#15: setup registers the WebSocket view and static paths again, which "
-    "raises 'Cannot register a resource into frozen router' once HA's HTTP server "
-    "is running",
+    reason="#15: the WebSocket view registered by the first setup keeps routing "
+    "to the old server after a reload",
     strict=True,
 )
 async def test_reload_on_a_running_server(hass: HomeAssistant, setup_entry, hass_client) -> None:
-    # Creating a client starts the HTTP app, which freezes its router — the
-    # normal state of a running HA instance.
     client = await hass_client()
     async with client.ws_connect("/loup_garou/ws") as ws:
         await ws.send_json({

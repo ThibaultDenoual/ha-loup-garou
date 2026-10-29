@@ -40,6 +40,9 @@ async def setup_entry(hass: HomeAssistant, entry_data: dict):
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.LOADED
+    # A real HA never freezes its router (http/server.py start()), so routes can
+    # be registered after boot. The test clients start the app without that.
+    hass.http.app._router.freeze = lambda: None
 
     yield entry
 
