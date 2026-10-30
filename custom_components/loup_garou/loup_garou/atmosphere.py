@@ -53,6 +53,7 @@ class Atmosphere:
         self._audio_output = audio_output
         self._server = server
         self._intro_task: asyncio.Task | None = None
+        self._after_vote = False
 
     @property
     def language(self) -> str:
@@ -171,15 +172,22 @@ class Atmosphere:
         asyncio.create_task(self._set_lights("day"))
         self._current_scene = "day"
         eliminated_ids: list[str] = data.get("eliminated", [])
-        pub = self._engine.get_public_state()
-        players_by_id = {p["id"]: p for p in pub["players"]}
+        # The engine also starts a day after each vote; only a dawn opens the debate.
+        after_vote, self._after_vote = self._after_vote, False
 
         # Dramatic pause while lights brighten — the most tense moment of the game
         await asyncio.sleep(2.5)
 
         if not eliminated_ids:
             await self.speak(self._narrate("phase.day.start_no_death", delay_key="day_no_death"))
-            return
+        else:
+            await self._announce_deaths(eliminated_ids)
+        if not after_vote:
+            await self.speak(self._narrate("phase.day.debate", delay_key="day_debate"))
+
+    async def _announce_deaths(self, eliminated_ids: list[str]) -> None:
+        pub = self._engine.get_public_state()
+        players_by_id = {p["id"]: p for p in pub["players"]}
 
         # Suspense prelude before revealing who died
         await self.speak(self._narrate("phase.day.prelude_death", delay_key="day_prelude"))
@@ -205,6 +213,7 @@ class Atmosphere:
     async def _on_vote_resolved(self, data: dict) -> None:
         eliminated_id = data.get("eliminated")
         is_tie = data.get("tie", False)
+        self._after_vote = True
         await asyncio.sleep(0.5)
         if is_tie and not eliminated_id:
             await self.speak(self._narrate("phase.vote.tie", delay_key="vote_result"))
@@ -276,6 +285,7 @@ class Atmosphere:
         msg_key = msg_map.get(winner or "")
         if msg_key:
             await self.speak(self._narrate(msg_key, delay_key="game_over"))
+            await self.speak(self._narrate("phase.game_over.reveal", delay_key="game_over_reveal"))
 
     # ── HA service calls ──────────────────────────────────────────────────────
 

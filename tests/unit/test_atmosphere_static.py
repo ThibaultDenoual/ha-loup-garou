@@ -189,9 +189,12 @@ async def test_on_game_over_wolves_win_sends_audio_url():
     atm, server = make_atmosphere("static")
     with patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_game_over({"winner": "wolves"})
-    server.narrate.assert_awaited_once()
-    msg = server.narrate.call_args[0][0]
-    assert msg.audio_url == "/loup_garou/audio/fr/game_over_wolves.mp3"
+    urls = [call.args[0].audio_url for call in server.narrate.await_args_list]
+    # The winner, then the call to turn the cards over.
+    assert urls == [
+        "/loup_garou/audio/fr/game_over_wolves.mp3",
+        "/loup_garou/audio/fr/game_over_reveal.mp3",
+    ]
 
 
 async def test_on_day_started_death_prelude_sends_audio_url():
@@ -202,10 +205,28 @@ async def test_on_day_started_death_prelude_sends_audio_url():
     }
     with patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_day_started({"eliminated": ["p0"]})
-    # First call is the prelude, second is the per-victim announcement
-    assert server.narrate.await_count == 2
-    prelude_msg = server.narrate.call_args_list[0][0][0]
-    assert prelude_msg.audio_url == "/loup_garou/audio/fr/day_prelude_death.mp3"
+    # The prelude, the per-victim announcement, then the call to debate
+    urls = [call.args[0].audio_url for call in server.narrate.await_args_list]
+    assert urls == [
+        "/loup_garou/audio/fr/day_prelude_death.mp3",
+        None,
+        "/loup_garou/audio/fr/day_debate.mp3",
+    ]
+
+
+async def test_the_day_after_a_vote_opens_no_debate():
+    atm, server = make_atmosphere("static")
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_vote_resolved({"eliminated": None, "tie": True})
+        server.narrate.reset_mock()
+        await atm._on_day_started({"eliminated": []})
+        assert [c.args[0].audio_url for c in server.narrate.await_args_list] == [
+            "/loup_garou/audio/fr/day_no_death.mp3",
+        ]
+        # The next dawn debates again.
+        server.narrate.reset_mock()
+        await atm._on_day_started({"eliminated": []})
+    assert server.narrate.await_args_list[-1].args[0].audio_url == "/loup_garou/audio/fr/day_debate.mp3"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

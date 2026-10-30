@@ -114,9 +114,9 @@ def make_atmosphere(
 def test_tts_phase_delays_has_all_keys():
     expected = {
         "night_start", "role_wake", "role_sleep",
-        "day_no_death", "day_prelude", "day_with_death",
+        "day_no_death", "day_prelude", "day_with_death", "day_debate",
         "vote_start", "vote_result",
-        "elimination_live", "game_over", "intro",
+        "elimination_live", "game_over", "game_over_reveal", "intro",
     }
     assert set(TTS_PHASE_DELAYS.keys()) == expected
 
