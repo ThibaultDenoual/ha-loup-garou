@@ -8,22 +8,38 @@ edge   — Microsoft Neural TTS (free, high quality, recommended).
 gtts   — Google Text-to-Speech (simpler, less expressive).
          Requires: pip install gTTS
 
+The shipped clips
+-----------------
+The files in www/audio/ were made with edge-tts and the defaults below:
+
+    fr  fr-FR-RemyMultilingualNeural   rate -12%  pitch -4Hz
+    en  en-US-AndrewMultilingualNeural rate -10%  pitch -4Hz
+
+The "Multilingual" voices are Microsoft's newest generation and sound far
+less synthetic than the older ones (Denise, Sonia); slowing them down and
+lowering the pitch a little gives the storyteller tone. They were picked by
+ear against Denise, Henri, Vivienne and Chatterbox (an open voice-cloning
+model, which needs minutes per clip on a CPU).
+
+To regenerate them all, e.g. after changing a narrated line:
+
+    pip install edge-tts
+    python scripts/generate_audio.py
+
+then update STATIC_AUDIO_SECONDS in const.py: tests/unit/test_static_audio.py
+prints the clip lengths it expects.
+
 Quick start
 -----------
     # List available voices for a language
     python scripts/generate_audio.py --list-voices --lang fr
 
-    # Generate comparison samples (writes to /tmp/loup_garou_samples/)
+    # Generate comparison samples (writes to screenshots/audio-samples/)
     python scripts/generate_audio.py --samples --lang fr
 
-    # Generate all files with chosen parameters
-    python scripts/generate_audio.py --lang fr --lang en \\
-        --voice fr-FR-DeniseNeural --rate -15% --pitch -10Hz
-
-    # Override voice per language using --voice-en / --voice-fr
-    python scripts/generate_audio.py --lang fr --lang en \\
-        --voice-fr fr-FR-HenriNeural --voice-en en-GB-RyanNeural \\
-        --rate -15% --pitch -10Hz
+    # Try other settings for one language
+    python scripts/generate_audio.py --lang fr \\
+        --voice fr-FR-HenriNeural --rate -15% --pitch -6Hz
 
 Output
 ------
@@ -44,16 +60,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LOCALE_DIR = ROOT / "custom_components" / "loup_garou" / "locales"
 AUDIO_DIR  = ROOT / "custom_components" / "loup_garou" / "www" / "audio"
-SAMPLES_DIR_DEFAULT = Path("/tmp/loup_garou_samples")
+SAMPLES_DIR_DEFAULT = ROOT / "screenshots" / "audio-samples"  # git-ignored
 
 sys.path.insert(0, str(ROOT / "custom_components"))
 from loup_garou.const import STATIC_AUDIO_MAP  # noqa: E402
 
 # ── Default voices per language ───────────────────────────────────────────────
 
-DEFAULT_EDGE_VOICE: dict[str, str] = {
-    "fr": "fr-FR-DeniseNeural",
-    "en": "en-GB-SoniaNeural",
+# Language → (voice, rate, pitch) used for the shipped clips.
+DEFAULT_EDGE_VOICE: dict[str, tuple[str, str, str]] = {
+    "fr": ("fr-FR-RemyMultilingualNeural", "-12%", "-4Hz"),
+    "en": ("en-US-AndrewMultilingualNeural", "-10%", "-4Hz"),
 }
 
 DEFAULT_GTTS_LANG: dict[str, str] = {
@@ -101,6 +118,7 @@ SAMPLE_PRESETS: list[tuple[str, str, str]] = [
 
 SAMPLE_VOICES: dict[str, list[str]] = {
     "fr": [
+        "fr-FR-RemyMultilingualNeural",
         "fr-FR-DeniseNeural",
         "fr-FR-HenriNeural",
         "fr-FR-VivienneMultilingualNeural",
@@ -108,9 +126,10 @@ SAMPLE_VOICES: dict[str, list[str]] = {
         "fr-BE-GerardNeural",
     ],
     "en": [
+        "en-US-AndrewMultilingualNeural",
+        "en-US-BrianMultilingualNeural",
         "en-GB-SoniaNeural",
         "en-GB-RyanNeural",
-        "en-US-AndrewNeural",
     ],
 }
 
@@ -160,7 +179,7 @@ async def generate_for_lang(
 
     params = (f"voice={voice} rate={rate} pitch={pitch} volume={volume}"
               if engine == "edge" else
-              f"lang={DEFAULT_GTTS_LANG[lang]} slow={gtts_slow} tld={tld}")
+              f"lang={DEFAULT_GTTS_LANG[lang]} slow={gtts_slow} tld={gtts_tld}")
     print(f"\nGenerating [{lang}] via {engine} — {params}")
     print(f"Output: {out_dir}\n")
 
@@ -271,16 +290,16 @@ def main() -> None:
     # edge-tts parameters
     edge_group = p.add_argument_group("edge-tts options")
     edge_group.add_argument("--voice", metavar="VOICE",
-                            help="Voice name, e.g. fr-FR-DeniseNeural. "
-                                 "Defaults: fr→fr-FR-DeniseNeural, en→en-GB-SoniaNeural")
+                            help="Voice name, e.g. fr-FR-HenriNeural. "
+                                 "Defaults: see 'The shipped clips' below")
     edge_group.add_argument("--voice-fr", metavar="VOICE",
                             help="French voice (overrides --voice for fr)")
     edge_group.add_argument("--voice-en", metavar="VOICE",
                             help="English voice (overrides --voice for en)")
-    edge_group.add_argument("--rate", default="+0%", metavar="RATE",
-                            help="Speed adjustment, e.g. -15%% (default: +0%%)")
-    edge_group.add_argument("--pitch", default="+0Hz", metavar="PITCH",
-                            help="Pitch adjustment, e.g. -10Hz (default: +0Hz)")
+    edge_group.add_argument("--rate", metavar="RATE",
+                            help="Speed adjustment, e.g. -15%% (default: per language)")
+    edge_group.add_argument("--pitch", metavar="PITCH",
+                            help="Pitch adjustment, e.g. -10Hz (default: per language)")
     edge_group.add_argument("--volume", default="+0%", metavar="VOLUME",
                             help="Volume adjustment, e.g. +10%% (default: +0%%)")
 
@@ -305,24 +324,22 @@ def main() -> None:
             asyncio.run(generate_samples(lang, out_dir))
         return
 
-    # Validate edge-tts params only when actually using edge
-    if args.engine == "edge":
-        _validate(args.rate,   _RATE_RE,   "--rate")
-        _validate(args.pitch,  _PITCH_RE,  "--pitch")
-        _validate(args.volume, _VOLUME_RE, "--volume")
-
     for lang in langs:
-        voice = (
-            getattr(args, f"voice_{lang}", None)
-            or args.voice
-            or DEFAULT_EDGE_VOICE.get(lang, "")
-        )
+        default_voice, default_rate, default_pitch = DEFAULT_EDGE_VOICE[lang]
+        voice = getattr(args, f"voice_{lang}", None) or args.voice or default_voice
+        rate = args.rate or default_rate
+        pitch = args.pitch or default_pitch
+        # Validate edge-tts params only when actually using edge
+        if args.engine == "edge":
+            _validate(rate,        _RATE_RE,   "--rate")
+            _validate(pitch,       _PITCH_RE,  "--pitch")
+            _validate(args.volume, _VOLUME_RE, "--volume")
         asyncio.run(generate_for_lang(
             lang=lang,
             engine=args.engine,
             voice=voice,
-            rate=args.rate,
-            pitch=args.pitch,
+            rate=rate,
+            pitch=pitch,
             volume=args.volume,
             gtts_slow=args.gtts_slow,
             gtts_tld=args.gtts_tld,

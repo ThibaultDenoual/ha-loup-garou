@@ -118,7 +118,7 @@ async def run_demo_with_atmosphere():
 async def test_demo_narration_reaches_the_browser():
     browser, _ = await run_demo_with_atmosphere()
     joined = "\n".join(browser.spoken)
-    assert "La nuit tombe" in joined
+    assert "la nuit enveloppe le village" in joined
     assert "Voyante" in joined
     assert "Loups-garous" in joined
     assert "Alice" in joined

@@ -1,3 +1,4 @@
 pytest-homeassistant-custom-component>=0.13.200
 homeassistant==2025.1.4
 transitions
+mutagen

@@ -95,17 +95,82 @@ async def test_demo_game_drives_ha_tts_and_lights(
 async def test_save_config_persists_to_the_config_entry(
     hass: HomeAssistant, setup_entry, game_ws
 ) -> None:
+    # The launcher's payload: speaker and lights use the browser's key names.
     async with game_ws() as ws:
         await ws.send_json({
             "cmd": "save_config",
-            "data": {"light_entities": ["light.cuisine"], "language": "en"},
+            "data": {
+                "audio_source": "tts",
+                "audio_output": "ha",
+                "speaker": "media_player.cuisine",
+                "lights": ["light.cuisine"],
+                "language": "en",
+                "tts_engine": TTS_ENGINE,
+            },
         })
         msgs = await _receive_until(ws, "config")
 
-    assert msgs[-1]["config"]["light_entities"] == ["light.cuisine"]
+    config = msgs[-1]["config"]
+    assert config["lights"] == ["light.cuisine"]
+    assert config["speaker"] == "media_player.cuisine"
+    assert "light_entities" not in config
     assert setup_entry.data["light_entities"] == ["light.cuisine"]
+    assert setup_entry.data["speaker_entity"] == "media_player.cuisine"
     assert setup_entry.data["language"] == "en"
-    assert setup_entry.data["speaker_entity"] == SPEAKER
+    assert "lights" not in setup_entry.data
+    assert "speaker" not in setup_entry.data
+
+
+async def test_saved_lights_and_speaker_drive_the_next_game(
+    hass: HomeAssistant, fast_demo, game_ws
+) -> None:
+    tts_calls = async_mock_service(hass, "tts", "speak")
+    light_calls = async_mock_service(hass, "light", "turn_on")
+
+    async with game_ws() as ws:
+        await ws.send_json({
+            "cmd": "save_config",
+            "data": {"speaker": "media_player.cuisine", "lights": ["light.cuisine"], "language": "en"},
+        })
+        await _receive_until(ws, "config")
+        await ws.send_json({"cmd": "run_demo", "data": {"preset": "smoke_test"}})
+        await _receive_until(ws, "demo_finished")
+    await hass.async_block_till_done()
+
+    assert {call.data["entity_id"] for call in light_calls} == {"light.cuisine"}
+    assert tts_calls
+    assert {call.data["media_player_entity_id"] for call in tts_calls} == {"media_player.cuisine"}
+    # The narration follows the new language, text included.
+    assert {call.data["language"] for call in tts_calls} == {"en"}
+    assert any("village" in call.data["message"].lower() for call in tts_calls)
+
+
+@pytest.mark.parametrize("entry_data", [{
+    "audio_source": "tts",
+    "audio_output": "ha",
+    "speaker": SPEAKER,
+    "lights": [LIGHT],
+    "tts_engine": TTS_ENGINE,
+    "language": "fr",
+}])
+async def test_entries_saved_with_browser_keys_still_apply(
+    hass: HomeAssistant, fast_demo, game_ws
+) -> None:
+    """Earlier launchers stored "lights"/"speaker" in the entry; honour them."""
+    light_calls = async_mock_service(hass, "light", "turn_on")
+    tts_calls = async_mock_service(hass, "tts", "speak")
+
+    async with game_ws() as ws:
+        await ws.send_json({"cmd": "get_config"})
+        config = (await _receive_until(ws, "config"))[-1]["config"]
+        await ws.send_json({"cmd": "run_demo", "data": {"preset": "smoke_test"}})
+        await _receive_until(ws, "demo_finished")
+    await hass.async_block_till_done()
+
+    assert config["lights"] == [LIGHT]
+    assert config["speaker"] == SPEAKER
+    assert {call.data["entity_id"] for call in light_calls} == {LIGHT}
+    assert {call.data["media_player_entity_id"] for call in tts_calls} == {SPEAKER}
 
 
 async def test_get_entities_reads_real_states_and_registries(

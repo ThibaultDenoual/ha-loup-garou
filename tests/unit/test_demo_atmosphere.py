@@ -126,12 +126,13 @@ async def test_demo_narrates_every_phase_and_role():
     _, _, spoken = await play()
     joined = "\n".join(spoken)
     for fragment in (
-        "La nuit tombe",     # phase.night.start
+        "la nuit enveloppe", # phase.night.start
         "Voyante",           # role.seer.wake
         "Loups-garous",      # role.werewolf.wake
         "L'aube se lève",    # phase.day.prelude_death
         "Alice",             # night death announcement
-        "Il est temps de voter",
+        "rassemblez-vous sur la place",  # phase.day.debate
+        "Assez parlé",       # phase.vote.start
     ):
         assert fragment in joined, f"never narrated {fragment!r}:\n{joined}"
 

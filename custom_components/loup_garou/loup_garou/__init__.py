@@ -74,30 +74,58 @@ DEFAULTS = {
     CONF_TTS_ENGINE:   DEFAULT_TTS_ENGINE,
 }
 
+# The browser and the game server name these two settings "lights" and
+# "speaker"; the config entry stores them under the CONF_* keys.
+_WIRE_KEYS = {"lights": CONF_LIGHTS, "speaker": CONF_SPEAKER}
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    conf = {**DEFAULTS, **entry.data}
-    language = conf[CONF_LANGUAGE]
 
-    # pkgutil.iter_modules + importlib.import_module are blocking — pre-warm in executor
-    await hass.async_add_executor_job(load_roles)
+def entry_config(*sources: dict) -> dict:
+    """Merge config sources over DEFAULTS, folding browser keys into CONF_* keys.
 
-    # open() is blocking — read locale file in executor
-    _locale_path = Path(__file__).parent.parent / "locales" / f"{language}.json"
-    _locale: dict = await hass.async_add_executor_job(
-        lambda: json.loads(_locale_path.read_text())
-    )
+    Launcher saves made before this mapping existed stored "lights" and
+    "speaker" in the entry; they are picked up here too.
+    """
+    conf = dict(DEFAULTS)
+    for source in sources:
+        conf.update(source)
+        for wire, key in _WIRE_KEYS.items():
+            if wire in source:
+                conf[key] = source[wire]
+    for wire in _WIRE_KEYS:
+        conf.pop(wire, None)
+    return conf
 
-    engine = GameEngine()
-    server = LoupGarouServer(engine, config={
-        "language":     language,
+
+def server_config(conf: dict) -> dict:
+    """The config as the game server and the browser see it."""
+    return {
+        "language":     conf[CONF_LANGUAGE],
         "audio_source": conf[CONF_AUDIO_SOURCE],
         "audio_output": conf[CONF_AUDIO_OUTPUT],
         "speaker":      conf[CONF_SPEAKER],
         "lights":       conf[CONF_LIGHTS],
         "tts_engine":   conf[CONF_TTS_ENGINE],
         "version":      VERSION,
-    })
+    }
+
+
+def _read_locale(language: str) -> dict:
+    path = Path(__file__).parent.parent / "locales" / f"{language}.json"
+    return json.loads(path.read_text())
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    conf = entry_config(entry.data)
+    language = conf[CONF_LANGUAGE]
+
+    # pkgutil.iter_modules + importlib.import_module are blocking — pre-warm in executor
+    await hass.async_add_executor_job(load_roles)
+
+    # open() is blocking — read locale file in executor
+    _locale: dict = await hass.async_add_executor_job(_read_locale, language)
+
+    engine = GameEngine()
+    server = LoupGarouServer(engine, config=server_config(conf))
     server.wire_events()
 
     atmosphere = Atmosphere(
@@ -121,10 +149,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     async def _save_config(new_config: dict) -> None:
-        merged = {**DEFAULTS, **entry.data, **new_config}
+        merged = entry_config(entry.data, new_config)
         hass.config_entries.async_update_entry(entry, data=merged)
-        server._config.update({"version": VERSION, **merged})
-        atmosphere.update_config(merged)
+        server._config.update(server_config(merged))
+        locale = None
+        if merged[CONF_LANGUAGE] != atmosphere.language:
+            locale = await hass.async_add_executor_job(_read_locale, merged[CONF_LANGUAGE])
+        atmosphere.update_config(merged, locale=locale)
 
     def _get_entities() -> dict:
         return {
@@ -173,6 +204,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     runtime = hass.data[DOMAIN].pop(entry.entry_id, None)
     if runtime is not None:
+        runtime["atmosphere"].shutdown()
         # Disconnected pages reconnect, and reach the new server after a reload.
         await runtime["server"].async_shutdown()
     async_remove_panel(hass, "loup_garou")
