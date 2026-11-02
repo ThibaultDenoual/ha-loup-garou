@@ -7,6 +7,7 @@ class Werewolf(BaseRole):
     team = "wolves"
     night_priority = 50
     has_night_action = True
+    is_wolf = True
 
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
         target_id = action.get("target")

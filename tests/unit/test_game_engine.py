@@ -10,6 +10,8 @@ from loup_garou.roles.impl.seer import Seer
 from loup_garou.roles.impl.elder import Elder
 from loup_garou.roles.impl.witch import Witch
 from loup_garou.roles.impl.cupid import Cupid
+from loup_garou.roles.impl.alpha_wolf import AlphaWolf
+from loup_garou.roles.impl.minion import Minion
 from tests.unit.conftest import make_engine
 
 
@@ -246,3 +248,46 @@ async def test_lover_dies_when_partner_eliminated():
 
     assert not engine._state.players[alice_id].alive
     assert not engine._state.players[bob_id].alive
+
+
+# ── Village win does not depend on the roster ─────────────────────────────────
+
+async def test_village_wins_without_a_villager_role():
+    engine = make_engine(Werewolf, Seer, Elder, Witch)
+    await engine.start_game(["W", "S", "E", "H"], ["werewolf", "seer", "elder", "witch"])
+    await engine.resolve_vote({"p1": "p0", "p2": "p0", "p3": "p0"})
+    assert engine._state.phase == Phase.GAME_OVER
+    assert engine._state.winner == "village"
+
+
+async def test_village_wins_when_the_last_wolf_dies_at_night():
+    engine = make_engine(Werewolf, Seer, Witch)
+    await engine.start_game(["W", "S", "H"], ["werewolf", "seer", "witch"])
+    engine._make_ctx().add_pending_kill("p0", "witch_poison")
+    await engine._resolve_night()
+    assert engine._state.winner == "village"
+
+
+async def test_alpha_wolf_alone_keeps_the_game_going():
+    engine = make_engine(AlphaWolf, Seer, Elder, Witch)
+    await engine.start_game(
+        ["A", "S", "E", "H", "X"], ["alpha_wolf", "seer", "elder", "witch", "witch"]
+    )
+    await engine.resolve_vote({"p0": "p4", "p1": "p4"})
+    assert engine._state.phase == Phase.DAY
+    assert engine._state.winner is None
+
+
+async def test_minion_alone_does_not_keep_the_game_going():
+    engine = make_engine(Werewolf, Minion, Seer, Elder)
+    await engine.start_game(["W", "M", "S", "E"], ["werewolf", "minion", "seer", "elder"])
+    await engine.resolve_vote({"p2": "p0", "p3": "p0"})
+    assert engine._state.winner == "village"
+
+
+async def test_lovers_win_takes_priority_over_the_village_fallback():
+    engine = make_engine(Werewolf, Cupid, Seer)
+    await engine.start_game(["W", "C", "S"], ["werewolf", "cupid", "seer"])
+    engine._make_ctx().add_link("lovers", ["p1", "p2"])
+    await engine.resolve_vote({"p1": "p0", "p2": "p0"})
+    assert engine._state.winner == "lovers"

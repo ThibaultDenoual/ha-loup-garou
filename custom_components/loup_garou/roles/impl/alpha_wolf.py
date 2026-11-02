@@ -7,6 +7,7 @@ class AlphaWolf(BaseRole):
     team = "wolves"
     night_priority = 50  # Acts with the wolves
     has_night_action = True
+    is_wolf = True
 
     async def on_game_start(self, ctx: RoleContext) -> None:
         for p in ctx.alive_players:

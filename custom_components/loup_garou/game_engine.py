@@ -114,6 +114,8 @@ class GameEngine:
         if len(player_names) != len(role_ids):
             raise ValueError("player_names and role_ids must have the same length")
 
+        self._pending_action = None
+        self._pending_action_role = None
         self._state = GameState()
         for i, (name, role_id) in enumerate(zip(player_names, role_ids)):
             pid = f"p{i}"
@@ -257,7 +259,16 @@ class GameEngine:
             result = await role.check_win(ctx)
             if result is not None:
                 return result
+        # The village wins whichever roles are in play: no role may have to be
+        # present for the game to end.
+        alive = ctx.alive_players
+        if alive and not any(self._is_wolf(p["role_id"]) for p in alive):
+            return "village"
         return None
+
+    def _is_wolf(self, role_id: str) -> bool:
+        role = self._roles.get(role_id)
+        return role is not None and role.is_wolf
 
     async def _end_game(self, winner: str) -> None:
         self._state.phase = Phase.GAME_OVER

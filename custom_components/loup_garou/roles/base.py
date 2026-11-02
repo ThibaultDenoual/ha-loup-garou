@@ -116,6 +116,8 @@ class BaseRole:
     team: str = "village"
     night_priority: int = 99
     has_night_action: bool = False
+    # The village has won once no living player holds a role with this set.
+    is_wolf: bool = False
 
     # ── Hooks ─────────────────────────────────────────────────────────────────
 
