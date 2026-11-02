@@ -85,7 +85,7 @@
   "role.minion.team": "Loups",
 
   "role.sheriff.name": "Shérif",
-  "role.sheriff.description": "Votre vote compte double. Élisez le shérif en début de journée.",
+  "role.sheriff.description": "Votre voix compte double. Le village élit le shérif le premier jour.",
   "role.sheriff.team": "Village",
 
   "elimination.wolf_kill": "{name} a été tué cette nuit. C'était {article} {role}.",
@@ -98,6 +98,13 @@
   "article.male": "un",
   "article.female": "une",
 
+  "ui.app.abandon": "Quitter",
+  "ui.app.abandon_confirm": "Quitter cette partie et revenir à la préparation ?",
+  "ui.wait.listen": "Écoutez le narrateur…",
+  "ui.error.stale_prompt": "Ce moment est passé. Voici où en est la partie.",
+  "ui.error.illegal_answer": "Ce choix n'est pas permis. Choisissez à nouveau.",
+  "ui.error.game_in_progress": "Une partie est déjà en cours.",
+  "role.sheriff.election_prompt": "Le village élit son shérif, dont la voix comptera double.",
   "ui.app.title": "Loup Garou",
   "ui.app.version": "Version {version}",
   "ui.app.home": "Retour à l'accueil",

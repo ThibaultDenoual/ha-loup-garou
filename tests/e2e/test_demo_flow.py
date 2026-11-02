@@ -9,7 +9,7 @@ from aiohttp.test_utils import TestServer
 from loup_garou.roles.impl.seer import Seer
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
-from tests.e2e.conftest import drain, make_app, make_server
+from tests.e2e.conftest import answer, drain, make_app, make_server, wait_prompt
 
 ROLES = [Villager, Werewolf, Seer]
 # The demo paces itself with sleeps; tests run it as fast as the engine allows.
@@ -27,6 +27,7 @@ async def ws_for(fn, role_classes=None, **server_kwargs):
                 finally:
                     if srv._demo_running():
                         await srv._cmd_stop_demo()
+                    await srv.async_shutdown()
 
 
 async def send(ws, cmd, **data):
@@ -73,10 +74,10 @@ async def test_run_demo_plays_the_whole_game_and_finishes():
         ]
 
         # The real engine events went out over the wire, so lights/TTS see them too.
-        assert any(m["type"] == "night_role_wake" for m in msgs)
-        assert any(m["type"] == "player_eliminated" for m in msgs)
+        prompts = [m["state"]["prompt"] for m in msgs if m["type"] == "snapshot"]
+        assert any(p and p["kind"] == "night_action" for p in prompts)
 
-        game_over = [m for m in msgs if m["type"] == "state"
+        game_over = [m for m in msgs if m["type"] == "snapshot"
                      and m["state"].get("phase") == "game_over"]
         assert game_over and game_over[-1]["state"]["winner"] == "village"
 
@@ -89,7 +90,7 @@ async def test_run_demo_returns_the_engine_to_setup():
         await drain(ws, until_type="demo_finished", timeout=5)
 
         await send(ws, "get_state")
-        msgs = await drain(ws, until_type="state")
+        msgs = await drain(ws, until_type="snapshot")
         state = msgs[-1]["state"]
         assert state["phase"] == "setup"
         assert state["winner"] is None
@@ -142,7 +143,7 @@ async def test_run_demo_without_preset_field_errors():
 async def test_run_demo_during_a_real_game_is_rejected():
     async def _test(ws, engine, srv):
         await send(ws, "start_game", players=["Alice", "Bob"], roles=["werewolf", "villager"])
-        await drain(ws, until_type="state",
+        await drain(ws, until_type="snapshot",
                     predicate=lambda m: m["state"]["phase"] == "role_reveal")
 
         await send(ws, "run_demo", preset="smoke_test")
@@ -182,15 +183,14 @@ async def test_start_game_during_a_demo_is_refused():
 async def test_stop_demo_halts_the_game_and_resets():
     async def _test(ws, engine, srv):
         await send(ws, "run_demo", preset="smoke_test")
-        await drain(ws, until_type="night_role_wake",
-                    predicate=lambda m: m["data"]["role"] == "seer")
+        await wait_prompt(ws, "night_action")
 
         await send(ws, "stop_demo")
         msgs = await drain(ws, until_type="demo_stopped", timeout=5)
         assert msgs[-1]["type"] == "demo_stopped"
 
         await send(ws, "get_state")
-        state = (await drain(ws, until_type="state"))[-1]["state"]
+        state = (await drain(ws, until_type="snapshot"))[-1]["state"]
         assert state["phase"] == "setup"
         assert state["players"] == []
 
@@ -204,7 +204,7 @@ async def test_stop_demo_when_nothing_runs_is_harmless():
         assert msgs[-1]["type"] == "demo_stopped"
 
         await send(ws, "get_state")
-        state = (await drain(ws, until_type="state"))[-1]["state"]
+        state = (await drain(ws, until_type="snapshot"))[-1]["state"]
         assert state["phase"] == "setup"
 
     await ws_for(_test)
@@ -213,12 +213,12 @@ async def test_stop_demo_when_nothing_runs_is_harmless():
 async def test_engine_is_playable_again_after_a_stopped_demo():
     async def _test(ws, engine, srv):
         await send(ws, "run_demo", preset="smoke_test")
-        await drain(ws, until_type="night_role_wake")
+        await wait_prompt(ws, "night_action")
         await send(ws, "stop_demo")
         await drain(ws, until_type="demo_stopped")
 
         await send(ws, "start_game", players=["Alice", "Bob"], roles=["werewolf", "villager"])
-        msgs = await drain(ws, until_type="state",
+        msgs = await drain(ws, until_type="snapshot",
                            predicate=lambda m: m["state"]["phase"] == "role_reveal")
         assert [p["name"] for p in msgs[-1]["state"]["players"]] == ["Alice", "Bob"]
 
@@ -226,20 +226,18 @@ async def test_engine_is_playable_again_after_a_stopped_demo():
 
 
 async def test_stop_demo_cancels_the_pending_night():
-    """The night task slot is shared with the demo, so no orphan night survives."""
+    """No orphan night survives a stopped demo."""
     async def _test(ws, engine, srv):
         await send(ws, "run_demo", preset="smoke_test")
-        await drain(ws, until_type="night_role_wake")
+        await wait_prompt(ws, "night_action")
         await send(ws, "stop_demo")
         await drain(ws, until_type="demo_stopped")
 
-        # begin_night must not be blocked by the stopped demo.
-        await send(ws, "begin_night")
-        await asyncio.sleep(0.05)
-        await send(ws, "submit_night_action", role="seer", action={})
-        msgs = await drain(ws, until_type="state",
-                           predicate=lambda m: m["state"]["phase"] in ("day", "game_over"),
-                           timeout=3)
-        assert msgs[-1]["state"]["phase"] in ("day", "game_over")
+        # A new game must not be blocked by the stopped demo.
+        await send(ws, "start_game", players=["A", "B", "C"], roles=["seer", "werewolf", "villager"])
+        for _ in range(3):
+            await answer(ws, await wait_prompt(ws, "reveal"))
+        await wait_prompt(ws, "night_action", "seer")
+        assert engine.prompt.role == "seer"
 
     await ws_for(_test, demo_action_delay=30, demo_step_delay=0)

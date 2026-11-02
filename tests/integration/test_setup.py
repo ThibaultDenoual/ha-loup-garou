@@ -78,5 +78,5 @@ async def test_websocket_round_trip(hass: HomeAssistant, setup_entry, game_ws) -
 
         await ws.send_json({"cmd": "get_state"})
         msg = await ws.receive_json(timeout=2)
-        assert msg["type"] == "state"
+        assert msg["type"] == "snapshot"
         assert msg["state"]["phase"] == "setup"

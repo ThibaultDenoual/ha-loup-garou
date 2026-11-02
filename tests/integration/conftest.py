@@ -68,7 +68,5 @@ async def setup_entry(hass: HomeAssistant, entry_data: dict):
         server = runtime["server"]
         if server._demo_running():
             await server._cmd_stop_demo()
-        if server._night_task and not server._night_task.done():
-            server._night_task.cancel()
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()

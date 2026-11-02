@@ -7,7 +7,7 @@ from loup_garou.const import GameEvent
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
 from loup_garou.roles.impl.hunter import Hunter
-from tests.unit.conftest import make_engine, make_ctx, noop_emit
+from tests.unit.conftest import answer_turn, make_engine, make_ctx, noop_emit
 
 
 async def test_hunter_no_night_action():
@@ -20,7 +20,7 @@ async def test_hunter_does_not_fire_for_other_player():
     state = engine._state
     villager_id = next(p.id for p in state.players.values() if p.role_id == "villager")
 
-    ctx = make_ctx(state, engine._emit)
+    ctx = engine._make_ctx()
     role = engine._roles["hunter"]
     decision = await role.on_before_eliminate(ctx, villager_id, "wolf_kill")
     assert decision.cancel is False
@@ -34,12 +34,12 @@ async def test_hunter_fires_on_own_elimination():
     hunter_id = next(p.id for p in state.players.values() if p.role_id == "hunter")
     villager_id = next(p.id for p in state.players.values() if p.role_id == "villager")
 
-    ctx = make_ctx(state, engine._emit)
+    ctx = engine._make_ctx()
     role = engine._roles["hunter"]
 
     async def resolve_shot():
         await asyncio.sleep(0)  # yield to let request_action set up the future
-        await engine.submit_pending_action("hunter", {"target": villager_id})
+        await answer_turn(engine, "hunter", {"target": villager_id})
 
     asyncio.ensure_future(resolve_shot())
     decision = await role.on_before_eliminate(ctx, hunter_id, "village_vote")
@@ -52,13 +52,16 @@ async def test_hunter_no_shot_if_no_target():
     await engine.start_game(["Alice", "Bob", "Carol"], ["villager", "werewolf", "hunter"])
     state = engine._state
     hunter_id = next(p.id for p in state.players.values() if p.role_id == "hunter")
+    for p in state.players.values():
+        if p.id != hunter_id:
+            p.alive = False
 
-    ctx = make_ctx(state, engine._emit)
+    ctx = engine._make_ctx()
     role = engine._roles["hunter"]
 
     async def resolve_shot():
         await asyncio.sleep(0)
-        await engine.submit_pending_action("hunter", {})
+        await answer_turn(engine, "hunter", {})
 
     asyncio.ensure_future(resolve_shot())
     decision = await role.on_before_eliminate(ctx, hunter_id, "wolf_kill")
@@ -74,17 +77,21 @@ async def test_hunter_cannot_shoot_dead_player():
     villager_id = next(p.id for p in state.players.values() if p.role_id == "villager")
     state.players[villager_id].alive = False
 
-    ctx = make_ctx(state, engine._emit)
+    ctx = engine._make_ctx()
     role = engine._roles["hunter"]
 
+    wolf_id = next(p.id for p in state.players.values() if p.role_id == "werewolf")
+
     async def resolve_shot():
-        await asyncio.sleep(0)
-        await engine.submit_pending_action("hunter", {"target": villager_id})
+        while engine.prompt is None:
+            await asyncio.sleep(0)
+        assert await engine.answer(engine.prompt.id, {"target": villager_id}) == "illegal"
+        await answer_turn(engine, "hunter", {"target": wolf_id})
 
     asyncio.ensure_future(resolve_shot())
     decision = await role.on_before_eliminate(ctx, hunter_id, "wolf_kill")
 
-    assert decision.add_eliminations == []
+    assert decision.add_eliminations == [wolf_id]
 
 
 async def test_hunter_emits_hunter_shot_event_with_both_names():
@@ -104,12 +111,12 @@ async def test_hunter_emits_hunter_shot_event_with_both_names():
 
     engine.on(GameEvent.HUNTER_SHOT, capture_shot)
 
-    ctx = make_ctx(state, engine._emit)
+    ctx = engine._make_ctx()
     role = engine._roles["hunter"]
 
     async def resolve_shot():
         await asyncio.sleep(0)
-        await engine.submit_pending_action("hunter", {"target": villager_id})
+        await answer_turn(engine, "hunter", {"target": villager_id})
 
     asyncio.ensure_future(resolve_shot())
     decision = await role.on_before_eliminate(ctx, hunter_id, "village_vote")

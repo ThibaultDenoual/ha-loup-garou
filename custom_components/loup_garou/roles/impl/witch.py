@@ -1,6 +1,6 @@
 """Witch role — save potion + poison potion, once each."""
 from ..base import BaseRole, EliminateDecision, RoleContext
-from ...const import GameEvent
+from ...prompts import pick
 
 
 class Witch(BaseRole):
@@ -15,10 +15,13 @@ class Witch(BaseRole):
                 ctx.set_flag(p["id"], "witch_save_used", False)
                 ctx.set_flag(p["id"], "witch_poison_used", False)
 
-    def get_wake_data(self, ctx: RoleContext) -> dict:
+    def night_prompt(self, ctx: RoleContext) -> dict:
         witch_players = ctx.alive_players_by_role(self.id)
         witch_id = witch_players[0]["id"] if witch_players else None
-        pending_kills = []
+        save_used = ctx.get_flag(witch_id, "witch_save_used", False)
+        poison_used = ctx.get_flag(witch_id, "witch_poison_used", False)
+
+        victims = []
         for player_id, cause in ctx.pending_kills_full():
             player = ctx.get_player(player_id)
             elder_is_protected = (
@@ -27,32 +30,28 @@ class Witch(BaseRole):
                 and player["role_id"] == "elder"
                 and ctx.get_flag(player_id, "elder_first_life", False)
             )
-            if not elder_is_protected:
-                pending_kills.append({"player_id": player_id, "cause": cause})
-        return {
-            "pending_kills": pending_kills,
-            "save_used": ctx.get_flag(witch_id, "witch_save_used", False) if witch_id else True,
-            "poison_used": ctx.get_flag(witch_id, "witch_poison_used", False) if witch_id else True,
-        }
+            if player is not None and not elder_is_protected:
+                victims.append(player)
 
-    def get_public_state(self, ctx: RoleContext) -> dict:
-        witch_players = ctx.alive_players_by_role(self.id)
-        if not witch_players:
-            return {}
-        witch_id = witch_players[0]["id"]
+        victim_ids = [v["id"] for v in victims]
+        poisonable = [p["id"] for p in ctx.alive_players if p["id"] not in victim_ids]
         return {
-            "witch_id": witch_id,
-            "witch_save_available": not ctx.get_flag(witch_id, "witch_save_used", False),
-            "witch_poison_available": not ctx.get_flag(witch_id, "witch_poison_used", False),
+            "picks": {
+                "save_target": pick([] if save_used else victim_ids, 0, 1),
+                "poison_target": pick([] if poison_used else poisonable, 0, 1),
+            },
+            "info": {
+                "victims": [{"id": v["id"], "name": v["name"]} for v in victims],
+                "save_used": save_used,
+                "poison_used": poison_used,
+            },
         }
 
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
-        witch_id = action.get("player_id")
-        if witch_id is None:
-            witch_players = ctx.alive_players_by_role(self.id)
-            if not witch_players:
-                return
-            witch_id = witch_players[0]["id"]
+        witch_players = ctx.alive_players_by_role(self.id)
+        if not witch_players:
+            return
+        witch_id = witch_players[0]["id"]
 
         save_target = action.get("save_target")
         poison_target = action.get("poison_target")

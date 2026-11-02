@@ -11,9 +11,9 @@ const WINNERS = {
 
 let _getState;
 
-export function init(getState, onRestart) {
+export function init(answer, getState) {
   _getState = getState;
-  $('btn-restart').addEventListener('click', onRestart);
+  $('btn-restart').addEventListener('click', () => answer());
 }
 
 export function render() {
@@ -23,4 +23,5 @@ export function render() {
   $('go-sprite').replaceChildren(sprite(WINNERS[winner].sprite, 8));
   translate($('go-msg'), WINNERS[winner].key);
   $('go-grid').replaceChildren(playerGrid(state.players, { showRole: true }));
+  $('btn-restart').hidden = !state.prompt;
 }

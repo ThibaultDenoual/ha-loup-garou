@@ -90,7 +90,7 @@ export function playerCard(player, { selectable = false, showRole = false } = {}
   },
     h('span', { class: 'avatar' }, player.alive ? avatar(player.name, 4) : sprite('skull', 3)),
     h('span', { class: 'who' },
-      h('span', { class: 'player-name', text: player.name }),
+      h('span', { class: 'player-name', text: player.sheriff ? `⭐ ${player.name}` : player.name }),
       roleLine,
       player.alive ? null : h('span', { class: 'sr-only', i18n: 'ui.player.dead' })),
   );

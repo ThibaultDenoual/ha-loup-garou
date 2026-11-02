@@ -12,13 +12,19 @@ from aiohttp import WSMsgType, web
 
 from .const import Phase
 from .demo import DEMOS, DemoRunner, list_demos
-from .game_engine import GameEngine
+from .game_engine import AnswerResult, GameEngine
 from .narration import NarrationMessage
 
 _LOGGER = logging.getLogger(__name__)
 
 # How long a new connection may take to send its auth message.
 AUTH_TIMEOUT = 10.0
+
+INTERNAL_ERROR = "An internal error occurred. Check the server logs."
+
+
+class GameInProgress(Exception):
+    """start_game arrived outside the setup phase."""
 
 
 class LoupGarouServer:
@@ -33,13 +39,7 @@ class LoupGarouServer:
         self._engine = engine
         self._config: dict = config or {}
         self._clients: set[web.WebSocketResponse] = set()
-        self._night_task: asyncio.Task | None = None
-        # Commands that can wait on the client run here, one at a time and in the
-        # order received, so the socket that sent them stays free to answer.
-        self._game_tasks: set[asyncio.Task] = set()
-        self._game_lock = asyncio.Lock()
-        # The turn waiting on a player, re-sent to a page that reconnects.
-        self._open_turn: dict | None = None
+        self._game_task: asyncio.Task | None = None
         self._tts_future: asyncio.Future | None = None
         self._demo_task: asyncio.Task | None = None
         self._demo_runner: DemoRunner | None = None
@@ -136,7 +136,7 @@ class LoupGarouServer:
             self._demo_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._demo_task
-        await self._cancel_game_tasks()
+        await self._stop_game()
         for ws in list(self._clients):
             with contextlib.suppress(Exception):
                 await ws.close()
@@ -192,32 +192,13 @@ class LoupGarouServer:
             match cmd:
                 case "start_game":
                     await self._cmd_start_game(data)
-                case "begin_night":
-                    self._cmd_begin_night(ws)
-                case "submit_night_action":
-                    _require(data, "role")
-                    if self._engine.pending_action_role == data["role"]:
-                        self._open_turn = None
-                    await self._engine.submit_night_action(data["role"], data.get("action", {}))
-                case "submit_pending_action":
-                    _require(data, "role")
-                    if self._engine.pending_interrupt_role == data["role"]:
-                        self._open_turn = None
-                    await self._engine.submit_pending_action(data["role"], data.get("action", {}))
-                case "begin_vote":
-                    self._run_game_command(ws, cmd, self._engine.begin_vote)
-                case "resolve_vote":
-                    _require(data, "votes")
-                    votes = data["votes"]
-                    self._run_game_command(ws, cmd, lambda: self._engine.resolve_vote(votes))
-                case "elect_sheriff":
-                    _require(data, "player_id")
-                    self._engine.elect_sheriff(data["player_id"])
-                    await self.broadcast({"type": "state", "state": self._engine.get_public_state()})
+                case "answer":
+                    _require(data, "prompt_id")
+                    await self._cmd_answer(ws, data["prompt_id"], data.get("answer", {}))
+                case "abandon_game":
+                    await self._cmd_abandon_game()
                 case "get_state":
-                    await ws.send_json({"type": "state", "state": self._engine.get_public_state()})
-                    if self._open_turn is not None:
-                        await ws.send_json({"type": "night_role_wake", "data": self._open_turn})
+                    await ws.send_json(self._snapshot_message())
                 case "get_config":
                     await ws.send_json({"type": "config", "config": self._config})
                 case "tts_done":
@@ -258,7 +239,9 @@ class LoupGarouServer:
             await self._report_error(ws, cmd, exc)
 
     async def _report_error(self, ws: web.WebSocketResponse, cmd, exc: Exception) -> None:
-        if isinstance(exc, (KeyError, TypeError, ValueError)):
+        if isinstance(exc, GameInProgress):
+            error = {"type": "error", "code": "game_in_progress", "msg": "A game is in progress."}
+        elif isinstance(exc, (KeyError, TypeError, ValueError)):
             _LOGGER.info("Rejected invalid command %s: %s", cmd, exc)
             if isinstance(exc, KeyError):
                 message = f"Missing required field: {exc.args[0]}"
@@ -269,52 +252,50 @@ class LoupGarouServer:
             error = {"type": "error", "code": "bad_request", "msg": message}
         else:
             _LOGGER.error("Error handling command %s", cmd, exc_info=exc)
-            error = {
-                "type": "error",
-                "code": "internal_error",
-                "msg": "An internal error occurred. Check the server logs.",
-            }
+            error = {"type": "error", "code": "internal_error", "msg": INTERNAL_ERROR}
         # A background command can outlive the socket that sent it.
         with contextlib.suppress(Exception):
             await ws.send_json(error)
 
-    def _run_game_command(self, ws: web.WebSocketResponse, cmd: str, command) -> asyncio.Task:
-        """Run an engine command that may wait on a client, without blocking this socket."""
-        async def _run() -> None:
-            try:
-                async with self._game_lock:
-                    await command()
-            except Exception as exc:
-                await self._report_error(ws, cmd, exc)
-
-        task = asyncio.create_task(_run())
-        self._game_tasks.add(task)
-        task.add_done_callback(self._game_tasks.discard)
-        return task
-
-    async def _cancel_game_tasks(self) -> None:
-        tasks = list(self._game_tasks)
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        self._night_task = None
-        self._open_turn = None
+    def _snapshot_message(self) -> dict:
+        return {"type": "snapshot", "state": self._engine.snapshot()}
 
     async def _cmd_start_game(self, data: dict) -> None:
         if self._demo_running():
             raise ValueError("demo already running")
-        players = data["players"]
-        role_ids = data["roles"]
-        # Nothing from the previous game may keep running or waiting on a player.
-        await self._cancel_game_tasks()
-        await self._engine.start_game(players, role_ids)
-        # Events (GAME_STARTED, PHASE_CHANGED) already broadcast state via wire_events
+        if self._engine.get_public_state()["phase"] != Phase.SETUP:
+            raise GameInProgress
+        await self._engine.start_game(data["players"], data["roles"])
+        self._game_task = asyncio.create_task(self._run_game())
 
-    def _cmd_begin_night(self, ws: web.WebSocketResponse) -> None:
-        if self._night_task and not self._night_task.done():
-            _LOGGER.warning("begin_night: night already in progress")
-            return
-        self._night_task = self._run_game_command(ws, "begin_night", self._engine.begin_night)
+    async def _run_game(self) -> None:
+        """The game loop lives here, so that no socket ever waits on it."""
+        try:
+            await self._engine.run_game()
+        except Exception:
+            _LOGGER.exception("The game loop failed")
+            await self.broadcast({"type": "error", "code": "internal_error", "msg": INTERNAL_ERROR})
+            await self._engine.reset()
+
+    async def _cmd_answer(self, ws: web.WebSocketResponse, prompt_id, answer) -> None:
+        result = await self._engine.answer(prompt_id, answer)
+        code = {AnswerResult.STALE: "stale_prompt", AnswerResult.ILLEGAL: "illegal_answer"}.get(result)
+        if code:
+            await ws.send_json({"type": "error", "code": code, "msg": code})
+            await ws.send_json(self._snapshot_message())
+
+    async def _cmd_abandon_game(self) -> None:
+        if self._demo_running():
+            raise ValueError("demo already running")
+        await self._stop_game()
+        await self._engine.reset()
+
+    async def _stop_game(self) -> None:
+        task, self._game_task = self._game_task, None
+        if task and not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
     # ── Demo games ───────────────────────────────────────────────────────────
 
@@ -346,8 +327,6 @@ class LoupGarouServer:
         )
         self._demo_runner = runner
         self._demo_task = asyncio.create_task(self._run_demo(runner))
-        # Share the slot so a real begin_night cannot race the demo's own night.
-        self._night_task = self._demo_task
         await self.broadcast({"type": "demo_started", "data": {"preset": script.key}})
 
     async def _run_demo(self, runner: DemoRunner) -> None:
@@ -375,7 +354,6 @@ class LoupGarouServer:
         await self._engine.reset()
         self._demo_runner = None
         self._demo_task = None
-        self._night_task = None
         await self.broadcast({"type": "demo_stopped", "data": {}})
 
     # ── Engine event → broadcast ──────────────────────────────────────────────
@@ -384,70 +362,7 @@ class LoupGarouServer:
         """Subscribe to engine events so all clients stay in sync."""
         from .const import GameEvent
 
-        async def broadcast_state(data: dict) -> None:
-            await self.broadcast({"type": "state", "state": self._engine.get_public_state()})
+        async def broadcast_snapshot(state: dict) -> None:
+            await self.broadcast({"type": "snapshot", "state": state})
 
-        async def broadcast_event(event_type: str):
-            async def handler(data: dict) -> None:
-                await self.broadcast({"type": event_type, "data": data})
-            return handler
-
-        for event in (
-            GameEvent.GAME_STARTED,
-            GameEvent.PHASE_CHANGED,
-            GameEvent.NIGHT_RESOLVED,
-            GameEvent.DAY_STARTED,
-            GameEvent.VOTE_STARTED,
-            GameEvent.VOTE_RESOLVED,
-            GameEvent.GAME_OVER,
-        ):
-            self._engine.on(event, broadcast_state)
-
-        async def on_hunter_shot(data: dict) -> None:
-            await self.broadcast({"type": "hunter_shot", "data": data})
-
-        self._engine.on(GameEvent.HUNTER_SHOT, on_hunter_shot)
-
-        async def on_player_eliminated(data: dict) -> None:
-            await self.broadcast({"type": "player_eliminated", "data": data})
-            await self.broadcast({"type": "state", "state": self._engine.get_public_state()})
-
-        self._engine.on(GameEvent.PLAYER_ELIMINATED, on_player_eliminated)
-
-        async def on_turn_closed(data: dict) -> None:
-            self._open_turn = None
-
-        # A wake always follows the phase change it belongs to.
-        self._engine.on(GameEvent.PHASE_CHANGED, on_turn_closed)
-        self._engine.on(GameEvent.NIGHT_ROLE_SLEEP, on_turn_closed)
-
-        async def on_night_role_wake(data: dict) -> None:
-            enriched = dict(data)
-            role_id = data.get("role", "")
-            pub = self._engine.get_public_state()
-            players_map = {p["id"]: p for p in pub["players"]}
-
-            # Resolve pending_kill IDs → player objects the UI can display
-            # pending_kills may be [str, ...] or [{"player_id": str, "cause": str}, ...]
-            kill_entries = data.get("pending_kills", [])
-            kill_ids: list[str] = [
-                e["player_id"] if isinstance(e, dict) else e for e in kill_entries
-            ]
-            if kill_ids:
-                enriched["pending_kill_players"] = [
-                    players_map[pid] for pid in kill_ids if pid in players_map
-                ]
-
-            # For witch: include her potion availability
-            if role_id == "witch":
-                enriched.update(self._engine.get_role_public_state("witch"))
-
-            self._open_turn = enriched
-            await self.broadcast({"type": "night_role_wake", "data": enriched})
-
-        self._engine.on(GameEvent.NIGHT_ROLE_WAKE, on_night_role_wake)
-
-        async def on_night_role_sleep(data: dict) -> None:
-            await self.broadcast({"type": "night_role_sleep", "data": data})
-
-        self._engine.on(GameEvent.NIGHT_ROLE_SLEEP, on_night_role_sleep)
+        self._engine.on(GameEvent.STATE_CHANGED, broadcast_snapshot)

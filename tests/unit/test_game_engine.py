@@ -12,7 +12,7 @@ from loup_garou.roles.impl.witch import Witch
 from loup_garou.roles.impl.cupid import Cupid
 from loup_garou.roles.impl.alpha_wolf import AlphaWolf
 from loup_garou.roles.impl.minion import Minion
-from tests.unit.conftest import make_engine
+from tests.unit.conftest import answer_turn, make_engine
 
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ async def test_begin_night_increments_night_number():
 
     async def submit():
         await asyncio.sleep(0)
-        await engine.submit_night_action("werewolf", {"target": "p0"})
+        await answer_turn(engine, "werewolf", {"target": "p0"})
 
     asyncio.ensure_future(submit())
     await engine.begin_night()
@@ -73,7 +73,7 @@ async def test_begin_night_emits_wake_sleep_events():
 
     async def submit():
         await asyncio.sleep(0)
-        await engine.submit_night_action("werewolf", {"target": "p0"})
+        await answer_turn(engine, "werewolf", {"target": "p0"})
 
     asyncio.ensure_future(submit())
     await engine.begin_night()
@@ -89,7 +89,7 @@ async def test_wolf_kill_eliminates_player():
 
     async def submit():
         await asyncio.sleep(0)
-        await engine.submit_night_action("werewolf", {"target": villager_id})
+        await answer_turn(engine, "werewolf", {"target": villager_id})
 
     asyncio.ensure_future(submit())
     await engine.begin_night()
@@ -107,7 +107,7 @@ async def test_night_resolved_emitted_after_night():
 
     async def submit():
         await asyncio.sleep(0)
-        await engine.submit_night_action("werewolf", {"target": villager_id})
+        await answer_turn(engine, "werewolf", {"target": villager_id})
 
     asyncio.ensure_future(submit())
     await engine.begin_night()
@@ -121,7 +121,7 @@ async def test_wolf_kill_triggers_game_over():
 
     async def submit():
         await asyncio.sleep(0)
-        await engine.submit_night_action("werewolf", {"target": villager_id})
+        await answer_turn(engine, "werewolf", {"target": villager_id})
 
     asyncio.ensure_future(submit())
     await engine.begin_night()
@@ -189,11 +189,10 @@ async def test_witch_save_prevents_wolf_kill():
     async def submit():
         await asyncio.sleep(0)
         call_order.append("wolf")
-        await engine.submit_night_action("werewolf", {"target": villager_id})
+        await answer_turn(engine, "werewolf", {"target": villager_id})
         await asyncio.sleep(0)
         call_order.append("witch")
-        await engine.submit_night_action("witch", {
-            "player_id": witch_id,
+        await answer_turn(engine, "witch", {
             "save_target": villager_id,
         })
 
@@ -215,7 +214,7 @@ async def test_elder_survives_first_wolf_kill_integration():
 
     async def submit():
         await asyncio.sleep(0)
-        await engine.submit_night_action("werewolf", {"target": elder_id})
+        await answer_turn(engine, "werewolf", {"target": elder_id})
 
     asyncio.ensure_future(submit())
     await engine.begin_night()
@@ -239,9 +238,9 @@ async def test_lover_dies_when_partner_eliminated():
 
     async def submit():
         await asyncio.sleep(0)
-        await engine.submit_night_action("cupid", {"lovers": []})  # skip night 1 link
+        await answer_turn(engine, "cupid", {"lovers": []})  # skip night 1 link
         await asyncio.sleep(0)
-        await engine.submit_night_action("werewolf", {"target": alice_id})
+        await answer_turn(engine, "werewolf", {"target": alice_id})
 
     asyncio.ensure_future(submit())
     await engine.begin_night()

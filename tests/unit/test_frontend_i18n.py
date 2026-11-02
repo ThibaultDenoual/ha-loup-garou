@@ -68,7 +68,9 @@ def dynamic_keys() -> set[str]:
     keys = {f"ui.phase.{p}" for p in ("setup", "role_reveal", "night", "day", "vote", "game_over")}
     for status in ("connecting", "connected", "reconnecting", "open_from_ha"):
         keys |= {f"ui.ws.{status}", f"launcher.connection.{status}"}
-    keys |= {"ui.error.bad_request", "ui.error.internal_error"}
+    keys |= {f"ui.error.{code}" for code in (
+        "bad_request", "internal_error", "stale_prompt", "illegal_answer", "game_in_progress",
+    )}
     keys |= {f"launcher.lang.{lang}" for lang in LANGUAGES}
     for role in role_ids():
         keys |= {f"role.{role}.{field}" for field in ("name", "description", "team")}

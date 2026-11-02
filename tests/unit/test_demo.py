@@ -272,13 +272,11 @@ async def test_non_string_action_values_pass_through():
     }
 
 
-async def test_wake_for_a_role_nothing_is_waiting_on_is_ignored(caplog):
-    engine = make_engine()
-    runner = DemoRunner(engine, DEMOS["smoke_test"], action_delay=0, step_delay=0)
-    engine.on(GameEvent.NIGHT_ROLE_WAKE, runner._on_night_role_wake)
-    await engine._emit(GameEvent.NIGHT_ROLE_WAKE, {"role": "elder"})
-    await asyncio.sleep(0.01)
-    assert "nothing pending for role elder" in caplog.text
+async def test_action_that_breaks_the_prompt_falls_back_to_a_legal_one(caplog):
+    script = variant("bad", night_actions={"werewolf": {"target": "Nobody"}})
+    _, rec, _ = await play(script)
+    assert "using a default" in caplog.text
+    assert rec.winners == ["village"]
 
 
 async def test_unknown_step_kind_is_skipped():

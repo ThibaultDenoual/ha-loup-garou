@@ -5,7 +5,7 @@ from loup_garou.game_engine import GameEngine
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
 from loup_garou.roles.impl.cupid import Cupid
-from tests.unit.conftest import make_engine, make_ctx
+from tests.unit.conftest import answer_turn, make_engine, make_ctx
 
 
 async def test_cupid_has_night_action():
@@ -94,11 +94,11 @@ async def test_cupid_not_woken_on_night_2():
 
     # Submit cupid action (link two players)
     cupid_players = [p for p in players if p.role_id != "werewolf"]
-    await engine.submit_night_action("cupid", {"lovers": [cupid_players[0].id, cupid_players[1].id]})
+    await answer_turn(engine, "cupid", {"lovers": [cupid_players[0].id, cupid_players[1].id]})
     await asyncio.sleep(0)
 
     # Submit wolf action
-    await engine.submit_night_action("werewolf", {"target": villager.id})
+    await answer_turn(engine, "werewolf", {"target": villager.id})
     await night1
 
     assert "cupid" in wakes, "Cupid should wake on night 1"
@@ -112,7 +112,7 @@ async def test_cupid_not_woken_on_night_2():
     await asyncio.sleep(0)
 
     # Only wolf wakes; submit wolf action
-    await engine.submit_night_action("werewolf", {"target": alive_villagers[0].id})
+    await answer_turn(engine, "werewolf", {"target": alive_villagers[0].id})
     await night2
 
     assert "cupid" not in wakes, "Cupid must NOT wake on night 2"

@@ -1,19 +1,20 @@
 import { translate } from '../i18n.js';
 import { h, $ } from '../dom.js';
-import { isPack, teamOf } from '../roles.js';
+import { teamOf } from '../roles.js';
 import { avatar, sprite } from '../sprites.js';
 import { choiceGrid } from '../ui.js';
 
-let _send;
+let _answer;
 let _getState;
 
-// The waking role and what its player has picked so far.
-let _role = null;
+// The open prompt and what its player has picked so far.
+let _prompt = null;
+let _pickName = null;
 let _picked = [];
-let _witch = null;   // { id, save, poison } while the witch is up
+let _witch = null;   // { victims, save, poison } while the witch is up
 
-export function init(send, getState) {
-  _send = send;
+export function init(answer, getState) {
+  _answer = answer;
   _getState = getState;
 
   $('sleep-moon').replaceChildren(sprite('moon', 12));
@@ -21,37 +22,32 @@ export function init(send, getState) {
   $('witch-save-icon').replaceChildren(sprite('potion_heal', 4));
   $('witch-poison-icon').replaceChildren(sprite('potion_poison', 4));
 
-  $('btn-na-skip').addEventListener('click', _onSkip);
+  $('btn-na-skip').addEventListener('click', () => _answer());
   $('btn-na-confirm').addEventListener('click', _onConfirm);
-  $('btn-seer-ack').addEventListener('click', () => {
-    _send('submit_pending_action', { role: 'seer', action: {} });
-  });
+  $('btn-seer-ack').addEventListener('click', () => _answer());
   $('witch-save-btn').addEventListener('click', _toggleSave);
   $('witch-poison-btn').addEventListener('click', _togglePoison);
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export function showSleeping() {
-  _role = null;
+// No prompt means the village sleeps: the narrator is speaking, or no one is up.
+export function render(prompt) {
+  _prompt = prompt;
   _picked = [];
-  _witch = null;
-  translate($('night-heading'), 'ui.night.heading', { n: _getState().night_number });
-  _setSection('sleeping');
-}
-
-export function onWake(data) {
-  _role = data.role;
-  _picked = [];
+  _pickName = null;
   _witch = null;
 
-  if (data.result) _showSeerResult(data.result);
-  else if (data.player_id && data.role === 'hunter') _showHunter(data.player_id);
-  else _showAction(data);
-}
-
-export function onSleep() {
-  showSleeping();
+  if (!prompt) {
+    translate($('night-heading'), 'ui.night.heading', { n: _getState().night });
+    _setSection('sleeping');
+  } else if (prompt.kind === 'seer_result') {
+    _showSeerResult(prompt.info);
+  } else if (prompt.role === 'witch') {
+    _showWitch(prompt);
+  } else {
+    _showPick(prompt);
+  }
 }
 
 // ── Sections ──────────────────────────────────────────────────────────────────
@@ -87,79 +83,73 @@ function _status(key, vars) {
   translate(el, key, vars);
 }
 
-function _alive() {
-  return _getState().players.filter(p => p.alive);
+function _playersIn(options) {
+  return _getState().players.filter(p => options.includes(p.id));
 }
 
-// Single-pick grid that enables confirm once someone is chosen.
-function _singleGrid(players, variant = 'pick') {
-  $('na-grid').replaceChildren(choiceGrid(players, {
-    variant,
-    onChange: picked => { _picked = picked; $('btn-na-confirm').disabled = !picked.length; },
-  }));
-}
+const GRID_VARIANT = { werewolf: 'wolf', hunter: 'wolf', cupid: 'love' };
+const PROMPT_KEY = {
+  hunter_shot: 'role.hunter.death_prompt',
+  sheriff_election: 'role.sheriff.election_prompt',
+};
 
-function _showAction(data) {
-  const role = data.role;
-  _prepareAction(role, `role.${role}.action_prompt`);
-  const alive = _alive();
+// A prompt with one pick: the core says who can be chosen and how many.
+function _showPick(prompt) {
+  const { role, kind, picks } = prompt;
+  const [name, pick] = Object.entries(picks)[0];
+  _pickName = name;
+  const max = Math.max(...pick.counts);
+  const legal = n => pick.counts.includes(n);
 
-  if (role === 'witch') {
-    _showWitch(data, alive);
-  } else if (role === 'cupid') {
-    _status('ui.night.cupid_count', { count: 0 });
-    $('na-grid').replaceChildren(choiceGrid(alive, {
-      max: 2,
-      variant: 'love',
+  _prepareAction(role, PROMPT_KEY[kind] || `role.${role}.action_prompt`, {
+    skip: legal(0) && pick.options.length > 0,
+    confirmKey: kind === 'hunter_shot' ? 'role.hunter.shoot_confirm' : 'ui.night.confirm',
+  });
+
+  if (!pick.options.length) {
+    _status('ui.night.no_targets');
+    $('btn-na-confirm').disabled = false;
+  } else {
+    if (role === 'cupid') _status('ui.night.cupid_count', { count: 0 });
+    $('na-grid').replaceChildren(choiceGrid(_playersIn(pick.options), {
+      max,
+      variant: GRID_VARIANT[role] || 'pick',
       onChange: picked => {
         _picked = picked;
-        _status('ui.night.cupid_count', { count: picked.length });
-        $('btn-na-confirm').disabled = picked.length !== 2;
+        if (role === 'cupid') _status('ui.night.cupid_count', { count: picked.length });
+        $('btn-na-confirm').disabled = !(picked.length && legal(picked.length));
       },
     }));
-  } else if (role === 'werewolf' || role === 'alpha_wolf') {
-    const prey = alive.filter(p => !isPack(p.role_id));
-    if (!prey.length && role === 'alpha_wolf') {
-      _status('ui.night.no_targets');
-      $('btn-na-confirm').disabled = false;
-    } else {
-      _singleGrid(prey, 'wolf');
-    }
-  } else {
-    _singleGrid(alive);
   }
-
   _setSection('action');
 }
 
-function _showWitch(data, alive) {
-  const victims = data.pending_kill_players || [];
+function _showWitch(prompt) {
+  const { picks, info } = prompt;
+  _prepareAction('witch', 'role.witch.action_prompt');
   _witch = {
-    id: data.witch_id || null,
-    victims,
-    alive,
-    canSave: data.witch_save_available !== false && victims.length > 0,
-    canPoison: data.witch_poison_available !== false,
+    victims: info.victims,
+    canSave: picks.save_target.options.length > 0,
+    canPoison: picks.poison_target.options.length > 0,
     save: false,
     poison: false,
   };
 
   const box = $('na-victim');
   box.hidden = false;
-  if (victims.length) {
+  if (info.victims.length) {
     box.replaceChildren(
       sprite('skull', 4),
       h('div', {},
         h('div', { class: 'dim small', i18n: 'role.witch.victim_label' }),
-        h('div', { class: 'player-name', text: victims.map(p => p.name).join(', ') })));
+        h('div', { class: 'player-name', text: info.victims.map(p => p.name).join(', ') })));
   } else {
     box.replaceChildren(h('p', { i18n: 'ui.night.witch_no_victim' }));
   }
 
   const save = $('witch-save-btn');
   save.disabled = !_witch.canSave;
-  translate($('witch-save-label'),
-    data.witch_save_available === false ? 'ui.night.witch_used' : 'ui.night.witch_save');
+  translate($('witch-save-label'), info.save_used ? 'ui.night.witch_used' : 'ui.night.witch_save');
   const poison = $('witch-poison-btn');
   poison.disabled = !_witch.canPoison;
   translate($('witch-poison-label'), _witch.canPoison ? 'ui.night.witch_poison' : 'ui.night.witch_used');
@@ -168,6 +158,7 @@ function _showWitch(data, alive) {
   $('na-witch-potions').hidden = false;
   // The witch may always confirm: no potion is a valid choice.
   $('btn-na-confirm').disabled = false;
+  _setSection('action');
 }
 
 function _syncPotions() {
@@ -193,70 +184,33 @@ function _togglePoison() {
     $('na-grid').replaceChildren();
     return;
   }
-  const victimIds = _witch.victims.map(v => v.id);
-  $('na-grid').replaceChildren(choiceGrid(_witch.alive.filter(p => !victimIds.includes(p.id)), {
+  $('na-grid').replaceChildren(choiceGrid(_playersIn(_prompt.picks.poison_target.options), {
     variant: 'poison',
     onChange: picked => { _picked = picked; },
   }));
 }
 
-function _showSeerResult(result) {
-  const player = _getState().players.find(p => p.id === result.player_id);
-  const name = player ? player.name : '?';
+function _showSeerResult({ name, role_id: roleId }) {
   $('seer-sprite').replaceChildren(sprite('seer', 5));
   $('seer-avatar').replaceChildren(avatar(name, 8));
   $('seer-name').textContent = name;
   const roleEl = $('seer-role');
-  translate(roleEl, `role.${result.role_id}.name`);
-  roleEl.className = `role-big team-${teamOf(result.role_id)}`;
+  translate(roleEl, `role.${roleId}.name`);
+  roleEl.className = `role-big team-${teamOf(roleId)}`;
   _setSection('seer');
   $('btn-seer-ack').focus();
 }
 
-function _showHunter(hunterId) {
-  _prepareAction('hunter', 'role.hunter.death_prompt', {
-    skip: false,
-    confirmKey: 'role.hunter.shoot_confirm',
-  });
-  _singleGrid(_alive().filter(p => p.id !== hunterId), 'wolf');
-  _setSection('action');
-}
-
-// ── Button handlers ───────────────────────────────────────────────────────────
-
-function _submit(action) {
-  _send('submit_night_action', { role: _role, action });
-}
-
-function _onSkip() {
-  if (!_role) return;
-  if (_role === 'witch') _submit({ player_id: _witch?.id ?? null });
-  else if (_role === 'cupid') _submit({ lovers: [] });
-  else _submit({});
-}
+// ── Buttons ───────────────────────────────────────────────────────────────────
 
 function _onConfirm() {
-  if (!_role) return;
-  const [target] = _picked;
-
-  switch (_role) {
-    case 'witch':
-      _submit({
-        player_id: _witch.id,
-        save_target: _witch.save ? _witch.victims[0].id : null,
-        poison_target: _witch.poison ? target ?? null : null,
-      });
-      break;
-    case 'cupid':
-      _submit({ lovers: _picked });
-      break;
-    case 'hunter':
-      if (target) _send('submit_pending_action', { role: 'hunter', action: { target } });
-      break;
-    case 'alpha_wolf':
-      _submit(target ? { convert_target: target } : {});
-      break;
-    default:
-      if (target) _submit({ target });
+  if (!_prompt) return;
+  if (_witch) {
+    _answer({
+      save_target: _witch.save ? _witch.victims[0].id : null,
+      poison_target: _witch.poison ? _picked[0] ?? null : null,
+    });
+  } else {
+    _answer({ [_pickName]: _picked });
   }
 }

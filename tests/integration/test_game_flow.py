@@ -78,7 +78,7 @@ async def test_demo_game_drives_ha_tts_and_lights(
 
     assert not [m for m in msgs if m["type"] in ("error", "demo_error")]
     # The demo resets the engine once it is done, so look for the game-over state.
-    winners = {m["state"]["winner"] for m in msgs if m["type"] == "state"} - {None}
+    winners = {m["state"]["winner"] for m in msgs if m["type"] == "snapshot"} - {None}
     assert winners == {"village"}
 
     assert tts_calls, "no narration reached tts.speak"

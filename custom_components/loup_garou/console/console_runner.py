@@ -6,7 +6,7 @@ import json
 import sys
 from pathlib import Path
 
-from ..game_engine import GameEngine
+from ..game_engine import PROMPT_NEW_GAME, AnswerResult, GameEngine
 
 from ..const import GameEvent, Phase
 
@@ -31,7 +31,7 @@ class ConsoleRunner:
     def __init__(self, language: str = "fr") -> None:
         self._engine = GameEngine()
         self._locale = _load_locale(language)
-        self._pending_hunter_shot: asyncio.Future | None = None
+        self._prompts: asyncio.Queue[dict] = asyncio.Queue()
 
     def t(self, key: str, **kwargs) -> str:
         return _t(self._locale, key, **kwargs)
@@ -119,77 +119,52 @@ class ConsoleRunner:
 
         await self._engine.start_game(names, roles)
 
-    async def _run_night(self) -> None:
-        night_roles = self._engine._night_roles()
-        for role in night_roles:
-            ctx = self._engine._make_ctx()
-            if not ctx.alive_players_by_role(role.id):
-                continue
+    def _read_answer(self, prompt: dict) -> dict:
+        names = {p["id"]: p["name"] for p in self._engine.get_public_state()["players"]}
+        print(f"\n  [{prompt['kind']}] {names.get(prompt['actor'], prompt['role'] or '')} {prompt['info']}")
+        if not prompt["picks"]:
+            input("  [ENTRÉE]")
+        answer: dict = {}
+        for name, spec in prompt["picks"].items():
+            options = ", ".join(f"{o}={names.get(o, o)}" for o in spec["options"])
+            print(f"  {name} ({spec['counts']}) : {options}")
+            answer[name] = input("  Choix (séparés par des espaces) : ").split()
+        return answer
 
-            print(f"\n  [{role.id.upper()}] action:")
-            action = await asyncio.get_event_loop().run_in_executor(
-                None, self._get_action_for_role, role.id, ctx
-            )
-            await self._engine.submit_night_action(role.id, action)
-
-    def _get_action_for_role(self, role_id: str, ctx) -> dict:
-        alive = ctx.alive_players
-        if role_id in ("werewolf", "alpha_wolf", "seer"):
-            print("  Joueurs en vie :", ", ".join(f"{p['id']}={p['name']}" for p in alive))
-            target = input("  Cible (id) : ").strip()
-            return {"target": target}
-        if role_id == "witch":
-            kills = ctx.pending_kills
-            print(f"  Morts cette nuit : {kills}")
-            save = input("  Sauver (id ou vide) : ").strip()
-            poison = input("  Empoisonner (id ou vide) : ").strip()
-            return {"save_target": save or None, "poison_target": poison or None}
-        if role_id == "cupid":
-            print("  Joueurs :", ", ".join(f"{p['id']}={p['name']}" for p in alive))
-            a = input("  Amoureux 1 (id) : ").strip()
-            b = input("  Amoureux 2 (id) : ").strip()
-            return {"lovers": [a, b]}
-        return {}
-
-    async def _run_vote(self) -> None:
-        await self._engine.begin_vote()
-        state = self._engine.get_public_state()
-        alive = [p for p in state["players"] if p["alive"]]
-        print("\n  Joueurs en vie :", ", ".join(f"{p['id']}={p['name']}" for p in alive))
-
-        votes: dict[str, str] = {}
-        for voter in alive:
-            target = input(f"  {voter['name']} vote contre (id) : ").strip()
-            if target:
-                votes[voter["id"]] = target
-
-        eliminated = await self._engine.resolve_vote(votes)
-        if eliminated is None:
-            print(f"\n  {self.t('phase.vote.tie')}")
-        else:
-            p = next((pl for pl in state["players"] if pl["id"] == eliminated), None)
-            if p:
-                print(f"\n  {self.t('phase.vote.result', name=p['name'], article='un', role=p['role_id'])}")
+    async def _answer_prompts(self) -> None:
+        while True:
+            prompt = await self._prompts.get()
+            result = None
+            while result not in (AnswerResult.ACCEPTED, AnswerResult.STALE):
+                answer = await asyncio.get_running_loop().run_in_executor(
+                    None, self._read_answer, prompt
+                )
+                result = await self._engine.answer(prompt["id"], answer)
+                if result == AnswerResult.ILLEGAL:
+                    print("  Choix invalide.")
 
     async def run(self) -> None:
         self._wire_events()
         await self._setup_game()
 
-        while self._engine._state.phase not in (Phase.GAME_OVER,):
-            phase = self._engine._state.phase
-            if phase == Phase.ROLE_REVEAL:
-                input("\n[ENTRÉE pour commencer la première nuit]")
-                await self._engine.begin_night()
-            elif phase == Phase.DAY:
-                action = input("\n[V]oter ou [N]uit ? ").strip().lower()
-                if action.startswith("v"):
-                    await self._run_vote()
-                elif action.startswith("n"):
-                    await self._engine.begin_night()
-            elif phase == Phase.VOTE:
-                pass  # resolve_vote transitions to DAY
-            else:
-                await asyncio.sleep(0.1)
+        async def on_prompt(prompt: dict) -> None:
+            if prompt["kind"] != PROMPT_NEW_GAME:
+                self._prompts.put_nowait(prompt)
+
+        self._engine.on(GameEvent.PROMPT_OPENED, on_prompt)
+        answering = asyncio.create_task(self._answer_prompts())
+        game = asyncio.create_task(self._engine.run_game())
+
+        async def on_game_over(_data: dict) -> None:
+            game.cancel()
+
+        self._engine.on(GameEvent.GAME_OVER, on_game_over)
+        try:
+            await game
+        except asyncio.CancelledError:
+            pass
+        finally:
+            answering.cancel()
 
 
 def main() -> None:

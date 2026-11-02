@@ -1,704 +1,524 @@
-"""End-to-end WebSocket tests — validate the JSON protocol the browser UI depends on."""
+"""The JSON protocol the browser depends on: prompts, answers and snapshots."""
 from __future__ import annotations
 
-import asyncio
-
 import aiohttp
-import pytest
 from aiohttp.test_utils import TestServer
 
+from loup_garou.const import GameEvent
+from loup_garou.narration import NarrationMessage
 from loup_garou.roles.impl.cupid import Cupid
+from loup_garou.roles.impl.elder import Elder
 from loup_garou.roles.impl.hunter import Hunter
 from loup_garou.roles.impl.scapegoat import Scapegoat
 from loup_garou.roles.impl.seer import Seer
+from loup_garou.roles.impl.sheriff import Sheriff
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
 from loup_garou.roles.impl.witch import Witch
-from tests.e2e.conftest import drain, make_app, make_server
+from tests.e2e.conftest import (
+    answer, deal, drain, make_app, make_server, prompt_of, vote_out, wait_day_choice, wait_prompt,
+)
+
+ROLES = (Villager, Werewolf, Seer, Witch, Hunter, Scapegoat, Cupid, Sheriff, Elder)
+FIVE = ["werewolf", "villager", "villager", "villager", "villager"]
 
 
-# ── helpers ───────────────────────────────────────────────────────────────────
+async def play(fn, *, narrate_on=()):
+    """Run fn(connect, engine, server); connect() opens one more socket."""
+    engine, server = make_server(ROLES)
 
-async def ws_for(server_roles, fn):
-    """Spin up a TestServer, open a WS, run fn(ws, engine), close cleanly."""
-    engine, srv = make_server(server_roles)
-    app = make_app(srv)
-    async with TestServer(app) as ts:
-        async with aiohttp.ClientSession() as sess:
-            async with sess.ws_connect(ts.make_url("/ws")) as ws:
-                return await fn(ws, engine)
+    async def _narrate(_data):
+        await server.narrate(NarrationMessage(text="line", lang="en"))
 
-
-async def start_game(ws, players, roles):
-    """Send start_game and return the first role_reveal state."""
-    await ws.send_json({"cmd": "start_game", "data": {"players": players, "roles": roles}})
-    msgs = await drain(
-        ws,
-        until_type="state",
-        predicate=lambda m: m.get("state", {}).get("phase") == "role_reveal",
-    )
-    return msgs[-1]
+    for event in narrate_on:
+        engine.on(event, _narrate)
+    async with TestServer(make_app(server)) as ts:
+        async with aiohttp.ClientSession() as session:
+            async def connect():
+                return await session.ws_connect(ts.make_url("/ws"))
+            try:
+                await fn(connect, engine, server)
+            finally:
+                await server.async_shutdown()
 
 
-async def run_night_wolf(ws, wolf_target_id):
-    """Complete a wolf-only night: wake → kill villager → wait for day state."""
-    await ws.send_json({"cmd": "begin_night"})
-    await drain(ws, until_type="night_role_wake",
-                predicate=lambda m: m.get("data", {}).get("role") == "werewolf")
-    await ws.send_json({
-        "cmd": "submit_night_action",
-        "data": {"role": "werewolf", "action": {"target": wolf_target_id}},
-    })
-    msgs = await drain(
-        ws,
-        until_type="state",
-        predicate=lambda m: m.get("state", {}).get("phase") == "day",
-    )
-    return msgs
+def in_phase(phase):
+    return lambda m: m["state"]["phase"] == phase
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Basic protocol
-# ═══════════════════════════════════════════════════════════════════════════════
+async def wait_phase(ws, phase, timeout=2.0):
+    msgs = await drain(ws, until_type="snapshot", predicate=in_phase(phase), timeout=timeout)
+    return msgs[-1]["state"], msgs
 
-async def test_get_state_returns_setup():
-    async def _test(ws, engine):
+
+async def error_code(ws):
+    return (await drain(ws, until_type="error"))[-1]["code"]
+
+
+# ── Basics ────────────────────────────────────────────────────────────────────
+
+async def test_get_state_returns_setup_snapshot():
+    async def _test(connect, engine, server):
+        ws = await connect()
         await ws.send_json({"cmd": "get_state"})
-        msgs = await drain(ws, until_type="state")
-        s = msgs[-1]["state"]
-        assert s["phase"] == "setup"
-        assert s["players"] == []
-
-    await ws_for([Villager, Werewolf], _test)
+        state = (await drain(ws, until_type="snapshot"))[-1]["state"]
+        assert state["phase"] == "setup"
+        assert state["players"] == [] and state["prompt"] is None
+    await play(_test)
 
 
 async def test_unknown_command_returns_error():
-    async def _test(ws, engine):
-        await ws.send_json({"cmd": "bogus_command"})
-        msgs = await drain(ws, until_type="error")
-        assert "unknown command" in msgs[-1]["msg"]
-
-    await ws_for([Villager, Werewolf], _test)
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await ws.send_json({"cmd": "bogus"})
+        assert "unknown command" in (await drain(ws, until_type="error"))[-1]["msg"]
+    await play(_test)
 
 
 async def test_get_config_returns_config():
-    async def _test(ws, engine):
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await ws.send_json({"cmd": "get_config"})
+        assert "config" in (await drain(ws, until_type="config"))[-1]
+    await play(_test)
+
+
+async def test_old_game_commands_are_gone():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        await wait_prompt(ws, "night_action")
+        for cmd in ("begin_night", "begin_vote", "resolve_vote", "submit_night_action",
+                    "submit_pending_action", "elect_sheriff"):
+            await ws.send_json({"cmd": cmd, "data": {"votes": {"p1": "p2"}, "role": "werewolf"}})
+            assert "unknown command" in (await drain(ws, until_type="error"))[-1]["msg"]
+        assert all(p["alive"] for p in engine.get_public_state()["players"])
+    await play(_test)
+
+
+# ── Start and reveal ──────────────────────────────────────────────────────────
+
+async def test_start_game_opens_a_reveal_for_each_player_in_turn():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await ws.send_json({"cmd": "start_game", "data": {
+            "players": ["Alice", "Bob"], "roles": ["werewolf", "villager"]}})
+        first = await wait_prompt(ws, "reveal")
+        assert (first["actor"], first["info"]["role_id"], first["info"]["done"]) == ("p0", "werewolf", 1)
+        await answer(ws, first)
+        second = await wait_prompt(ws, "reveal")
+        assert (second["actor"], second["info"]["role_id"]) == ("p1", "villager")
+    await play(_test)
+
+
+async def test_every_client_receives_the_snapshots():
+    async def _test(connect, engine, server):
+        ws1, ws2 = await connect(), await connect()
+        await ws1.send_json({"cmd": "start_game", "data": {
+            "players": ["A", "B"], "roles": ["werewolf", "villager"]}})
+        assert (await wait_prompt(ws1, "reveal"))["id"] == (await wait_prompt(ws2, "reveal"))["id"]
+    await play(_test)
+
+
+async def test_mismatched_start_is_a_bad_request_and_stays_in_setup():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await ws.send_json({"cmd": "start_game", "data": {"players": ["A"], "roles": []}})
+        assert await error_code(ws) == "bad_request"
+        assert engine.get_public_state()["phase"] == "setup"
+    await play(_test)
+
+
+async def test_start_game_during_a_game_is_refused():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        await wait_prompt(ws, "night_action")
+        await ws.send_json({"cmd": "start_game", "data": {"players": ["A"], "roles": ["villager"]}})
+        assert await error_code(ws) == "game_in_progress"
+        assert len(engine.get_public_state()["players"]) == 5
+    await play(_test)
+
+
+# ── Answers ───────────────────────────────────────────────────────────────────
+
+async def test_double_tap_is_ignored():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await ws.send_json({"cmd": "start_game", "data": {
+            "players": ["A", "B"], "roles": ["werewolf", "villager"]}})
+        first = await wait_prompt(ws, "reveal")
+        await answer(ws, first)
+        await answer(ws, first)
         await ws.send_json({"cmd": "get_config"})
         msgs = await drain(ws, until_type="config")
-        assert msgs[-1]["type"] == "config"
-        assert "config" in msgs[-1]
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Game start
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_start_game_enters_role_reveal():
-    async def _test(ws, engine):
-        msg = await start_game(ws, ["Alice", "Bob", "Carol"],
-                               ["werewolf", "villager", "villager"])
-        s = msg["state"]
-        assert s["phase"] == "role_reveal"
-        assert len(s["players"]) == 3
-        assert {p["name"] for p in s["players"]} == {"Alice", "Bob", "Carol"}
-        assert {p["role_id"] for p in s["players"]} == {"werewolf", "villager"}
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-async def test_start_game_broadcasts_to_all_clients():
-    """Both connected clients get the role_reveal state."""
-    engine, srv = make_server([Villager, Werewolf])
-    app = make_app(srv)
-    async with TestServer(app) as ts:
-        async with aiohttp.ClientSession() as sess:
-            async with sess.ws_connect(ts.make_url("/ws")) as ws1:
-                async with sess.ws_connect(ts.make_url("/ws")) as ws2:
-                    await ws1.send_json({
-                        "cmd": "start_game",
-                        "data": {"players": ["Alice", "Bob"], "roles": ["werewolf", "villager"]},
-                    })
-                    msgs1 = await drain(ws1, until_type="state",
-                                        predicate=lambda m: m.get("state", {}).get("phase") == "role_reveal")
-                    msgs2 = await drain(ws2, until_type="state",
-                                        predicate=lambda m: m.get("state", {}).get("phase") == "role_reveal")
-                    assert msgs1[-1]["state"]["phase"] == "role_reveal"
-                    assert msgs2[-1]["state"]["phase"] == "role_reveal"
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Role reveal → night transition
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_role_reveal_then_begin_night():
-    """begin_night after role_reveal transitions to night and emits wolf wake."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave"],
-            ["werewolf", "villager", "villager", "villager"],
-        )
-        assert state_msg["state"]["phase"] == "role_reveal"
-
-        players = state_msg["state"]["players"]
-        villager = next(p for p in players if p["role_id"] == "villager")
-
-        # Complete night to avoid lingering task
-        await run_night_wolf(ws, villager["id"])
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Night: wolf
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_wolf_kills_villager():
-    """Wolf wakes, kills a villager, night resolves, day starts with one dead."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave"],
-            ["werewolf", "villager", "villager", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        villager = next(p for p in players if p["role_id"] == "villager")
-
-        msgs = await run_night_wolf(ws, villager["id"])
-
-        elim_events = [m for m in msgs if m.get("type") == "player_eliminated"]
-        assert len(elim_events) == 1
-        assert elim_events[0]["data"]["player_id"] == villager["id"]
-
-        final = msgs[-1]["state"]
-        assert final["phase"] == "day"
-        dead = [p for p in final["players"] if not p["alive"]]
-        assert len(dead) == 1
-        assert dead[0]["id"] == villager["id"]
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-async def test_wolf_kill_triggers_game_over_at_parity():
-    """Wolf kills last villager → wolves win immediately."""
-    async def _test(ws, engine):
-        state_msg = await start_game(ws, ["Alice", "Bob"], ["werewolf", "villager"])
-        players = state_msg["state"]["players"]
-        villager = next(p for p in players if p["role_id"] == "villager")
-
-        await ws.send_json({"cmd": "begin_night"})
-        await drain(ws, until_type="night_role_wake",
-                    predicate=lambda m: m.get("data", {}).get("role") == "werewolf")
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "werewolf", "action": {"target": villager["id"]}},
-        })
-        msgs = await drain(
-            ws,
-            until_type="state",
-            predicate=lambda m: m.get("state", {}).get("phase") == "game_over",
-        )
-        final = msgs[-1]["state"]
-        assert final["phase"] == "game_over"
-        assert final["winner"] == "wolves"
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-async def test_night_role_wake_includes_role_field():
-    """The night_role_wake message always has a 'role' field."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave"],
-            ["werewolf", "villager", "villager", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        villager = next(p for p in players if p["role_id"] == "villager")
-
-        await ws.send_json({"cmd": "begin_night"})
-        msgs = await drain(ws, until_type="night_role_wake",
-                           predicate=lambda m: m.get("data", {}).get("role") == "werewolf")
-        wake = next(m for m in msgs if m.get("type") == "night_role_wake")
-        assert "role" in wake["data"]
-        assert wake["data"]["role"] == "werewolf"
-
-        # Clean up: submit wolf action
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "werewolf", "action": {"target": villager["id"]}},
-        })
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "day")
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Night: seer
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_seer_investigates_wolf():
-    """Seer wakes, investigates wolf, gets result via NIGHT_ROLE_WAKE, acks, goes to sleep."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave"],
-            ["werewolf", "villager", "seer", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        wolf = next(p for p in players if p["role_id"] == "werewolf")
-        villager = next(p for p in players if p["role_id"] == "villager")
-
-        await ws.send_json({"cmd": "begin_night"})
-
-        # Seer wakes (priority 10 < werewolf 50)
-        seer_wake_msgs = await drain(
-            ws, until_type="night_role_wake",
-            predicate=lambda m: m.get("data", {}).get("role") == "seer",
-        )
-        wake = next(m for m in seer_wake_msgs if m["type"] == "night_role_wake")
-        assert wake["data"]["role"] == "seer"
-        assert "result" not in wake["data"]  # no result yet — seer must pick a target
-
-        # Seer investigates the wolf
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "seer", "action": {"target": wolf["id"]}},
-        })
-
-        # Expect second NIGHT_ROLE_WAKE with seer result
-        result_msgs = await drain(
-            ws, until_type="night_role_wake",
-            predicate=lambda m: "result" in m.get("data", {}),
-        )
-        result_wake = next(m for m in result_msgs if "result" in m.get("data", {}))
-        result = result_wake["data"]["result"]
-        assert result["player_id"] == wolf["id"]
-        assert result["role_id"] == "werewolf"
-
-        # Seer acknowledges result
-        await ws.send_json({"cmd": "submit_pending_action", "data": {"role": "seer", "action": {}}})
-
-        # Seer sleeps → wolf wakes
-        await drain(ws, until_type="night_role_wake",
-                    predicate=lambda m: m.get("data", {}).get("role") == "werewolf")
-
-        # Wolf kills villager to clean up
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "werewolf", "action": {"target": villager["id"]}},
-        })
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "day")
-
-    await ws_for([Villager, Werewolf, Seer], _test)
-
-
-async def test_seer_skip_does_not_trigger_result():
-    """If seer submits empty action, no result NIGHT_ROLE_WAKE is sent."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave"],
-            ["werewolf", "villager", "seer", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        villager = next(p for p in players if p["role_id"] == "villager")
-
-        await ws.send_json({"cmd": "begin_night"})
-        await drain(ws, until_type="night_role_wake",
-                    predicate=lambda m: m.get("data", {}).get("role") == "seer")
-
-        # Seer skips
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "seer", "action": {}},
-        })
-
-        # Next event should be seer_sleep OR wolf wake (not a seer result)
-        msgs = await drain(
-            ws, until_type="night_role_wake",
-            predicate=lambda m: m.get("data", {}).get("role") == "werewolf",
-        )
-        result_wakes = [m for m in msgs if "result" in m.get("data", {})]
-        assert len(result_wakes) == 0, "Expected no seer result when action was skipped"
-
-        # Clean up: wolf kills someone
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "werewolf", "action": {"target": villager["id"]}},
-        })
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "day")
-
-    await ws_for([Villager, Werewolf, Seer], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Night: witch
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_witch_wake_includes_pending_kill_players():
-    """Witch wake includes pending_kill_players and potion availability."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave"],
-            ["werewolf", "villager", "witch", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        villager = next(p for p in players if p["role_id"] == "villager")
-
-        await ws.send_json({"cmd": "begin_night"})
-
-        # Wolf wakes first (priority 50, witch 60)
-        await drain(ws, until_type="night_role_wake",
-                    predicate=lambda m: m.get("data", {}).get("role") == "werewolf")
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "werewolf", "action": {"target": villager["id"]}},
-        })
-
-        # Witch wakes after wolf
-        witch_msgs = await drain(ws, until_type="night_role_wake",
-                                 predicate=lambda m: m.get("data", {}).get("role") == "witch")
-        wake = next(m for m in witch_msgs if m["type"] == "night_role_wake" and m["data"]["role"] == "witch")
-
-        assert "pending_kill_players" in wake["data"]
-        assert wake["data"]["witch_save_available"] is True
-        assert wake["data"]["witch_poison_available"] is True
-
-        victims = wake["data"]["pending_kill_players"]
-        assert len(victims) == 1
-        assert victims[0]["id"] == villager["id"]
-
-        # Witch passes
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "witch", "action": {"player_id": wake["data"]["witch_id"]}},
-        })
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "day")
-
-    await ws_for([Villager, Werewolf, Witch], _test)
-
-
-async def test_witch_saves_victim():
-    """Witch save prevents wolf kill."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave"],
-            ["werewolf", "villager", "witch", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        villager = next(p for p in players if p["role_id"] == "villager")
-
-        await ws.send_json({"cmd": "begin_night"})
-        await drain(ws, until_type="night_role_wake",
-                    predicate=lambda m: m.get("data", {}).get("role") == "werewolf")
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "werewolf", "action": {"target": villager["id"]}},
-        })
-
-        witch_msgs = await drain(ws, until_type="night_role_wake",
-                                 predicate=lambda m: m.get("data", {}).get("role") == "witch")
-        wake = next(m for m in witch_msgs if m["type"] == "night_role_wake" and m["data"]["role"] == "witch")
-        witch_id = wake["data"]["witch_id"]
-
-        # Save the villager
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {
-                "role": "witch",
-                "action": {"player_id": witch_id, "save_target": villager["id"]},
-            },
-        })
-        msgs = await drain(ws, until_type="state",
-                           predicate=lambda m: m.get("state", {}).get("phase") == "day")
-
-        final = msgs[-1]["state"]
-        assert final["phase"] == "day"
-        # Villager should still be alive
-        target = next(p for p in final["players"] if p["id"] == villager["id"])
-        assert target["alive"] is True
-
-    await ws_for([Villager, Werewolf, Witch], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Vote → day transition
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_vote_eliminates_wolf_village_wins():
-    """Village votes out wolf → game_over with winner=village."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave"],
-            ["werewolf", "villager", "villager", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        wolf = next(p for p in players if p["role_id"] == "werewolf")
-        villagers = [p for p in players if p["role_id"] == "villager"]
-
-        # Night: wolf kills one villager → 1 wolf + 2 villagers remain
-        await run_night_wolf(ws, villagers[0]["id"])
-
-        # Vote: both surviving villagers vote wolf out
-        await ws.send_json({"cmd": "begin_vote"})
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "vote")
-
-        await ws.send_json({
-            "cmd": "resolve_vote",
-            "data": {"votes": {
-                villagers[1]["id"]: wolf["id"],
-                villagers[2]["id"]: wolf["id"],
-            }},
-        })
-        msgs = await drain(ws, until_type="state",
-                           predicate=lambda m: m.get("state", {}).get("phase") == "game_over")
-
-        final = msgs[-1]["state"]
-        assert final["winner"] == "village"
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-async def test_vote_transitions_to_day_when_no_winner():
-    """Vote eliminates a villager → game goes to day, not game_over."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave", "Eve"],
-            ["werewolf", "villager", "villager", "villager", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        wolf = next(p for p in players if p["role_id"] == "werewolf")
-        villagers = [p for p in players if p["role_id"] == "villager"]
-
-        # Night 1: wolf kills villager[0] → 1 wolf + 3 villagers remain
-        await run_night_wolf(ws, villagers[0]["id"])
-
-        # Vote out villager[1] (not wolf) — wolves still alive
-        await ws.send_json({"cmd": "begin_vote"})
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "vote")
-
-        await ws.send_json({
-            "cmd": "resolve_vote",
-            "data": {"votes": {
-                wolf["id"]:        villagers[1]["id"],
-                villagers[2]["id"]: villagers[1]["id"],
-                villagers[3]["id"]: villagers[1]["id"],
-            }},
-        })
-        msgs = await drain(ws, until_type="state",
-                           predicate=lambda m: m.get("state", {}).get("phase") == "day")
-
-        final = msgs[-1]["state"]
-        # Verify we're back in day (not game_over)
-        assert final["phase"] == "day"
-        assert final["winner"] is None
-
-        dead = [p for p in final["players"] if not p["alive"]]
-        assert {p["id"] for p in dead} == {villagers[0]["id"], villagers[1]["id"]}
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-async def test_vote_tie_no_elimination():
-    """Even vote with no scapegoat → nobody dies, day resumes."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws, ["Alice", "Bob", "Carol", "Dave", "Eve"],
-            ["werewolf", "villager", "villager", "villager", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        villagers = [p for p in players if p["role_id"] == "villager"]
-        wolf = next(p for p in players if p["role_id"] == "werewolf")
-
-        await run_night_wolf(ws, villagers[0]["id"])
-
-        await ws.send_json({"cmd": "begin_vote"})
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "vote")
-
-        # Tie: wolf votes v1, 2 villagers vote v2, 1 villager votes wolf (still v2 wins... let's do a real tie)
-        # Real tie: wolf + v1 vote v2; v2 + v3 vote wolf
-        await ws.send_json({
-            "cmd": "resolve_vote",
-            "data": {"votes": {
-                wolf["id"]:         villagers[1]["id"],
-                villagers[1]["id"]: wolf["id"],
-                villagers[2]["id"]: wolf["id"],
-                # Wolf and v2 both get 2 votes → tie
-            }},
-        })
-        # Actually let's compute: wolf votes v1=1, v1 votes wolf=1, v2 votes wolf=2 total for wolf, v1 gets 1
-        # This isn't a tie. Let's just do equal vote counts:
-        # wolf votes v1 (1), v1 votes v2 (1), v2 votes v1 (now v1=2), v3 votes v2 (now v2=2) → tie v1 and v2
-        await drain(ws, until_type="state")  # consume the vote_resolved state
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Scapegoat on tie
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_scapegoat_dies_on_vote_tie():
-    """Scapegoat is eliminated when vote is tied."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws,
-            ["Alice", "Bob", "Carol", "Dave", "Eve"],
-            ["werewolf", "villager", "villager", "villager", "scapegoat"],
-        )
-        players = state_msg["state"]["players"]
-        scapegoat = next(p for p in players if p["role_id"] == "scapegoat")
-        wolf = next(p for p in players if p["role_id"] == "werewolf")
-        villagers = [p for p in players if p["role_id"] == "villager"]
-
-        await run_night_wolf(ws, villagers[0]["id"])
-
-        await ws.send_json({"cmd": "begin_vote"})
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "vote")
-
-        # Tie: 2 vote wolf, 2 vote villagers[1] → scapegoat dies
-        await ws.send_json({
-            "cmd": "resolve_vote",
-            "data": {"votes": {
-                wolf["id"]:         villagers[1]["id"],
-                villagers[1]["id"]: wolf["id"],
-                villagers[2]["id"]: wolf["id"],
-                scapegoat["id"]:    villagers[1]["id"],
-            }},
-        })
-        msgs = await drain(ws, until_type="player_eliminated",
-                           predicate=lambda m: m.get("data", {}).get("player_id") == scapegoat["id"])
-        elim = next(m for m in msgs if m["type"] == "player_eliminated")
-        assert elim["data"]["role"] == "scapegoat"
-
-    await ws_for([Villager, Werewolf, Scapegoat], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Hunter interrupt
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_hunter_shoots_on_elimination():
-    """When hunter is eliminated, they get a NIGHT_ROLE_WAKE to shoot."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws,
-            ["Alice", "Bob", "Carol", "Dave", "Eve"],
-            ["werewolf", "hunter", "villager", "villager", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        wolf = next(p for p in players if p["role_id"] == "werewolf")
-        hunter = next(p for p in players if p["role_id"] == "hunter")
-        villagers = [p for p in players if p["role_id"] == "villager"]
-
-        # Wolf kills hunter this night
-        await ws.send_json({"cmd": "begin_night"})
-        await drain(ws, until_type="night_role_wake",
-                    predicate=lambda m: m.get("data", {}).get("role") == "werewolf")
-        await ws.send_json({
-            "cmd": "submit_night_action",
-            "data": {"role": "werewolf", "action": {"target": hunter["id"]}},
-        })
-
-        # Hunter should get a NIGHT_ROLE_WAKE with player_id field
-        hunter_wake_msgs = await drain(
-            ws, until_type="night_role_wake",
-            predicate=lambda m: m.get("data", {}).get("role") == "hunter",
-        )
-        wake = next(m for m in hunter_wake_msgs if m["type"] == "night_role_wake" and m["data"]["role"] == "hunter")
-        assert "player_id" in wake["data"]
-        assert wake["data"]["player_id"] == hunter["id"]
-
-        # Hunter shoots first villager
-        await ws.send_json({
-            "cmd": "submit_pending_action",
-            "data": {"role": "hunter", "action": {"target": villagers[0]["id"]}},
-        })
-
-        msgs = await drain(ws, until_type="state",
-                           predicate=lambda m: m.get("state", {}).get("phase") == "day")
-
-        elim_events = [m for m in msgs if m.get("type") == "player_eliminated"]
-        eliminated_ids = {e["data"]["player_id"] for e in elim_events}
-        assert hunter["id"] in eliminated_ids
-        assert villagers[0]["id"] in eliminated_ids
-
-    await ws_for([Villager, Werewolf, Hunter], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Multiple nights
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_two_consecutive_nights():
-    """Night 1 + day + night 2 all resolve cleanly."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws,
-            ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
-            ["werewolf", "villager", "villager", "villager", "villager", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        villagers = [p for p in players if p["role_id"] == "villager"]
-
-        # Night 1
-        await run_night_wolf(ws, villagers[0]["id"])
-
-        # Night 2
-        msgs = await run_night_wolf(ws, villagers[1]["id"])
-        final = msgs[-1]["state"]
-        assert final["phase"] == "day"
-        assert final["night_number"] == 2
-
-        dead = [p for p in final["players"] if not p["alive"]]
-        assert len(dead) == 2
-
-    await ws_for([Villager, Werewolf], _test)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Sheriff
-# ═══════════════════════════════════════════════════════════════════════════════
-
-async def test_elect_sheriff_double_vote():
-    """Sheriff's vote counts double."""
-    async def _test(ws, engine):
-        state_msg = await start_game(
-            ws,
-            ["Alice", "Bob", "Carol", "Dave", "Eve"],
-            ["werewolf", "villager", "villager", "villager", "villager"],
-        )
-        players = state_msg["state"]["players"]
-        wolf = next(p for p in players if p["role_id"] == "werewolf")
-        villagers = [p for p in players if p["role_id"] == "villager"]
-
-        await run_night_wolf(ws, villagers[0]["id"])
-
-        # Elect sheriff (first villager)
-        sheriff = villagers[1]
-        await ws.send_json({"cmd": "elect_sheriff", "data": {"player_id": sheriff["id"]}})
-        await drain(ws, until_type="state")
-
-        # Vote: sheriff + one other vote wolf (sheriff's vote = 2) vs nothing
-        await ws.send_json({"cmd": "begin_vote"})
-        await drain(ws, until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "vote")
-
-        await ws.send_json({
-            "cmd": "resolve_vote",
-            "data": {"votes": {sheriff["id"]: wolf["id"]}},
-        })
-        msgs = await drain(ws, until_type="state",
-                           predicate=lambda m: m.get("state", {}).get("phase") in ("day", "game_over"))
-
-        final = msgs[-1]["state"]
-        wolf_player = next(p for p in final["players"] if p["id"] == wolf["id"])
-        assert wolf_player["alive"] is False
-
-    await ws_for([Villager, Werewolf], _test)
+        assert not [m for m in msgs if m["type"] == "error"]
+        assert engine.prompt.actor == "p1"
+    await play(_test)
+
+
+async def test_stale_answer_gets_an_error_and_a_fresh_snapshot():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        prompt = await wait_prompt(ws, "night_action")
+        await ws.send_json({"cmd": "answer", "data": {"prompt_id": "q999", "answer": {}}})
+        assert await error_code(ws) == "stale_prompt"
+        assert (await wait_prompt(ws, "night_action"))["id"] == prompt["id"]
+    await play(_test)
+
+
+async def test_illegal_answer_leaves_the_prompt_open():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        prompt = await wait_prompt(ws, "night_action", "werewolf")
+        await answer(ws, prompt, target="p0")   # wolves can't eat a wolf
+        assert await error_code(ws) == "illegal_answer"
+        assert (await wait_prompt(ws, "night_action", "werewolf"))["id"] == prompt["id"]
+        await answer(ws, prompt, target="p1")
+        await wait_phase(ws, "day")
+    await play(_test)
+
+
+async def test_answer_without_prompt_id_is_a_bad_request():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await ws.send_json({"cmd": "answer", "data": {}})
+        assert await error_code(ws) == "bad_request"
+    await play(_test)
+
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+
+async def test_snapshots_hide_living_roles_until_the_game_is_over():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        await answer(ws, await wait_prompt(ws, "night_action"), target="p1")
+        state, _ = await wait_phase(ws, "day")
+        assert {p["id"] for p in state["players"] if "role_id" in p} == {"p1"}
+
+        await vote_out(ws, "p0", ["p0", "p2", "p3", "p4"])
+        state, _ = await wait_phase(ws, "game_over")
+        assert all("role_id" in p for p in state["players"])
+    await play(_test)
+
+
+# ── Night ─────────────────────────────────────────────────────────────────────
+
+async def test_wolf_kill_is_reported_in_the_news():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        prompt = await wait_prompt(ws, "night_action", "werewolf")
+        assert prompt["picks"]["target"]["options"] == ["p1", "p2", "p3", "p4"]
+        await answer(ws, prompt, target="p1")
+        state, _ = await wait_phase(ws, "day")
+        assert state["news"]["source"] == "night"
+        assert [(d["player_id"], d["cause"]) for d in state["news"]["deaths"]] == [("p1", "wolf_kill")]
+    await play(_test)
+
+
+async def test_wolf_kill_can_end_the_game():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action"), target="p1")
+        state, _ = await wait_phase(ws, "game_over")
+        assert state["winner"] == "wolves"
+        assert state["prompt"] is None or state["prompt"]["kind"] == "new_game"
+    await play(_test)
+
+
+async def test_seer_sees_the_role_then_acknowledges():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["seer", "werewolf", "villager", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action", "seer"), target="p1")
+        result = await wait_prompt(ws, "seer_result")
+        assert result["info"]["player_id"] == "p1" and result["info"]["role_id"] == "werewolf"
+        await answer(ws, result)
+        await wait_prompt(ws, "night_action", "werewolf")
+    await play(_test)
+
+
+async def test_seer_skip_shows_no_result():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["seer", "werewolf", "villager", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action", "seer"))
+        msgs = await drain(ws, until_type="snapshot", predicate=prompt_of("night_action", "werewolf"))
+        assert not [m for m in msgs if m["state"]["prompt"] and m["state"]["prompt"]["kind"] == "seer_result"]
+    await play(_test)
+
+
+async def test_witch_is_offered_the_victim_and_saves_them():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "witch", "villager", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action", "werewolf"), target="p2")
+        witch = await wait_prompt(ws, "night_action", "witch")
+        assert [v["id"] for v in witch["info"]["victims"]] == ["p2"]
+        assert witch["picks"]["save_target"]["options"] == ["p2"]
+        assert "p2" not in witch["picks"]["poison_target"]["options"]
+
+        await answer(ws, witch, save_target="p2")
+        state, _ = await wait_phase(ws, "day")
+        assert state["news"]["deaths"] == []
+    await play(_test)
+
+
+async def test_used_potion_is_no_longer_offered():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "witch", "villager", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action", "werewolf"), target="p2")
+        await answer(ws, await wait_prompt(ws, "night_action", "witch"), save_target="p2")
+
+        await answer(ws, await wait_day_choice(ws), next="night")
+        await answer(ws, await wait_prompt(ws, "night_action", "werewolf"), target="p3")
+        witch = await wait_prompt(ws, "night_action", "witch")
+        assert witch["info"]["save_used"] is True
+        assert witch["picks"]["save_target"]["options"] == []
+    await play(_test)
+
+
+async def test_protected_elder_is_not_offered_to_the_witch():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "witch", "elder", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action", "werewolf"), target="p2")
+        witch = await wait_prompt(ws, "night_action", "witch")
+        assert witch["info"]["victims"] == []
+        assert witch["picks"]["save_target"]["options"] == []
+    await play(_test)
+
+
+# ── Day and vote ──────────────────────────────────────────────────────────────
+
+async def test_vote_takes_one_ballot_per_living_player_excluding_themselves():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        await answer(ws, await wait_prompt(ws, "night_action"), target="p1")
+        await answer(ws, await wait_day_choice(ws, options=["vote", "night"]), next="vote")
+        for voter in ("p0", "p2", "p3", "p4"):
+            ballot = await wait_prompt(ws, "ballot")
+            assert ballot["actor"] == voter
+            assert voter not in ballot["picks"]["target"]["options"]
+            assert "p1" not in ballot["picks"]["target"]["options"]
+            await answer(ws, ballot, target="p0" if voter != "p0" else "p2")
+        state, _ = await wait_phase(ws, "game_over")
+        assert state["winner"] == "village"
+    await play(_test)
+
+
+async def test_one_vote_a_day_then_only_night_is_offered():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf"] + ["villager"] * 6)
+        await answer(ws, await wait_prompt(ws, "night_action"), target="p1")
+        await vote_out(ws, "p2", ["p0", "p2", "p3", "p4", "p5", "p6"])
+        state, _ = await wait_phase(ws, "day")
+        assert state["news"]["source"] == "vote"
+        assert [d["player_id"] for d in state["news"]["deaths"]] == ["p2"]
+        await answer(ws, await wait_day_choice(ws, options=["night"]), next="night")
+        await wait_phase(ws, "night")
+    await play(_test)
+
+
+async def test_tie_kills_no_one_and_is_reported():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "villager", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action"))
+        await answer(ws, await wait_day_choice(ws), next="vote")
+        for target in ("p1", "p0", "p0", "p1"):
+            await answer(ws, await wait_prompt(ws, "ballot"), target=target)
+        state, _ = await wait_phase(ws, "day")
+        assert state["news"]["tie"] is True and state["news"]["deaths"] == []
+    await play(_test)
+
+
+async def test_scapegoat_dies_on_a_tie():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "scapegoat", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action"))
+        await answer(ws, await wait_day_choice(ws), next="vote")
+        for target in ("p2", "p0", "p0", "p2"):
+            await answer(ws, await wait_prompt(ws, "ballot"), target=target)
+        state, _ = await wait_phase(ws, "day")
+        assert [(d["player_id"], d["cause"]) for d in state["news"]["deaths"]] == [("p1", "scapegoat")]
+    await play(_test)
+
+
+async def test_two_nights_in_a_row():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf"] + ["villager"] * 6)
+        await answer(ws, await wait_prompt(ws, "night_action"), target="p1")
+        await answer(ws, await wait_day_choice(ws), next="night")
+        await answer(ws, await wait_prompt(ws, "night_action"), target="p2")
+        state, _ = await wait_phase(ws, "day")
+        assert state["night"] == 2
+    await play(_test)
+
+
+async def test_sheriff_is_elected_on_the_first_day_and_votes_double():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "sheriff", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action"))
+        election = await wait_prompt(ws, "sheriff_election")
+        await answer(ws, election, target="p2")
+        await answer(ws, await wait_day_choice(ws), next="vote")
+        # p0 gets p1's vote and the sheriff's double vote: 3 against 2 for p1.
+        for target in ("p1", "p0", "p0", "p1"):
+            await answer(ws, await wait_prompt(ws, "ballot"), target=target)
+        state, _ = await wait_phase(ws, "game_over")
+        assert state["winner"] == "village"
+        assert next(p for p in state["players"] if p["id"] == "p2")["sheriff"] is True
+    await play(_test)
+
+
+# ── Regressions: the one phone must always be able to answer ─────────────────
+
+async def test_hunter_voted_out_shoots_on_the_same_socket():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "hunter", "villager", "villager", "villager", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action"))
+        await vote_out(ws, "p1", ["p0", "p1", "p2", "p3", "p4", "p5", "p6"])
+
+        shot = await wait_prompt(ws, "hunter_shot")
+        assert shot["actor"] == "p1" and "p1" not in shot["picks"]["target"]["options"]
+        await answer(ws, shot, target="p2")
+        state, _ = await wait_phase(ws, "day")
+        assert [(d["player_id"], d["cause"]) for d in state["news"]["deaths"]] == [
+            ("p1", "village_vote"), ("p2", "hunter_shot"),
+        ]
+    await play(_test)
+
+
+async def test_hunter_shot_by_wolves_shoots_at_dawn():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "hunter", "villager", "villager", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action"), target="p1")
+        await answer(ws, await wait_prompt(ws, "hunter_shot"), target="p2")
+        state, _ = await wait_phase(ws, "day")
+        assert [(d["player_id"], d["cause"]) for d in state["news"]["deaths"]] == [
+            ("p1", "wolf_kill"), ("p2", "hunter_shot"),
+        ]
+    await play(_test)
+
+
+async def test_narration_is_released_by_tts_done_during_a_vote():
+    """tts_done must be read at once, not after the narration's 10 s timeout."""
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        await answer(ws, await wait_prompt(ws, "night_action"))
+        await answer(ws, await wait_day_choice(ws), next="vote")
+        await drain(ws, until_type="narrate")
+        await ws.send_json({"cmd": "tts_done"})
+        await wait_prompt(ws, "ballot")
+    await play(_test, narrate_on=(GameEvent.VOTE_STARTED,))
+
+
+async def test_role_prompt_opens_only_after_its_wake_narration():
+    """An action can't be sent during narration: no control exists to send it."""
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        msgs = await drain(ws, until_type="narrate")
+        latest = [m for m in msgs if m["type"] == "snapshot"][-1]["state"]
+        assert latest["phase"] == "night" and latest["prompt"] is None
+        assert engine.prompt is None
+
+        await ws.send_json({"cmd": "tts_done"})
+        await answer(ws, await wait_prompt(ws, "night_action", "werewolf"), target="p1")
+        await wait_phase(ws, "day")
+    await play(_test, narrate_on=(GameEvent.NIGHT_ROLE_WAKE,))
+
+
+# ── Reconnecting: the snapshot is everything ─────────────────────────────────
+
+async def _reconnect(connect, ws):
+    await ws.close()
+    ws = await connect()
+    await ws.send_json({"cmd": "get_state"})
+    return (await drain(ws, until_type="snapshot"))[-1]["state"], ws
+
+
+async def test_reconnect_restores_a_night_turn_which_can_then_be_played():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        prompt = await wait_prompt(ws, "night_action")
+        state, ws = await _reconnect(connect, ws)
+        assert state["prompt"]["id"] == prompt["id"]
+        await answer(ws, prompt, target="p1")
+        await wait_phase(ws, "day")
+    await play(_test)
+
+
+async def test_reconnect_restores_the_seer_result():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["seer", "werewolf", "villager", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action", "seer"), target="p1")
+        await wait_prompt(ws, "seer_result")
+        state, ws = await _reconnect(connect, ws)
+        assert state["prompt"]["kind"] == "seer_result"
+        assert state["prompt"]["info"]["player_id"] == "p1"
+    await play(_test)
+
+
+async def test_reconnect_mid_vote_keeps_earlier_ballots():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        await answer(ws, await wait_prompt(ws, "night_action"))
+        await answer(ws, await wait_day_choice(ws), next="vote")
+        for _ in range(4):
+            await answer(ws, await wait_prompt(ws, "ballot"), target="p0" if engine.prompt.actor != "p0" else "p1")
+        last = await wait_prompt(ws, "ballot")
+        state, ws = await _reconnect(connect, ws)
+        assert state["prompt"]["id"] == last["id"]
+        assert state["prompt"]["info"]["done"] == 4
+        await answer(ws, last, target="p0")
+        state, _ = await wait_phase(ws, "game_over")
+        assert state["winner"] == "village"
+    await play(_test)
+
+
+# ── Ending ────────────────────────────────────────────────────────────────────
+
+async def test_new_game_prompt_returns_to_setup_and_a_game_can_start_again():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, ["werewolf", "villager", "villager"])
+        await answer(ws, await wait_prompt(ws, "night_action"), target="p1")
+        await answer(ws, await wait_prompt(ws, "new_game"))
+        await wait_phase(ws, "setup")
+        await deal(ws, ["werewolf", "villager", "villager"])
+        await wait_prompt(ws, "night_action")
+    await play(_test)
+
+
+async def test_abandon_game_returns_to_setup_from_any_prompt():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await deal(ws, FIVE)
+        await wait_prompt(ws, "night_action")
+        await ws.send_json({"cmd": "abandon_game"})
+        state, _ = await wait_phase(ws, "setup")
+        assert state["prompt"] is None and state["players"] == []
+        assert server._game_task is None
+
+        await deal(ws, FIVE)
+        await wait_prompt(ws, "night_action")
+    await play(_test)

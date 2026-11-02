@@ -1,4 +1,5 @@
 """Alpha Wolf role — converts one villager per game (night action)."""
+from ...prompts import pick
 from ..base import BaseRole, EliminateDecision, RoleContext
 
 
@@ -13,6 +14,14 @@ class AlphaWolf(BaseRole):
         for p in ctx.alive_players:
             if p["role_id"] == self.id:
                 ctx.set_flag(p["id"], "alpha_conversion_used", False)
+
+    def night_prompt(self, ctx: RoleContext) -> dict:
+        alphas = ctx.alive_players_by_role(self.id)
+        if alphas and ctx.get_flag(alphas[0]["id"], "alpha_conversion_used"):
+            return {"picks": {"convert_target": pick([], 0)}}
+        wolves = ("werewolf", "alpha_wolf")
+        prey = [p["id"] for p in ctx.alive_players if p["role_id"] not in wolves]
+        return {"picks": {"convert_target": pick(prey, 0, 1)}}
 
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
         alphas = ctx.alive_players_by_role("alpha_wolf")

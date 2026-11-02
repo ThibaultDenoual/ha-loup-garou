@@ -15,7 +15,7 @@ from loup_garou.narration import NarrationMessage
 from loup_garou.roles.impl.villager import Villager
 from loup_garou.roles.impl.werewolf import Werewolf
 from loup_garou.roles.impl.seer import Seer
-from tests.e2e.conftest import drain, make_app
+from tests.e2e.conftest import answer, wait_prompt, drain, make_app
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -174,41 +174,20 @@ async def test_game_flow_proceeds_after_tts_done():
                         "roles": ["werewolf", "villager", "villager"],
                     },
                 })
-                state_msg = await drain(
-                    ws,
-                    until_type="state",
-                    predicate=lambda m: m.get("state", {}).get("phase") == "role_reveal",
-                    timeout=3.0,
-                )
-                assert state_msg[-1]["state"]["phase"] == "role_reveal"
+                for _ in range(3):
+                    await answer(ws, await wait_prompt(ws, "reveal", timeout=3.0))
 
-                players = state_msg[-1]["state"]["players"]
-                villager = next(p for p in players if p["role_id"] == "villager")
-
-                # Begin night — this triggers narrate events in the atmosphere
-                await ws.send_json({"cmd": "begin_night"})
-
-                # Wait for wolf wake (wolf has no narration in plain mode)
-                wolf_wake = await drain(
-                    ws,
-                    until_type="night_role_wake",
-                    predicate=lambda m: m.get("data", {}).get("role") == "werewolf",
-                    timeout=3.0,
-                )
-                assert wolf_wake[-1]["data"]["role"] == "werewolf"
-
-                # Wolf kills villager
-                await ws.send_json({
-                    "cmd": "submit_night_action",
-                    "data": {"role": "werewolf", "action": {"target": villager["id"]}},
-                })
+                # The wolf's prompt opens once the night narration has been confirmed.
+                wolf = await wait_prompt(ws, "night_action", "werewolf", timeout=3.0)
+                await answer(ws, wolf, target=wolf["picks"]["target"]["options"][0])
 
                 # Eventually game reaches day (or game_over if only 1 villager left)
                 msgs = await drain(
                     ws,
-                    until_type="state",
+                    until_type="snapshot",
                     predicate=lambda m: m.get("state", {}).get("phase") in ("day", "game_over"),
                     timeout=5.0,
                 )
                 final_phase = msgs[-1]["state"]["phase"]
                 assert final_phase in ("day", "game_over")
+                await srv.async_shutdown()
