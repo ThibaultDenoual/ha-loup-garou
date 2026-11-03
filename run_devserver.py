@@ -60,6 +60,12 @@ def build_app(port: int, language: str = "fr") -> web.Application:
 
     server.set_test_audio_callback(_test_audio)
 
+    async def _save_config(new_config: dict) -> None:
+        # Keep the launcher's settings for this session, as Home Assistant would.
+        server._config.update({k: v for k, v in new_config.items() if k in server._config})
+
+    server.set_save_callback(_save_config)
+
     app = web.Application()
 
     # WebSocket

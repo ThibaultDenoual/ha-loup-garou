@@ -44,7 +44,7 @@ function _announcementKey({ source, deaths, tie }) {
 function _renderAnnouncement(news) {
   const text = h('p');
   translate(text, ..._announcementKey(news));
-  $('day-announcement').replaceChildren(sprite(news.deaths.length ? 'skull' : 'sun', 4), text);
+  $('day-announcement').replaceChildren(sprite(news.deaths.length ? 'skull' : 'sun', 3), text);
 }
 
 function _updateGrid() {

@@ -13,7 +13,7 @@ let _prompt = null;
 export function init(answer, getState) {
   _answer = answer;
   _getState = getState;
-  $('reveal-emblem').replaceChildren(sprite('moon', 8));
+  $('reveal-emblem').replaceChildren(sprite('full_moon', 3));
 
   const card = $('reveal-card');
   card.addEventListener('click', _flip);
@@ -48,7 +48,7 @@ export function render(prompt) {
 
   // The card is face-down here, so loading the next role cannot leak it.
   $('reveal-card').querySelector('.card-back').dataset.team = teamOf(roleId);
-  $('reveal-sprite').replaceChildren(sprite(roleId, 10));
+  $('reveal-sprite').replaceChildren(sprite('full_moon', 4), sprite(roleId, 4));
   translate($('reveal-role-name'), `role.${roleId}.name`);
   translate($('reveal-team'), `role.${roleId}.team`);
   translate($('reveal-role-desc'), `role.${roleId}.description`);

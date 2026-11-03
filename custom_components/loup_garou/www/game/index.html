@@ -6,7 +6,7 @@
 <title data-i18n="ui.app.title"></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Pixelify+Sans:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Jacquard+24&family=Pixelify+Sans:wght@500&display=swap">
 <link rel="stylesheet" href="css/pixel.css">
 </head>
 <body>
@@ -18,10 +18,21 @@
     <div id="phase-track" class="track" role="img"></div>
   </div>
   <div id="ws-status" class="conn" role="status"><span class="conn-text"></span></div>
-  <button id="btn-abandon" type="button" class="link-btn" data-i18n="ui.app.abandon" hidden></button>
+  <button id="btn-abandon" type="button" class="btn btn-small quit-btn" hidden><span id="abandon-icon"></span><span data-i18n="ui.app.abandon"></span></button>
 </header>
 
 <div id="toast" class="toast" role="alert" hidden></div>
+
+<div id="abandon-sheet" class="sheet-backdrop" hidden>
+  <div class="panel sheet stack" role="dialog" aria-modal="true" aria-labelledby="abandon-title">
+    <h2 id="abandon-title" data-i18n="ui.app.abandon_title"></h2>
+    <p data-i18n="ui.app.abandon_confirm"></p>
+    <div class="sheet-actions">
+      <button id="btn-abandon-keep" type="button" class="btn" data-i18n="ui.app.abandon_keep"></button>
+      <button id="btn-abandon-confirm" type="button" class="btn btn-danger" data-i18n="ui.app.abandon_yes"></button>
+    </div>
+  </div>
+</div>
 
 <main id="app">
 
@@ -76,7 +87,7 @@
         <span class="reveal-tap" data-i18n="ui.reveal.tap_to_reveal"></span>
       </div>
       <div class="card-face card-back" aria-hidden="true" inert>
-        <span id="reveal-sprite"></span>
+        <span id="reveal-sprite" class="medallion"></span>
         <div id="reveal-role-name" class="reveal-role-name"></div>
         <span id="reveal-team" class="badge"></span>
         <p id="reveal-role-desc" class="reveal-role-desc"></p>
