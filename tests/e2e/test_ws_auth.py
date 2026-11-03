@@ -28,7 +28,7 @@ async def test_without_auth_callback_commands_work_immediately():
     async with connected(require_auth=False) as (ws, srv):
         await ws.send_json({"cmd": "get_state"})
         msg = await ws.receive_json(timeout=2)
-    assert msg["type"] == "state"
+    assert msg["type"] == "snapshot"
 
 
 async def test_without_auth_callback_an_auth_message_is_acknowledged():

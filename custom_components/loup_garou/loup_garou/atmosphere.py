@@ -178,12 +178,14 @@ class Atmosphere:
         # Dramatic pause while lights brighten — the most tense moment of the game
         await asyncio.sleep(2.5)
 
+        if after_vote:
+            # The verdict and any live deaths have already been narrated.
+            return
         if not eliminated_ids:
             await self.speak(self._narrate("phase.day.start_no_death", delay_key="day_no_death"))
         else:
             await self._announce_deaths(eliminated_ids)
-        if not after_vote:
-            await self.speak(self._narrate("phase.day.debate", delay_key="day_debate"))
+        await self.speak(self._narrate("phase.day.debate", delay_key="day_debate"))
 
     async def _announce_deaths(self, eliminated_ids: list[str]) -> None:
         pub = self._engine.get_public_state()

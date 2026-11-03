@@ -1,5 +1,6 @@
 """Hunter role — shoots one player on elimination."""
 from ...const import GameEvent
+from ...prompts import pick
 from ..base import BaseRole, EliminateDecision, RoleContext
 
 
@@ -16,7 +17,14 @@ class Hunter(BaseRole):
         if player is None or player["role_id"] != self.id:
             return EliminateDecision()
 
-        action = await ctx.request_action(self.id, {"player_id": player_id})
+        others = [p["id"] for p in ctx.alive_players if p["id"] != player_id]
+        action = await ctx.request_action(
+            self.id,
+            {"player_id": player_id},
+            kind="hunter_shot",
+            actor=player_id,
+            picks={"target": pick(others, 1) if others else pick([], 0)},
+        )
         target_id = action.get("target")
         if not target_id:
             return EliminateDecision()
@@ -35,4 +43,4 @@ class Hunter(BaseRole):
             "target_role": target["role_id"],
         })
 
-        return EliminateDecision(add_eliminations=[target_id])
+        return EliminateDecision(add_eliminations=[target_id], cause="hunter_shot")

@@ -156,7 +156,7 @@ p { max-width: 38em; }
 
 .topbar {
   position: sticky; top: 0; z-index: 20;
-  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px;
   padding: 10px max(16px, calc((100vw - var(--column)) / 2));
   background: var(--sky-1);
   box-shadow: 0 var(--px) 0 var(--line);
@@ -273,6 +273,10 @@ main {
   font: 500 0.9375rem var(--font-px);
   text-decoration: none;
   padding: 6px 0;
+}
+.link-btn {
+  background: none; border: 0; padding: 8px; min-height: 44px; cursor: pointer;
+  color: var(--ink-dim); font: inherit; font-size: 0.8125rem; text-decoration: underline;
 }
 .back-link:hover { color: var(--ink); }
 

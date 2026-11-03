@@ -17,7 +17,8 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 from .const import GameEvent
-from .game_engine import GameEngine
+from .game_engine import AnswerResult, GameEngine
+from .prompts import Prompt
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -174,6 +175,7 @@ class DemoRunner:
         self._responders: set[asyncio.Task] = set()
         # Script-wide night actions, narrowed per night by DemoStep.actions.
         self._night_actions = script.night_actions
+        self._ballots: dict[str, str] = {}
 
     @property
     def key(self) -> str:
@@ -181,10 +183,11 @@ class DemoRunner:
 
     async def run(self) -> None:
         """Play the script to its end, then reset the engine to the setup phase."""
-        self._engine.on(GameEvent.NIGHT_ROLE_WAKE, self._on_night_role_wake)
+        self._engine.on(GameEvent.PROMPT_OPENED, self._on_prompt)
         try:
             await self._engine.start_game(self._script.names, self._script.role_ids)
             await self._notify("game_started")
+            await self._engine.play_reveal()
             await asyncio.sleep(self._step_delay)
 
             for step in self._script.steps:
@@ -197,21 +200,23 @@ class DemoRunner:
                     await self._engine.begin_vote()
                     await asyncio.sleep(self._step_delay)
                     await self._notify("vote_cast")
-                    await self._engine.resolve_vote(self._resolve_votes(step.votes))
+                    self._ballots = self._resolve_votes(step.votes)
+                    votes = await self._engine.collect_ballots(allow_abstain=True)
+                    await self._engine.resolve_vote(votes)
                 else:
                     _LOGGER.warning("Unknown demo step: %s", step.kind)
                 await asyncio.sleep(self._step_delay)
 
             await self._notify("finished")
         finally:
-            self._engine.off(GameEvent.NIGHT_ROLE_WAKE, self._on_night_role_wake)
+            self._engine.off(GameEvent.PROMPT_OPENED, self._on_prompt)
             self._cancel_responders()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._engine.reset()
 
     def cancel(self) -> None:
-        """Stop answering role wakes without waiting for run() to unwind."""
-        self._engine.off(GameEvent.NIGHT_ROLE_WAKE, self._on_night_role_wake)
+        """Stop answering prompts without waiting for run() to unwind."""
+        self._engine.off(GameEvent.PROMPT_OPENED, self._on_prompt)
         self._cancel_responders()
 
     # ── Internals ─────────────────────────────────────────────────────────────
@@ -221,34 +226,32 @@ class DemoRunner:
             task.cancel()
         self._responders.clear()
 
-    async def _on_night_role_wake(self, data: dict) -> None:
-        """Answer a role's wake with its scripted action.
-
-        The engine emits NIGHT_ROLE_WAKE *before* it creates the future it blocks
-        on for a night action (interrupts set theirs up first), so the reply has
-        to be deferred to its own task — replying inline would be dropped.
-        """
-        role_id = str(data.get("role", ""))
-        task = asyncio.create_task(self._respond(role_id))
+    async def _on_prompt(self, prompt: dict) -> None:
+        """Answer from its own task: the engine is about to wait for this answer."""
+        task = asyncio.create_task(self._respond(prompt))
         self._responders.add(task)
         task.add_done_callback(self._responders.discard)
 
-    async def _respond(self, role_id: str) -> None:
-        if self._action_delay:
-            await asyncio.sleep(self._action_delay)
-
-        # A role can wake twice in one night (target, then result). pending_action_role
-        # is only set after the wake event returns, pending_interrupt_role before it.
-        if self._engine.pending_interrupt_role == role_id:
-            action = self._script.interrupt_actions.get(role_id, {})
-            await self._notify("role_action", role_id)
-            await self._engine.submit_pending_action(role_id, self._resolve(action))
-        elif self._engine.pending_action_role == role_id:
-            action = self._night_actions.get(role_id, {})
-            await self._notify("role_action", role_id)
-            await self._engine.submit_night_action(role_id, self._resolve(action))
+    async def _respond(self, prompt: dict) -> None:
+        kind, role_id = prompt["kind"], prompt["role"]
+        if kind == "reveal":
+            action: dict = {}
+        elif kind == "ballot":
+            target = self._ballots.get(prompt["actor"])
+            action = {"target": target} if target else {}
         else:
-            _LOGGER.warning("Demo: nothing pending for role %s, skipping reply", role_id)
+            if self._action_delay:
+                await asyncio.sleep(self._action_delay)
+            scripted = self._night_actions if kind == "night_action" else self._script.interrupt_actions
+            action = self._resolve(scripted.get(role_id, {}))
+            await self._notify("role_action", role_id)
+
+        result = await self._engine.answer(prompt["id"], action)
+        if result == AnswerResult.ILLEGAL:
+            # A script can name a dead or unknown player, or leave a choice out.
+            _LOGGER.warning("Demo: %s does not fit %s, using a default", action, kind)
+            fallback = Prompt(**prompt).fallback_answer()
+            await self._engine.answer(prompt["id"], fallback)
 
     def _resolve_votes(self, votes: dict[str, str]) -> dict[str, str]:
         ids = self._name_to_id()

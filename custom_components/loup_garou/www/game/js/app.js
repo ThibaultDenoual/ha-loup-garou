@@ -1,4 +1,4 @@
-import { setLanguage, storedLanguage, translate } from './i18n.js';
+import { setLanguage, storedLanguage, t, translate } from './i18n.js';
 import { $ } from './dom.js';
 import { connect, send } from './ws.js';
 import * as tts from './tts.js';
@@ -12,10 +12,15 @@ import * as gameOver from './views/game_over.js';
 
 // ── Global state ──────────────────────────────────────────────────────────────
 
-let _state = { phase: 'setup', players: [], night_number: 0, winner: null };
-let _nightDeaths = [];   // player_eliminated events accumulated during night
+// The latest snapshot from the core. The page keeps no game state of its own.
+let _state = { phase: 'setup', players: [], night: 0, winner: null, news: null, prompt: null };
+let _renderedKey = null;
 
 function getState() { return _state; }
+
+function answer(fields = {}) {
+  if (_state.prompt) send('answer', { prompt_id: _state.prompt.id, answer: fields });
+}
 
 // The palette follows the game clock; the vote happens at dusk.
 const TIME_OF = {
@@ -23,10 +28,19 @@ const TIME_OF = {
 };
 const WINNER_TIME = { wolves: 'night', village: 'day', lovers: 'dusk' };
 
+// Prompts played on the night screen, in whichever phase they open.
+const NIGHT_PROMPTS = new Set(['night_action', 'seer_result', 'hunter_shot', 'sheriff_election']);
+
+const VIEW_OF = {
+  setup: 'setup', role_reveal: 'reveal', night: 'night', day: 'day', vote: 'vote', game_over: 'game-over',
+};
+
 // ── View routing ───────────────────────────────────────────────────────────────
 
 function showView(id) {
-  document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== `view-${id}`; });
+  const view = `view-${id}`;
+  if (currentView() === view) return;
+  document.querySelectorAll('.view').forEach(v => { v.hidden = v.id !== view; });
   window.scrollTo(0, 0);
 }
 
@@ -39,88 +53,39 @@ function currentView() {
 
 function handleMessage(msg) {
   switch (msg.type) {
-    case 'state':             onState(msg.state); break;
-    case 'night_role_wake':   onNightRoleWake(msg.data); break;
-    case 'night_role_sleep':  night.onSleep(msg.data); break;
-    case 'player_eliminated': onPlayerEliminated(msg.data); break;
-    case 'narrate':           tts.speak(msg.data.text, msg.data.lang, msg.data.audio_url ?? null); break;
-    case 'config':            onConfig(msg.config || {}); break;
-    case 'error':             ui.toastError(msg); break;
+    case 'snapshot':  onSnapshot(msg.state); break;
+    case 'narrate':   tts.speak(msg.data.text, msg.data.lang, msg.data.audio_url ?? null); break;
+    case 'config':    onConfig(msg.config || {}); break;
+    case 'error':     ui.toastError(msg); break;
   }
 }
 
-function onState(newState) {
-  _state = newState;
-  const phase = newState.phase;
+// Everything on screen comes from here: the snapshot says what the game is
+// waiting for, and the view for it is drawn once per prompt.
+function onSnapshot(snapshot) {
+  _state = snapshot;
+  const { phase, prompt, winner } = snapshot;
   ui.setPhase(phase);
-  ui.setTime(phase === 'game_over' ? WINNER_TIME[newState.winner] || 'day' : TIME_OF[phase] || 'night');
+  ui.setTime(phase === 'game_over' ? WINNER_TIME[winner] || 'day' : TIME_OF[phase] || 'night');
+  $('btn-abandon').hidden = phase === 'setup';
 
-  const view = currentView();
+  const key = `${phase}|${prompt ? prompt.id : ''}`;
+  if (key === _renderedKey) return;
+  _renderedKey = key;
 
-  switch (phase) {
-    case 'role_reveal':
-      // Guard: only transition once; ignore subsequent state msgs with same phase
-      if (view !== 'view-reveal') {
-        showView('reveal');
-        reveal.start(newState.players);
-      }
-      break;
+  const nightPrompt = prompt && NIGHT_PROMPTS.has(prompt.kind);
+  const view = nightPrompt ? 'night' : VIEW_OF[phase] || 'setup';
+  const wasSetup = currentView() === 'view-setup';
+  showView(view);
 
-    case 'night':
-      // Don't interrupt an active night action view
-      if (view !== 'view-night') {
-        _nightDeaths = [];
-        showView('night');
-        night.showSleeping();
-      }
-      break;
-
-    case 'day':
-      // Guard: PHASE_CHANGED(day) and DAY_STARTED both broadcast state — only render once.
-      if (view !== 'view-day') {
-        showView('day');
-        day.render(_nightDeaths);
-        _nightDeaths = [];
-      }
-      break;
-
-    case 'vote':
-      if (view !== 'view-vote') {
-        showView('vote');
-        vote.start();
-      }
-      break;
-
-    case 'game_over':
-      showView('game-over');
-      gameOver.render();
-      break;
-
-    case 'setup':
-      if (view !== 'view-setup') showView('setup');
-      break;
+  switch (view) {
+    case 'setup':     if (!wasSetup) setup.reset(); break;
+    case 'reveal':    reveal.render(prompt); break;
+    case 'night':     night.render(prompt); break;
+    case 'day':       day.render(prompt); break;
+    case 'vote':      vote.render(prompt); break;
+    case 'game-over': gameOver.render(); break;
   }
-}
-
-function onNightRoleWake(data) {
-  // The server enriches night_role_wake events (see game_server.py wire_events)
-  // data.result    → seer revealed a player (needs acknowledgement via submit_pending_action)
-  // data.player_id → hunter must shoot (can happen by day, after a vote)
-  // otherwise      → regular night role action (submit_night_action)
-  if (currentView() !== 'view-night') showView('night');
-  night.onWake(data);
-}
-
-function onPlayerEliminated(data) {
-  // Accumulate night deaths for the day announcement
-  if (_state.phase === 'night') _nightDeaths.push(data);
-
-  const p = _state.players.find(pl => pl.id === data.player_id);
-  if (p) p.alive = false;
-
-  const view = currentView();
-  if (view === 'view-day') day.updateGrid();
-  if (view === 'view-vote') vote.updateGrid();
 }
 
 function onConfig(cfg) {
@@ -141,22 +106,25 @@ async function init() {
 
   tts.init(send);
   setup.init(send);
-  reveal.init(send);
-  night.init(send, getState);
-  day.init(send, getState);
-  vote.init(send, getState);
-  gameOver.init(getState, () => {
-    reveal.reset();
-    setup.reset();
-    showView('setup');
-    ui.setPhase('setup');
-    ui.setTime('night');
+  reveal.init(answer, getState);
+  night.init(answer, getState);
+  day.init(answer, getState);
+  vote.init(answer, getState);
+  gameOver.init(answer, getState);
+
+  $('btn-abandon').addEventListener('click', () => {
+    if (window.confirm(t('ui.app.abandon_confirm'))) send('abandon_game');
   });
 
   const status = $('ws-status');
   connect({
     onMessage: handleMessage,
-    onReady: () => { send('get_config'); send('get_state'); },
+    onReady: () => {
+      // A reconnect redraws the open prompt: an answer may have been lost.
+      _renderedKey = null;
+      send('get_config');
+      send('get_state');
+    },
     onStatus: s => ui.setConnection(status, s),
   });
 

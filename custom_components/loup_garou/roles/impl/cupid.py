@@ -1,4 +1,5 @@
 """Cupid role — links two lovers on night 1; they die together."""
+from ...prompts import pick
 from ..base import BaseRole, EliminateDecision, RoleContext
 
 
@@ -10,6 +11,9 @@ class Cupid(BaseRole):
 
     def should_wake(self, ctx: RoleContext) -> bool:
         return ctx.night_number == 1
+
+    def night_prompt(self, ctx: RoleContext) -> dict:
+        return {"picks": {"lovers": pick([p["id"] for p in ctx.alive_players], 0, 2)}}
 
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
         if ctx.night_number != 1:
@@ -24,7 +28,7 @@ class Cupid(BaseRole):
         linked = ctx.get_link("lovers", player_id)
         extra = [pid for pid in linked if ctx.get_player(pid) and ctx.get_player(pid)["alive"]]
         if extra:
-            return EliminateDecision(add_eliminations=extra)
+            return EliminateDecision(add_eliminations=extra, cause="lover_grief")
         return EliminateDecision()
 
     async def check_win(self, ctx: RoleContext) -> str | None:

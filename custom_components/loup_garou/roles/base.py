@@ -1,7 +1,6 @@
 """Base role interface — every role implements BaseRole."""
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Coroutine
 
@@ -13,6 +12,8 @@ if TYPE_CHECKING:
 class EliminateDecision:
     cancel: bool = False
     add_eliminations: list[str] = field(default_factory=list)
+    # Why those players die; None means the same cause as the original death.
+    cause: str | None = None
 
 
 class RoleContext:
@@ -22,9 +23,11 @@ class RoleContext:
         self,
         state: "GameState",
         emit: Callable[..., Coroutine[Any, Any, None]],
+        ask: Callable[..., Coroutine[Any, Any, dict]] | None = None,
     ) -> None:
         self._state = state
         self.emit = emit
+        self.ask = ask
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
@@ -96,17 +99,11 @@ class RoleContext:
         if p:
             p.role_id = new_role_id
 
-    async def request_action(self, role_id: str, event_data: dict) -> dict:
-        """Pause the elimination chain, emit event, await external UI input."""
+    async def request_action(self, role_id: str, event_data: dict, **prompt) -> dict:
+        """Announce a role mid-chain, then ask its player once that has played."""
         from ..const import GameEvent
-        fut: asyncio.Future[dict] = asyncio.get_running_loop().create_future()
-        self._state.pending_interrupt_role = role_id
-        self._state.pending_interrupt = fut
         await self.emit(GameEvent.NIGHT_ROLE_WAKE, {"role": role_id, **event_data})
-        result = await fut
-        self._state.pending_interrupt_role = None
-        self._state.pending_interrupt = None
-        return result
+        return await self.ask(role=role_id, **prompt)
 
 
 class BaseRole:
@@ -143,13 +140,13 @@ class BaseRole:
     async def check_win(self, ctx: RoleContext) -> str | None:
         return None
 
-    def get_public_state(self, ctx: RoleContext) -> dict:
-        return {}
-
     def should_wake(self, ctx: RoleContext) -> bool:
         """Return False to skip this role's wake entirely for this night."""
         return True
 
-    def get_wake_data(self, ctx: RoleContext) -> dict:
-        """Extra data to include in NIGHT_ROLE_WAKE payload. Roles override this."""
+    def night_prompt(self, ctx: RoleContext) -> dict:
+        """The picks (and any info) of this role's night prompt."""
         return {}
+
+    async def on_day_start(self, ctx: RoleContext) -> None:
+        pass

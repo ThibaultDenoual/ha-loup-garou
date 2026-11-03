@@ -1,4 +1,5 @@
 """Werewolf role — kills one player per night."""
+from ...prompts import pick
 from ..base import BaseRole, EliminateDecision, RoleContext
 
 
@@ -8,6 +9,11 @@ class Werewolf(BaseRole):
     night_priority = 50
     has_night_action = True
     is_wolf = True
+
+    def night_prompt(self, ctx: RoleContext) -> dict:
+        wolves = ("werewolf", "alpha_wolf")
+        prey = [p["id"] for p in ctx.alive_players if p["role_id"] not in wolves]
+        return {"picks": {"target": pick(prey, 0, 1)}}
 
     async def on_night_action(self, ctx: RoleContext, action: dict) -> None:
         target_id = action.get("target")

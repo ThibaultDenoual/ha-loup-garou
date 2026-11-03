@@ -120,6 +120,8 @@ class GameEvent(StrEnum):
     DAY_STARTED        = "day_started"
     VOTE_STARTED       = "vote_started"
     VOTE_RESOLVED      = "vote_resolved"
+    STATE_CHANGED      = "state_changed"
+    PROMPT_OPENED      = "prompt_opened"
 
 
 # ── Game phases ───────────────────────────────────────────────────────────────

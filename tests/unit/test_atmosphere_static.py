@@ -220,9 +220,8 @@ async def test_the_day_after_a_vote_opens_no_debate():
         await atm._on_vote_resolved({"eliminated": None, "tie": True})
         server.narrate.reset_mock()
         await atm._on_day_started({"eliminated": []})
-        assert [c.args[0].audio_url for c in server.narrate.await_args_list] == [
-            "/loup_garou/audio/fr/day_no_death.mp3",
-        ]
+        # The verdict has been narrated: nothing is announced again.
+        assert server.narrate.await_args_list == []
         # The next dawn debates again.
         server.narrate.reset_mock()
         await atm._on_day_started({"eliminated": []})
@@ -253,3 +252,12 @@ async def test_game_start_narrates_the_intro():
     msg = server.narrate.call_args[0][0]
     assert msg.text == "Au pied de la montagne…"
     assert msg.delay_key == "intro"
+
+
+async def test_a_death_by_vote_is_not_announced_again_at_day_start():
+    atm, server = make_atmosphere("static")
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_vote_resolved({"eliminated": None, "tie": False})
+        server.narrate.reset_mock()
+        await atm._on_day_started({"eliminated": ["p0"]})
+    assert server.narrate.await_args_list == []

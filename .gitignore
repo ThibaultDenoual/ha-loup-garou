@@ -9,3 +9,7 @@ docs/
 
 # Local screenshots and scratch output
 /screenshots/
+
+# Browser test tooling
+node_modules/
+test-results/

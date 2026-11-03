@@ -33,10 +33,10 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(messa
 _LOGGER = logging.getLogger("devserver")
 
 
-def build_app(port: int) -> web.Application:
+def build_app(port: int, language: str = "fr") -> web.Application:
     engine = GameEngine()
     server = LoupGarouServer(engine, config={
-        "language":     "fr",
+        "language":     language,
         "audio_source": "static",
         "audio_output": "browser",
         "speaker":      "",
@@ -90,9 +90,10 @@ def build_app(port: int) -> web.Application:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Loup Garou dev server")
     parser.add_argument("--port", type=int, default=8099, help="HTTP port (default: 8099)")
+    parser.add_argument("--language", choices=["fr", "en"], default="fr", help="UI language (default: fr)")
     args = parser.parse_args()
 
-    app = build_app(args.port)
+    app = build_app(args.port, args.language)
     web.run_app(app, host="0.0.0.0", port=args.port, print=None)
 
 
