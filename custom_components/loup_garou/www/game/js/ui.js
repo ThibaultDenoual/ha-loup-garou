@@ -1,17 +1,65 @@
 import { has, translate, translateAttr } from './i18n.js';
 import { h, $ } from './dom.js';
-import { avatar, sprite, skyline, starField } from './sprites.js';
+import { avatar, paintSky, sprite, skyline } from './sprites.js';
 import { teamOf } from './roles.js';
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ── Scenery ──────────────────────────────────────────────────────────────────
 
+let _sky = null;
+
+function repaintSky() {
+  if (!_sky || !document.body.dataset.time) return;
+  const css = getComputedStyle(document.body);
+  paintSky(_sky, {
+    colors: ['--sky-1', '--sky-2', '--sky-3'].map(name => css.getPropertyValue(name).trim()),
+    time: document.body.dataset.time,
+  });
+}
+
+// Text fields that open the on-screen keyboard.
+const TYPING = 'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]), textarea';
+
 export function mountScenery() {
-  const stars = h('div', { class: 'stars twinkle', 'aria-hidden': 'true' });
-  stars.style.boxShadow = starField();
-  document.body.prepend(stars);
+  _sky = h('canvas', { class: 'sky', 'aria-hidden': 'true' });
+  document.body.prepend(_sky);
   document.querySelectorAll('.dock').forEach(dock => dock.prepend(skyline()));
+  let resizing;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizing);
+    resizing = setTimeout(repaintSky, 150);
+  });
+
+  watchKeyboard();
+}
+
+// The bottom bar is pinned to the screen: while the on-screen keyboard is
+// open it would ride up over the field being typed in, so it steps aside.
+// The keyboard counts as open when a text field has focus and the visible
+// height has shrunk; closing the keyboard (even with focus kept) brings the
+// bar back, and desktops never hide it.
+const KEYBOARD_MIN_PX = 150;
+
+function watchKeyboard() {
+  let fullHeight = 0;
+  let width = 0;
+  const visibleHeight = () => window.visualViewport?.height ?? window.innerHeight;
+  const sync = () => {
+    if (window.innerWidth !== width) {
+      width = window.innerWidth;
+      fullHeight = 0;
+    }
+    fullHeight = Math.max(fullHeight, visibleHeight());
+    const keyboard = visibleHeight() < fullHeight - KEYBOARD_MIN_PX;
+    const typing = keyboard && Boolean(document.activeElement?.matches(TYPING));
+    document.body.classList.toggle('typing', typing);
+  };
+  sync();
+  document.addEventListener('focusin', sync);
+  document.addEventListener('focusout', () => setTimeout(sync));
+  window.addEventListener('resize', sync);
+  window.visualViewport?.addEventListener('resize', sync);
 }
 
 // night | day | dusk. The first call sets the palette silently; later
@@ -21,8 +69,9 @@ export function setTime(time) {
   if (body.dataset.time === time) return;
   const first = !body.dataset.time;
   body.dataset.time = time;
+  repaintSky();
   const icon = $('time-icon');
-  if (icon) icon.replaceChildren(sprite(time === 'day' ? 'sun' : 'moon', 3));
+  if (icon) icon.replaceChildren(sprite(time === 'day' ? 'sun' : 'moon', 2));
   if (first || reducedMotion()) return;
   const wipe = h('div', { class: 'time-wipe', 'aria-hidden': 'true' },
     Array.from({ length: 8 }, (_, i) => {
@@ -88,7 +137,7 @@ export function playerCard(player, { selectable = false, showRole = false } = {}
     'aria-pressed': selectable ? 'false' : null,
     data: { playerId: player.id },
   },
-    h('span', { class: 'avatar' }, player.alive ? avatar(player.name, 4) : sprite('skull', 3)),
+    h('span', { class: 'avatar' }, player.alive ? avatar(player.name, 3) : sprite('skull', 3)),
     h('span', { class: 'who' },
       h('span', { class: 'player-name', text: player.sheriff ? `⭐ ${player.name}` : player.name }),
       roleLine,

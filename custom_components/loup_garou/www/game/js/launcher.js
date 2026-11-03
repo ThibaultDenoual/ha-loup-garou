@@ -45,7 +45,7 @@ function initTabs() {
 function renderRoleReference() {
   $('role-ref').replaceChildren(...ROLE_ORDER.map(id =>
     h('div', { class: 'role-row' },
-      sprite(id, 3),
+      sprite(id, 2),
       h('span', { class: 'role-name', i18n: `role.${id}.name` }),
       h('span', { class: 'role-desc', i18n: `role.${id}.description` }))));
 }
@@ -93,7 +93,8 @@ function applyConfig(cfg) {
   audioSource().value = cfg.audio_source || 'tts';
   audioOutput().value = cfg.audio_output || 'browser';
   applyAudioVisibility();
-  $('cfg-tts-engine').value = cfg.tts_engine || '';
+  // A reply to another setting's save must not wipe what is being typed.
+  if (document.activeElement !== $('cfg-tts-engine')) $('cfg-tts-engine').value = cfg.tts_engine || '';
   $('cfg-language').value = cfg.language || 'fr';
   _picked = new Set(cfg.lights || []);
   renderSpeakers();
@@ -141,6 +142,7 @@ function pickedChanged() {
   _cfg.lights = [..._picked];
   renderLights();
   renderSummary();
+  saveConfig($('cfg-lights-field'));
 }
 
 function renderLights() {
@@ -238,19 +240,56 @@ function renderPresets(presets) {
   $('demo-preset').replaceChildren(...presets.map(p => h('option', { value: p.key, i18n: p.label_key })));
 }
 
-// ── Messages ─────────────────────────────────────────────────────────────────
+// ── Saving ───────────────────────────────────────────────────────────────────
+// Every change is saved at once. The setting's label says "Saving…", then
+// "Saved" when the server answers, or "Not saved" if it never does.
 
-let _savePending = false;
+const SAVE_TIMEOUT_MS = 5000;
+const SAVE_TEXT = { busy: 'launcher.config.saving', ok: 'launcher.config.saved', error: 'launcher.config.save_failed' };
+let _pendingSaves = [];
+let _saveTimer = null;
+
+function showSaveState(el, state) {
+  clearTimeout(el._clear);
+  if (!state) {
+    el.replaceChildren();
+    delete el.dataset.tone;
+    return;
+  }
+  el.dataset.tone = state;
+  el.replaceChildren(...(state === 'ok' ? [sprite('tick', 2)] : []), h('span', { i18n: SAVE_TEXT[state] }));
+  if (state === 'ok') el._clear = setTimeout(() => showSaveState(el, null), 2500);
+}
+
+function saveConfig(field) {
+  const state = field.closest('.field-group').querySelector('.save-state');
+  showSaveState(state, 'busy');
+  if (!_pendingSaves.includes(state)) _pendingSaves.push(state);
+  send('save_config', {
+    audio_source: audioSource().value,
+    audio_output: audioOutput().value,
+    speaker: $('cfg-speaker').value,
+    lights: [..._picked],
+    language: $('cfg-language').value,
+    tts_engine: $('cfg-tts-engine').value,
+  });
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => settleSaves('error'), SAVE_TIMEOUT_MS);
+}
+
+function settleSaves(state) {
+  clearTimeout(_saveTimer);
+  _pendingSaves.forEach(el => showSaveState(el, state));
+  _pendingSaves = [];
+}
+
+// ── Messages ─────────────────────────────────────────────────────────────────
 
 function handleMessage(msg) {
   switch (msg.type) {
     case 'config':
       applyConfig(msg.config || {});
-      if (_savePending) {
-        _savePending = false;
-        feedback('save-feedback', 'launcher.config.saved', 'ok');
-        setTimeout(() => feedback('save-feedback', null), 3000);
-      }
+      settleSaves('ok');
       break;
     case 'entities': applyEntities(msg.data || {}); break;
     case 'demo_presets': renderPresets(msg.presets || []); break;
@@ -273,23 +312,15 @@ function handleMessage(msg) {
 function initActions() {
   audioSource().addEventListener('change', applyAudioVisibility);
   audioOutput().addEventListener('change', applyAudioVisibility);
+  // Text is saved when the field is left or Enter is pressed.
+  ['cfg-audio-source', 'cfg-audio-output', 'cfg-speaker', 'cfg-tts-engine', 'cfg-language'].forEach(id => {
+    $(id).addEventListener('change', () => saveConfig($(id)));
+  });
 
   $('btn-test-audio').addEventListener('click', () => {
     $('btn-test-audio').disabled = true;
     feedback('test-audio-feedback', 'launcher.config.test_audio_running');
     send('test_audio');
-  });
-
-  $('btn-save-config').addEventListener('click', () => {
-    _savePending = true;
-    send('save_config', {
-      audio_source: audioSource().value,
-      audio_output: audioOutput().value,
-      speaker: $('cfg-speaker').value,
-      lights: [..._picked],
-      language: $('cfg-language').value,
-      tts_engine: $('cfg-tts-engine').value,
-    });
   });
 
   $('btn-run-demo').addEventListener('click', () => {
@@ -307,7 +338,7 @@ async function init() {
   await setLanguage(storedLanguage() || document.documentElement.lang);
   mountScenery();
   setTime('night');
-  $('play-art').replaceChildren(sprite('werewolf', 8));
+  $('play-art').replaceChildren(sprite('werewolf', 5));
 
   initTabs();
   renderRoleReference();

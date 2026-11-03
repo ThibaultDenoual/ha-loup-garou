@@ -17,10 +17,10 @@ export function init(answer, getState) {
   _answer = answer;
   _getState = getState;
 
-  $('sleep-moon').replaceChildren(sprite('moon', 12));
+  $('sleep-moon').replaceChildren(sprite('full_moon', 4));
   $('sleep-moon').firstChild.classList.add('bob');
-  $('witch-save-icon').replaceChildren(sprite('potion_heal', 4));
-  $('witch-poison-icon').replaceChildren(sprite('potion_poison', 4));
+  $('witch-save-icon').replaceChildren(sprite('potion_heal', 2));
+  $('witch-poison-icon').replaceChildren(sprite('potion_poison', 2));
 
   $('btn-na-skip').addEventListener('click', () => _answer());
   $('btn-na-confirm').addEventListener('click', _onConfirm);
@@ -63,7 +63,7 @@ function _setSection(which) {
 
 // Resets the action panel for a role: heading, prompt, buttons.
 function _prepareAction(role, promptKey, { skip = true, confirmKey = 'ui.night.confirm' } = {}) {
-  $('na-sprite').replaceChildren(sprite(role, 5));
+  $('na-sprite').replaceChildren(sprite(role, 3));
   translate($('na-role-name'), `role.${role}.name`);
   translate($('na-prompt'), promptKey);
   $('na-victim').hidden = true;
@@ -139,7 +139,7 @@ function _showWitch(prompt) {
   box.hidden = false;
   if (info.victims.length) {
     box.replaceChildren(
-      sprite('skull', 4),
+      sprite('skull', 3),
       h('div', {},
         h('div', { class: 'dim small', i18n: 'role.witch.victim_label' }),
         h('div', { class: 'player-name', text: info.victims.map(p => p.name).join(', ') })));
@@ -191,8 +191,8 @@ function _togglePoison() {
 }
 
 function _showSeerResult({ name, role_id: roleId }) {
-  $('seer-sprite').replaceChildren(sprite('seer', 5));
-  $('seer-avatar').replaceChildren(avatar(name, 8));
+  $('seer-sprite').replaceChildren(sprite('seer', 3));
+  $('seer-avatar').replaceChildren(avatar(name, 5));
   $('seer-name').textContent = name;
   const roleEl = $('seer-role');
   translate(roleEl, `role.${roleId}.name`);

@@ -6,7 +6,7 @@
 <title data-i18n="launcher.title"></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Pixelify+Sans:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Jacquard+24&family=Pixelify+Sans:wght@500&display=swap">
 <link rel="stylesheet" href="css/pixel.css">
 </head>
 <body class="launcher">
@@ -73,18 +73,20 @@
 
   <!-- Game setup ───────────────────────────────────────────────────────── -->
   <section id="tab-config" class="stack" role="tabpanel" aria-labelledby="tab-btn-config" hidden>
+    <p class="hint" data-i18n="launcher.config.autosave_hint"></p>
+    <p id="save-feedback" class="feedback" role="status"></p>
 
     <div class="panel stack">
       <h2 data-i18n="launcher.config.voice_title"></h2>
       <div class="field-group">
-        <label class="label" for="cfg-audio-source" data-i18n="launcher.config.audio_source"></label>
+        <div class="label-row"><label class="label" for="cfg-audio-source" data-i18n="launcher.config.audio_source"></label><span class="save-state" role="status"></span></div>
         <select id="cfg-audio-source" class="field">
           <option value="static" data-i18n="launcher.config.audio_source.static"></option>
           <option value="tts" data-i18n="launcher.config.audio_source.tts"></option>
         </select>
       </div>
       <div class="field-group">
-        <label class="label" for="cfg-audio-output" data-i18n="launcher.config.audio_output"></label>
+        <div class="label-row"><label class="label" for="cfg-audio-output" data-i18n="launcher.config.audio_output"></label><span class="save-state" role="status"></span></div>
         <select id="cfg-audio-output" class="field">
           <option value="browser" data-i18n="launcher.config.audio_output.browser"></option>
           <option value="ha" data-i18n="launcher.config.audio_output.ha"></option>
@@ -92,11 +94,11 @@
       </div>
       <div id="cfg-ha-fields" class="stack">
         <div class="field-group">
-          <label class="label" for="cfg-speaker" data-i18n="launcher.config.speaker"></label>
+          <div class="label-row"><label class="label" for="cfg-speaker" data-i18n="launcher.config.speaker"></label><span class="save-state" role="status"></span></div>
           <select id="cfg-speaker" class="field"></select>
         </div>
         <div class="field-group" id="cfg-tts-engine-group">
-          <label class="label" for="cfg-tts-engine" data-i18n="launcher.config.tts_engine"></label>
+          <div class="label-row"><label class="label" for="cfg-tts-engine" data-i18n="launcher.config.tts_engine"></label><span class="save-state" role="status"></span></div>
           <input id="cfg-tts-engine" class="field" type="text" autocomplete="off" data-i18n-placeholder="launcher.config.tts_engine_placeholder">
         </div>
       </div>
@@ -109,7 +111,7 @@
     <div class="panel stack">
       <h2 data-i18n="launcher.config.room_title"></h2>
       <div class="field-group">
-        <span class="label" id="cfg-lights-label" data-i18n="ui.config.lights_label"></span>
+        <div class="label-row"><span class="label" id="cfg-lights-label" data-i18n="ui.config.lights_label"></span><span class="save-state" role="status"></span></div>
         <div class="lights-picker" id="lights-picker">
           <div class="field lights-field" id="cfg-lights-field" role="combobox" tabindex="0"
                aria-haspopup="listbox" aria-expanded="false" aria-controls="cfg-lights-panel" aria-labelledby="cfg-lights-label">
@@ -130,14 +132,12 @@
         <p class="hint" data-i18n="ui.config.lights_hint"></p>
       </div>
       <div class="field-group">
-        <label class="label" for="cfg-language" data-i18n="launcher.config.language"></label>
+        <div class="label-row"><label class="label" for="cfg-language" data-i18n="launcher.config.language"></label><span class="save-state" role="status"></span></div>
         <select id="cfg-language" class="field">
           <option value="fr" data-i18n="launcher.lang.fr"></option>
           <option value="en" data-i18n="launcher.lang.en"></option>
         </select>
       </div>
-      <button id="btn-save-config" type="button" class="btn btn-primary btn-wide" data-i18n="launcher.config.save"></button>
-      <p id="save-feedback" class="feedback" role="status"></p>
     </div>
 
     <div class="panel stack">

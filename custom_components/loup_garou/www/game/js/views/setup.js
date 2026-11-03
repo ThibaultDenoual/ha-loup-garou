@@ -37,7 +37,7 @@ const _assigned = () => Object.values(_roleConfig).reduce((a, b) => a + b, 0);
 
 function _renderPlayers() {
   $('setup-player-list').replaceChildren(..._names.map((name, i) => {
-    const face = h('span', { class: 'avatar' }, avatar(name, 4));
+    const face = h('span', { class: 'avatar' }, avatar(name, 3));
     const input = h('input', {
       class: 'field',
       type: 'text',
@@ -47,7 +47,7 @@ function _renderPlayers() {
       on: {
         input: e => {
           _names[i] = e.target.value;
-          face.replaceChildren(avatar(e.target.value, 4));
+          face.replaceChildren(avatar(e.target.value, 3));
           _validate();
         },
       },
@@ -79,7 +79,7 @@ function _renderRoles() {
       on: { click: () => _bump(rid, 1) },
     }, sprite('plus', 2));
     return h('div', { class: 'role-slot-row', data: { roleId: rid } },
-      sprite(rid, 3),
+      sprite(rid, 2),
       h('div', {},
         h('div', { class: 'role-slot-name', i18n: `role.${rid}.name` }),
         h('div', { class: 'role-slot-desc', i18n: `role.${rid}.description` })),

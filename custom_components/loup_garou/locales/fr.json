@@ -99,7 +99,10 @@
   "article.female": "une",
 
   "ui.app.abandon": "Quitter",
-  "ui.app.abandon_confirm": "Quitter cette partie et revenir à la préparation ?",
+  "ui.app.abandon_confirm": "Tout le monde revient à la préparation. La partie ne pourra pas reprendre.",
+  "ui.app.abandon_title": "Quitter cette partie ?",
+  "ui.app.abandon_keep": "Continuer à jouer",
+  "ui.app.abandon_yes": "Quitter la partie",
   "ui.wait.listen": "Écoutez le narrateur…",
   "ui.error.stale_prompt": "Ce moment est passé. Voici où en est la partie.",
   "ui.error.illegal_answer": "Ce choix n'est pas permis. Choisissez à nouveau.",
@@ -260,6 +263,8 @@
   "launcher.config.test_audio_done": "Narration jouée.",
   "launcher.config.room_title": "Pièce",
   "launcher.config.language": "Langue",
-  "launcher.config.save": "Enregistrer les réglages",
-  "launcher.config.saved": "Réglages enregistrés."
+  "launcher.config.saved": "Enregistré",
+  "launcher.config.saving": "Enregistrement…",
+  "launcher.config.save_failed": "Non enregistré : vérifiez la connexion",
+  "launcher.config.autosave_hint": "Les changements sont enregistrés dès que vous les faites."
 }

@@ -99,7 +99,10 @@
   "article.female": "a",
 
   "ui.app.abandon": "Quit",
-  "ui.app.abandon_confirm": "Quit this game and go back to setup?",
+  "ui.app.abandon_confirm": "Everyone goes back to setup. The game can't be resumed.",
+  "ui.app.abandon_title": "Quit this game?",
+  "ui.app.abandon_keep": "Keep playing",
+  "ui.app.abandon_yes": "Quit game",
   "ui.wait.listen": "Listen to the narrator…",
   "ui.error.stale_prompt": "That moment has passed. Here is where the game is now.",
   "ui.error.illegal_answer": "That choice isn't allowed. Please choose again.",
@@ -260,6 +263,8 @@
   "launcher.config.test_audio_done": "Narration played.",
   "launcher.config.room_title": "Room",
   "launcher.config.language": "Language",
-  "launcher.config.save": "Save settings",
-  "launcher.config.saved": "Settings saved."
+  "launcher.config.saved": "Saved",
+  "launcher.config.saving": "Saving…",
+  "launcher.config.save_failed": "Not saved: check the connection",
+  "launcher.config.autosave_hint": "Changes are saved as soon as you make them."
 }

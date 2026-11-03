@@ -20,7 +20,7 @@ export function render() {
   const state = _getState();
   const winner = WINNERS[state.winner] ? state.winner : 'village';
   $('go-banner').dataset.winner = winner;
-  $('go-sprite').replaceChildren(sprite(WINNERS[winner].sprite, 8));
+  $('go-sprite').replaceChildren(sprite(WINNERS[winner].sprite, 4));
   translate($('go-msg'), WINNERS[winner].key);
   $('go-grid').replaceChildren(playerGrid(state.players, { showRole: true }));
   $('btn-restart').hidden = !state.prompt;

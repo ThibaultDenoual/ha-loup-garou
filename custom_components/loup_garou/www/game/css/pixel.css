@@ -2,19 +2,22 @@
  *
  * The palette follows the game clock: body[data-time] is night, day or dusk
  * (the vote). Components only read the tokens below, never raw colours.
- * Everything snaps to a 4px pixel unit; corners are notched with clip-path
- * and borders are inset shadows so they survive the clip.
+ * Everything snaps to a 2px pixel unit; corners are notched with clip-path
+ * and borders are inset shadows so they survive the clip. Surfaces are lit
+ * from the top left: a light band on that side, a shaded band opposite.
  */
 
 :root {
-  --px: 4px;
+  --px: 2px;
   --font-px: 'Pixelify Sans', 'Trebuchet MS', sans-serif;
+  --font-display: 'Jacquard 24', 'Pixelify Sans', serif;
   --font-body: 'Atkinson Hyperlegible', system-ui, sans-serif;
   --column: 480px;
-  --dock-h: 152px;
+  --dock-h: 176px;
 
   --wolf: #e8455a;
   --wolf-shade: #a12639;
+  --wolf-hi: #ff8c9a;
   --love: #ff7ab8;
   --poison: #8a5cd6;
   --village: #4fbf73;
@@ -30,19 +33,23 @@
 
 body,
 body[data-time="night"] {
-  --sky-1: #17153d;
-  --sky-2: #201c52;
-  --sky-3: #2c2768;
-  --surface: #2b2766;
-  --surface-2: #3b3586;
-  --line: #0c0a26;
+  --sky-1: #0e0c2a;
+  --sky-2: #1e1a52;
+  --sky-3: #3b2f76;
+  --surface: #252058;
+  --surface-hi: #3f3893;
+  --surface-lo: #161238;
+  --surface-2: #322c77;
+  --line: #08061c;
   --ink: #f4f1ff;
-  --ink-dim: #bdb6e8;
-  --primary: #ffd95e;
-  --primary-ink: #241a3a;
-  --primary-shade: #c4951c;
-  --hill: #0c0a26;
-  --window: #ffd95e;
+  --ink-dim: #b8b1e4;
+  --primary: #ffcc48;
+  --primary-hi: #ffe9a3;
+  --primary-ink: #2a1a10;
+  --primary-shade: #b47d16;
+  --hill: #08061c;
+  --hill-far: #1a1646;
+  --window: #ffcc48;
   --star: #f4f1ff;
   --focus: #7fe3ff;
   --wolf-text: #ff8a96;
@@ -50,18 +57,22 @@ body[data-time="night"] {
 }
 
 body[data-time="day"] {
-  --sky-1: #4aa8f0;
-  --sky-2: #7cc4fa;
-  --sky-3: #b4e0ff;
-  --surface: #fff4cf;
-  --surface-2: #ffe49a;
+  --sky-1: #3a8ddf;
+  --sky-2: #6cb4f4;
+  --sky-3: #bfe5ff;
+  --surface: #fff0c6;
+  --surface-hi: #fffbef;
+  --surface-lo: #e3c983;
+  --surface-2: #ffe199;
   --line: #2b2140;
   --ink: #2b2140;
-  --ink-dim: #5a4f78;
+  --ink-dim: #5f5480;
   --primary: #3f9e55;
+  --primary-hi: #74d18a;
   --primary-ink: #ffffff;
-  --primary-shade: #276b37;
-  --hill: #3d7f3f;
+  --primary-shade: #25683a;
+  --hill: #234f2c;
+  --hill-far: #5d9c62;
   --window: #fff4cf;
   --star: transparent;
   --focus: #1f4fd6;
@@ -70,18 +81,22 @@ body[data-time="day"] {
 }
 
 body[data-time="dusk"] {
-  --sky-1: #2e1b4f;
-  --sky-2: #5c2f74;
-  --sky-3: #a34d78;
+  --sky-1: #2a1848;
+  --sky-2: #5a2d72;
+  --sky-3: #b0507a;
   --surface: #38204f;
+  --surface-hi: #5a3a7a;
+  --surface-lo: #22122f;
   --surface-2: #52306f;
-  --line: #160c25;
+  --line: #140a22;
   --ink: #fff0e6;
   --ink-dim: #e2bfd2;
   --primary: #ffa463;
+  --primary-hi: #ffd0a8;
   --primary-ink: #2a1426;
   --primary-shade: #c06a2a;
-  --hill: #160c25;
+  --hill: #140a22;
+  --hill-far: #3c2154;
   --window: #ffa463;
   --star: #fff0e6;
   --focus: #7fe3ff;
@@ -112,6 +127,7 @@ body {
 
 .sprite { display: block; image-rendering: pixelated; flex-shrink: 0; }
 .px-H { fill: var(--hill); }
+.px-F { fill: var(--hill-far); }
 .px-L { fill: var(--window); }
 
 /* ── Type ─────────────────────────────────────────────────────────────────── */
@@ -122,7 +138,12 @@ h1, h2, h3, .pixel {
   line-height: 1.15;
   letter-spacing: 0;
 }
-h1 { font-size: 2rem; }
+/* Big titles in a Gothic pixel face, for the village folklore. */
+h1 {
+  font: 400 2.75rem/1 var(--font-display);
+  letter-spacing: 0.01em;
+  text-shadow: 0 2px 0 var(--line), 0 4px 0 color-mix(in srgb, var(--line) 45%, transparent);
+}
 h2 { font-size: 1.25rem; }
 h3 { font-size: 1rem; }
 p { max-width: 38em; }
@@ -132,12 +153,13 @@ p { max-width: 38em; }
 
 /* ── Scenery ──────────────────────────────────────────────────────────────── */
 
-.stars {
-  position: fixed; top: 0; left: 0; width: var(--px); height: var(--px);
-  pointer-events: none; z-index: 0;
+/* The sky is painted on a half-resolution canvas (see paintSky in sprites.js). */
+.sky {
+  position: fixed; inset: 0; z-index: 0;
+  width: 100vw; height: 100vh;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
-.stars.twinkle { animation: twinkle 2.4s steps(2) infinite; }
-@keyframes twinkle { 50% { opacity: 0.45; } }
 
 /* One orchestrated moment: when the clock turns, the sky wipes in bands. */
 .time-wipe {
@@ -158,13 +180,13 @@ p { max-width: 38em; }
   position: sticky; top: 0; z-index: 20;
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px;
   padding: 10px max(16px, calc((100vw - var(--column)) / 2));
-  background: var(--sky-1);
-  box-shadow: 0 var(--px) 0 var(--line);
+  background: var(--surface-lo);
+  box-shadow: 0 2px 0 var(--line), inset 0 -2px 0 var(--surface-hi);
 }
 .topbar .phase-label { font: 500 1.0625rem/1.2 var(--font-px); }
 
-.track { display: flex; gap: var(--px); margin-top: 6px; }
-.track i { flex: 1; max-width: 32px; height: 6px; background: var(--surface-2); }
+.track { display: flex; gap: 2px; margin-top: 6px; }
+.track i { flex: 1; max-width: 32px; height: 6px; background: var(--surface); box-shadow: inset 0 0 0 2px var(--line); }
 .track i[data-state="done"] { background: var(--ink-dim); }
 .track i[data-state="current"] { background: var(--primary); }
 
@@ -189,7 +211,9 @@ main {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
   pointer-events: none;
 }
-.dock > .sprite { width: 100%; height: 56px; }
+.dock > .sprite { width: 100%; height: 80px; }
+/* The keyboard would lift the bottom bar over the field being typed in. */
+body.typing .dock { display: none; }
 .dock-actions {
   pointer-events: auto;
   display: flex; gap: 8px;
@@ -203,12 +227,19 @@ main {
 
 /* ── Pixel surfaces ───────────────────────────────────────────────────────── */
 
+.panel, .badge, .player-card {
+  --b-hi: var(--surface-hi);
+  --b-lo: var(--surface-lo);
+}
 .panel {
   background: var(--surface);
   color: var(--ink);
   clip-path: var(--notch);
-  box-shadow: inset 0 0 0 var(--px) var(--line);
-  padding: 20px;
+  box-shadow:
+    inset 0 0 0 2px var(--line),
+    inset 4px 4px 0 0 var(--b-hi),
+    inset -4px -4px 0 0 var(--b-lo);
+  padding: 22px;
 }
 .panel-quiet { background: color-mix(in srgb, var(--surface) 70%, transparent); }
 
@@ -218,6 +249,7 @@ main {
   padding: 6px 8px;
   background: var(--surface-2);
   clip-path: var(--notch);
+  box-shadow: inset 0 0 0 2px var(--line), inset 2px 2px 0 0 var(--b-hi);
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
@@ -225,7 +257,8 @@ main {
 .btn {
   --btn-bg: var(--surface-2);
   --btn-ink: var(--ink);
-  --btn-shade: rgba(0, 0, 0, 0.28);
+  --btn-shade: var(--surface-lo);
+  --btn-hi: var(--surface-hi);
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   min-height: 56px;
   padding: 12px 20px 16px;
@@ -236,12 +269,14 @@ main {
   color: var(--btn-ink);
   clip-path: var(--notch);
   box-shadow:
-    inset 0 0 0 var(--px) var(--line),
-    inset 0 calc(-2 * var(--px)) 0 0 var(--btn-shade);
+    inset 0 0 0 2px var(--line),
+    inset 4px 4px 0 0 var(--btn-hi),
+    inset 0 -8px 0 0 var(--btn-shade),
+    inset -4px 0 0 0 var(--btn-shade);
 }
 .btn:active:not(:disabled) {
-  transform: translateY(var(--px));
-  box-shadow: inset 0 0 0 var(--px) var(--line);
+  transform: translateY(4px);
+  box-shadow: inset 0 0 0 2px var(--line), inset 4px 4px 0 0 var(--btn-shade);
 }
 .btn:focus-visible, .player-card:focus-visible, .field:focus-visible, .tab:focus-visible,
 .reveal-card:focus-visible, .chip button:focus-visible, .back-link:focus-visible {
@@ -254,18 +289,22 @@ main {
   background: repeating-conic-gradient(var(--surface) 0 25%, var(--surface-2) 0 50%) 0 0 / 8px 8px;
   box-shadow: inset 0 0 0 var(--px) var(--line);
 }
-.btn-primary { --btn-bg: var(--primary); --btn-ink: var(--primary-ink); --btn-shade: var(--primary-shade); }
-.btn-danger { --btn-bg: var(--wolf); --btn-ink: #fff; --btn-shade: var(--wolf-shade); }
+.btn-primary { --btn-bg: var(--primary); --btn-ink: var(--primary-ink); --btn-shade: var(--primary-shade); --btn-hi: var(--primary-hi); }
+.btn-danger { --btn-bg: var(--wolf); --btn-ink: #fff; --btn-shade: var(--wolf-shade); --btn-hi: var(--wolf-hi); }
 .btn-wide { width: 100%; }
 .btn-small { min-height: 44px; padding: 8px 14px 12px; font-size: 1rem; }
 .btn-icon { min-height: 48px; width: 48px; padding: 0 0 var(--px); flex-shrink: 0; }
 .btn-icon .sprite { width: 14px; height: 14px; }
 /* White icon pixels follow the button text colour. */
-.btn-icon .sprite rect[fill="#f4f1ff"], .chip button .sprite rect { fill: currentColor; }
+.btn-icon .sprite rect[fill="#ece9fa"], .chip button .sprite rect { fill: currentColor; }
 
 /* Toggles (witch potions, chips) */
-.btn[aria-pressed="true"] { --btn-bg: var(--primary); --btn-ink: var(--primary-ink); --btn-shade: var(--primary-shade); }
-.btn[data-variant="poison"][aria-pressed="true"] { --btn-bg: var(--poison); --btn-ink: #fff; --btn-shade: #5b3799; }
+.btn[aria-pressed="true"] { --btn-bg: var(--primary); --btn-ink: var(--primary-ink); --btn-shade: var(--primary-shade); --btn-hi: var(--primary-hi); }
+.btn[data-variant="poison"][aria-pressed="true"] { --btn-bg: var(--poison); --btn-ink: #fff; --btn-shade: #5b3799; --btn-hi: #b18cf0; }
+
+/* Quit: a full-size button in the top bar, with a door icon. */
+.quit-btn { min-height: 44px; padding: 6px 12px 10px; gap: 8px; font-size: 1rem; }
+.quit-btn .sprite rect[fill="#ece9fa"] { fill: currentColor; }
 
 .back-link {
   align-self: flex-start;
@@ -273,10 +312,6 @@ main {
   font: 500 0.9375rem var(--font-px);
   text-decoration: none;
   padding: 6px 0;
-}
-.link-btn {
-  background: none; border: 0; padding: 8px; min-height: 44px; cursor: pointer;
-  color: var(--ink-dim); font: inherit; font-size: 0.8125rem; text-decoration: underline;
 }
 .back-link:hover { color: var(--ink); }
 
@@ -317,31 +352,35 @@ select.field {
 .player-card {
   --card-bg: var(--surface);
   --card-ink: var(--ink);
-  display: flex; align-items: center; gap: 10px;
-  width: 100%; min-height: 64px;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 66px;
   padding: 10px 12px;
   border: 0;
   font: inherit; text-align: left;
   background: var(--card-bg);
   color: var(--card-ink);
   clip-path: var(--notch);
-  box-shadow: inset 0 0 0 var(--px) var(--line);
+  box-shadow:
+    inset 0 0 0 2px var(--line),
+    inset 4px 4px 0 0 var(--b-hi),
+    inset -4px -4px 0 0 var(--b-lo);
 }
 button.player-card { cursor: pointer; }
 button.player-card:active { transform: translateY(2px); }
-button.player-card[aria-pressed="true"] { --card-bg: var(--primary); --card-ink: var(--primary-ink); }
-button.player-card[data-variant="wolf"][aria-pressed="true"] { --card-bg: var(--wolf); --card-ink: #fff; }
-button.player-card[data-variant="love"][aria-pressed="true"] { --card-bg: var(--love); --card-ink: #2a1426; }
-button.player-card[data-variant="poison"][aria-pressed="true"] { --card-bg: var(--poison); --card-ink: #fff; }
+button.player-card[aria-pressed="true"] { --card-bg: var(--primary); --card-ink: var(--primary-ink); --b-hi: var(--primary-hi); --b-lo: var(--primary-shade); }
+button.player-card[data-variant="wolf"][aria-pressed="true"] { --card-bg: var(--wolf); --card-ink: #fff; --b-hi: var(--wolf-hi); --b-lo: var(--wolf-shade); }
+button.player-card[data-variant="love"][aria-pressed="true"] { --card-bg: var(--love); --card-ink: #2a1426; --b-hi: #ffc2dc; --b-lo: #c74386; }
+button.player-card[data-variant="poison"][aria-pressed="true"] { --card-bg: var(--poison); --card-ink: #fff; --b-hi: #b18cf0; --b-lo: #5b3799; }
+/* Portraits sit in a dark inset frame. */
 .player-card .avatar {
-  padding: var(--px);
-  background: var(--surface-2);
+  padding: 2px;
+  background: var(--surface-lo);
   box-shadow: inset 0 0 0 2px var(--line);
 }
 .player-card .who { min-width: 0; display: flex; flex-direction: column; }
 .player-name { font-weight: 700; overflow-wrap: anywhere; line-height: 1.25; }
 .player-role { font-size: 0.8125rem; line-height: 1.3; }
-.player-card.dead { opacity: 0.6; }
+.player-card.dead { opacity: 0.6; --b-hi: var(--surface); }
 .player-card.dead .player-name { text-decoration: line-through; text-decoration-thickness: 2px; }
 .team-wolves { color: var(--wolf-text); }
 .team-village { color: var(--village-text); }
@@ -350,12 +389,12 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 /* ── Setup ────────────────────────────────────────────────────────────────── */
 
 .player-row { display: flex; align-items: center; gap: 8px; }
-.player-row .avatar { padding: var(--px); background: var(--surface-2); box-shadow: inset 0 0 0 2px var(--line); }
+.player-row .avatar { padding: 2px; background: var(--surface-lo); box-shadow: inset 0 0 0 2px var(--line); }
 
 .role-list { display: flex; flex-direction: column; }
 .role-slot-row {
   display: grid;
-  grid-template-columns: 36px 1fr auto;
+  grid-template-columns: 48px 1fr auto;
   align-items: center; gap: 12px;
   padding: 12px 0;
 }
@@ -375,7 +414,7 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 
 .intro { text-align: center; font-style: italic; color: var(--ink-dim); margin: 0 auto; }
 .handoff { text-align: center; align-items: center; gap: 4px; }
-.handoff h1 { font-size: 2.5rem; overflow-wrap: anywhere; }
+.handoff h1 { font-size: 3rem; overflow-wrap: anywhere; }
 
 .reveal-stage { perspective: 1200px; }
 .reveal-card {
@@ -394,7 +433,13 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   clip-path: var(--notch);
-  box-shadow: inset 0 0 0 var(--px) var(--line), inset 0 0 0 calc(3 * var(--px)) var(--surface-2);
+  --frame: var(--surface-2);
+  box-shadow:
+    inset 0 0 0 2px var(--line),
+    inset 0 0 0 6px var(--frame),
+    inset 0 0 0 8px var(--line),
+    inset 10px 10px 0 0 var(--surface-hi),
+    inset -10px -10px 0 0 var(--surface-lo);
 }
 .card-front {
   background:
@@ -407,9 +452,14 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
   clip-path: var(--notch);
 }
 .card-back { background: var(--surface); transform: rotateY(180deg); }
-.card-back[data-team="wolves"] { box-shadow: inset 0 0 0 var(--px) var(--line), inset 0 0 0 calc(3 * var(--px)) var(--wolf); }
-.card-back[data-team="village"] { box-shadow: inset 0 0 0 var(--px) var(--line), inset 0 0 0 calc(3 * var(--px)) var(--village); }
-.reveal-role-name { font: 500 2rem/1.1 var(--font-px); }
+.card-back[data-team="wolves"] { --frame: var(--wolf); }
+.card-back[data-team="village"] { --frame: var(--village); }
+.card-back { gap: 14px; }
+/* Each role stands in front of a full moon. */
+.medallion { display: grid; place-items: end center; width: 120px; height: 136px; }
+.medallion > .sprite { grid-area: 1 / 1; }
+.medallion > .sprite:first-child { align-self: start; }
+.reveal-role-name { font: 400 3.25rem/1 var(--font-display); text-shadow: 0 2px 0 var(--line); }
 .reveal-role-desc { color: var(--ink-dim); }
 .card-back[data-team="wolves"] .badge { background: var(--wolf); color: #fff; }
 .card-back[data-team="village"] .badge { background: var(--village); color: #10301a; }
@@ -445,9 +495,17 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
   display: flex; flex-direction: column; align-items: center; gap: 16px;
   text-align: center; padding: 28px 20px;
 }
-.winner[data-winner="wolves"] { box-shadow: inset 0 0 0 var(--px) var(--line), inset 0 0 0 calc(3 * var(--px)) var(--wolf); }
-.winner[data-winner="village"] { box-shadow: inset 0 0 0 var(--px) var(--line), inset 0 0 0 calc(3 * var(--px)) var(--village); }
-.winner[data-winner="lovers"] { box-shadow: inset 0 0 0 var(--px) var(--line), inset 0 0 0 calc(3 * var(--px)) var(--love); }
+.winner {
+  box-shadow:
+    inset 0 0 0 2px var(--line),
+    inset 0 0 0 6px var(--frame, var(--surface-2)),
+    inset 0 0 0 8px var(--line),
+    inset 10px 10px 0 0 var(--surface-hi),
+    inset -10px -10px 0 0 var(--surface-lo);
+}
+.winner[data-winner="wolves"] { --frame: var(--wolf); }
+.winner[data-winner="village"] { --frame: var(--village); }
+.winner[data-winner="lovers"] { --frame: var(--love); }
 .winner .winner-msg { font: 500 1.5rem/1.25 var(--font-px); }
 
 /* ── Toast ────────────────────────────────────────────────────────────────── */
@@ -464,6 +522,20 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
   padding-left: 24px;
 }
 
+/* ── Confirmation sheet ───────────────────────────────────────────────────── */
+
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: color-mix(in srgb, var(--line) 62%, transparent);
+}
+.sheet {
+  width: 100%; max-width: var(--column);
+  padding: 24px max(16px, env(safe-area-inset-left)) calc(20px + env(safe-area-inset-bottom));
+}
+.sheet-actions { display: flex; gap: 8px; }
+.sheet-actions .btn { flex: 1; }
+
 /* ── Launcher ─────────────────────────────────────────────────────────────── */
 
 .hero { display: flex; align-items: center; gap: 16px; }
@@ -477,11 +549,12 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
   color: var(--ink-dim);
   background: var(--surface);
   clip-path: var(--notch);
-  box-shadow: inset 0 0 0 var(--px) var(--line);
+  box-shadow: inset 0 0 0 2px var(--line), inset 4px 4px 0 0 var(--surface-hi), inset -4px -4px 0 0 var(--surface-lo);
 }
 .tab[aria-selected="true"] {
   color: var(--primary-ink);
   background: var(--primary);
+  box-shadow: inset 0 0 0 2px var(--line), inset 4px 4px 0 0 var(--primary-hi), inset -4px -4px 0 0 var(--primary-shade);
 }
 
 .summary { list-style: none; display: flex; flex-direction: column; gap: 6px; }
@@ -496,7 +569,7 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 .wins li[data-team="village"] { box-shadow: inset var(--px) 0 0 var(--village); }
 .wins li[data-team="lovers"] { box-shadow: inset var(--px) 0 0 var(--love); }
 
-.role-row { display: grid; grid-template-columns: 36px 1fr; gap: 4px 14px; align-items: center; padding: 12px 0; }
+.role-row { display: grid; grid-template-columns: 48px 1fr; gap: 4px 14px; align-items: center; padding: 12px 0; }
 .role-row + .role-row { box-shadow: 0 -2px 0 var(--surface-2); }
 .role-row .sprite { grid-row: span 2; }
 .role-row .role-name { font: 500 1.0625rem var(--font-px); }
@@ -504,6 +577,17 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 
 .field-group { display: flex; flex-direction: column; }
 .feedback { min-height: 1.5em; font-weight: 700; }
+#save-feedback:empty { display: none; }
+
+/* Settings save as they change; each label says when it is stored. */
+.label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.save-state {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 500 0.875rem var(--font-px); color: var(--ink-dim);
+}
+.save-state[data-tone="ok"] { color: var(--village-text); }
+.save-state[data-tone="error"] { color: var(--wolf-text); }
+.save-state .sprite rect { fill: currentColor; }
 .feedback[data-tone="ok"] { color: var(--village-text); }
 .feedback[data-tone="error"] { color: var(--wolf-text); }
 
@@ -553,7 +637,7 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 .version { text-align: center; font-size: 0.75rem; color: var(--ink-dim); }
 
 @media (prefers-reduced-motion: reduce) {
-  .stars.twinkle, .sleep .sprite.bob { animation: none; }
+  .sleep .sprite.bob { animation: none; }
   .reveal-card { transition: none; }
   .time-wipe { display: none; }
 }

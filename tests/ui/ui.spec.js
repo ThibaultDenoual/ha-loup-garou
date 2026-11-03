@@ -29,6 +29,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('#view-setup, #view-reveal, #view-night, #view-day, #view-vote, #view-game-over').locator('visible=true')).toHaveCount(1);
   if (await page.locator('#btn-abandon').isVisible()) {
     await page.locator('#btn-abandon').click();
+    await page.locator('#btn-abandon-confirm').click();
     await expect(page.locator('#view-setup')).toBeVisible();
   }
 });
@@ -46,8 +47,19 @@ test('launcher tabs load localized content and settings', async ({ page }) => {
 
   await page.getByRole('tab', { name: 'Game setup' }).click();
   await expect(page.locator('#cfg-language')).toHaveValue('en');
-  await expect(page.locator('#btn-save-config')).toHaveText('Save settings');
+  await expect(page.locator('#btn-save-config')).toHaveCount(0);
+
+  // Each change is saved at once and confirmed beside its label.
+  const output = page.locator('#cfg-audio-output');
+  const state = page.locator('.field-group', { has: output }).locator('.save-state');
+  await output.selectOption('ha');
+  await expect(state).toHaveText('Saved');
   await capture(page, 'launcher-settings');
+  await page.reload();
+  await page.getByRole('tab', { name: 'Game setup' }).click();
+  await expect(output).toHaveValue('ha');
+  await output.selectOption('browser');
+  await expect(state).toHaveText('Saved');
 });
 
 test('pass-the-phone game includes seer, werewolf, witch, day, vote, and victory', async ({ page }) => {
@@ -189,7 +201,31 @@ test('a reload in the middle of a vote carries on from the open ballot', async (
   await expect(page.locator('#vote-voter-name')).toHaveText('Bob');
   await expect(page.locator('#vote-progress')).toHaveText('Votes: 1 of 4');
 
-  // Quitting always returns to setup.
+  // Quitting asks first; Keep playing changes nothing.
   await page.locator('#btn-abandon').click();
+  await expect(page.locator('#abandon-sheet')).toBeVisible();
+  await page.locator('#btn-abandon-keep').click();
+  await expect(page.locator('#abandon-sheet')).toBeHidden();
+  await expect(page.locator('#vote-progress')).toHaveText('Votes: 1 of 4');
+
+  // Quitting for real returns to setup.
+  await page.locator('#btn-abandon').click();
+  await page.locator('#btn-abandon-confirm').click();
   await expect(page.locator('#view-setup')).toBeVisible();
+});
+
+test('the bottom bar steps aside while the keyboard is open', async ({ page }) => {
+  const dock = page.locator('#view-setup .dock');
+  await page.locator('#btn-add-player').click();
+  await expect(page.locator('#setup-player-list input').last()).toBeFocused();
+  // No on-screen keyboard yet (desktop): the bar stays.
+  await expect(dock).toBeVisible();
+
+  // A phone keyboard shrinks the visible screen by about 300px.
+  await page.setViewportSize({ width: 390, height: 544 });
+  await expect(dock).toBeHidden();
+  // Closing the keyboard brings it back, even with the field still focused.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(dock).toBeVisible();
+  await expect(page.locator('#setup-player-list input').last()).toBeFocused();
 });

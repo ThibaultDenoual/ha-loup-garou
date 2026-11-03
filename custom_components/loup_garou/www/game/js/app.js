@@ -1,8 +1,9 @@
-import { setLanguage, storedLanguage, t, translate } from './i18n.js';
+import { setLanguage, storedLanguage, translate } from './i18n.js';
 import { $ } from './dom.js';
 import { connect, send } from './ws.js';
 import * as tts from './tts.js';
 import * as ui from './ui.js';
+import { sprite } from './sprites.js';
 import * as setup from './views/setup.js';
 import * as reveal from './views/reveal.js';
 import * as night from './views/night.js';
@@ -67,7 +68,9 @@ function onSnapshot(snapshot) {
   const { phase, prompt, winner } = snapshot;
   ui.setPhase(phase);
   ui.setTime(phase === 'game_over' ? WINNER_TIME[winner] || 'day' : TIME_OF[phase] || 'night');
-  $('btn-abandon').hidden = phase === 'setup';
+  // A finished game already offers "New game".
+  $('btn-abandon').hidden = phase === 'setup' || phase === 'game_over';
+  if ($('btn-abandon').hidden) closeAbandon();
 
   const key = `${phase}|${prompt ? prompt.id : ''}`;
   if (key === _renderedKey) return;
@@ -86,6 +89,37 @@ function onSnapshot(snapshot) {
     case 'vote':      vote.render(prompt); break;
     case 'game-over': gameOver.render(); break;
   }
+}
+
+// ── Quit ───────────────────────────────────────────────────────────────────────
+
+// Quitting ends the game for everyone, so it asks first. Keep playing is the
+// safe choice and takes the focus.
+function openAbandon() {
+  $('abandon-sheet').hidden = false;
+  $('btn-abandon-keep').focus();
+}
+
+function closeAbandon() {
+  if ($('abandon-sheet').hidden) return;
+  $('abandon-sheet').hidden = true;
+  if (!$('btn-abandon').hidden) $('btn-abandon').focus();
+}
+
+function initAbandon() {
+  $('abandon-icon').replaceChildren(sprite('door', 2));
+  $('btn-abandon').addEventListener('click', openAbandon);
+  $('btn-abandon-keep').addEventListener('click', closeAbandon);
+  $('btn-abandon-confirm').addEventListener('click', () => {
+    closeAbandon();
+    send('abandon_game');
+  });
+  $('abandon-sheet').addEventListener('click', e => {
+    if (e.target === $('abandon-sheet')) closeAbandon();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAbandon();
+  });
 }
 
 function onConfig(cfg) {
@@ -112,9 +146,7 @@ async function init() {
   vote.init(answer, getState);
   gameOver.init(answer, getState);
 
-  $('btn-abandon').addEventListener('click', () => {
-    if (window.confirm(t('ui.app.abandon_confirm'))) send('abandon_game');
-  });
+  initAbandon();
 
   const status = $('ws-status');
   connect({
