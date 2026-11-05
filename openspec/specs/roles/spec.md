@@ -110,7 +110,7 @@ When a Hunter is eliminated by any cause, the Hunter SHALL pause the chain via `
 
 ### Requirement: Little Girl
 
-The Little Girl SHALL be a passive village role; her spying mechanic SHALL be presented in the UI without engine interaction.
+The Little Girl SHALL be a passive village role. Her spying is played at the table: her role description SHALL tell her she may peek during the wolves' turn without getting caught, and neither the engine nor the browser SHALL implement it.
 
 #### Scenario: No engine effect
 - **WHEN** night runs with a Little Girl present
@@ -118,7 +118,7 @@ The Little Girl SHALL be a passive village role; her spying mechanic SHALL be pr
 
 ### Requirement: Minion
 
-The Minion SHALL be wolf-team with no night action and SHALL know the wolves; its `check_win` SHALL report a wolves win under the same numeric condition as the wolves.
+The Minion SHALL be wolf-team with no night action. Neither the Minion nor the wolves SHALL be told who the others are; the role description SHALL tell the Minion to find the wolves' identity without being caught. Its `check_win` SHALL report a wolves win under the same numeric condition as the wolves.
 
 #### Scenario: Minion excluded from village count
 - **WHEN** computing the wolves-versus-village balance

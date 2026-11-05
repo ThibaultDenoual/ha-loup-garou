@@ -1,4 +1,8 @@
-"""Minion role — knows wolves, wins with wolves, no night action."""
+"""Minion role — wins with the wolves, no night action, unknown to the wolves.
+
+The Minion doesn't know who the wolves are either: finding them is played at
+the table, not in the app.
+"""
 from ..base import BaseRole, EliminateDecision, RoleContext
 
 

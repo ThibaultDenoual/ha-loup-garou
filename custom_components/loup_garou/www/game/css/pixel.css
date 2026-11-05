@@ -419,6 +419,8 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 .reveal-stage { perspective: 1200px; }
 .reveal-card {
   position: relative;
+  /* Both faces share one grid cell, so the card grows to the taller one. */
+  display: grid;
   min-height: 360px;
   cursor: pointer;
   transform-style: preserve-3d;
@@ -426,7 +428,7 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 }
 .reveal-card.flipped { transform: rotateY(180deg); cursor: default; }
 .card-face {
-  position: absolute; inset: 0;
+  grid-area: 1 / 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
   padding: 28px 24px;
   text-align: center;
