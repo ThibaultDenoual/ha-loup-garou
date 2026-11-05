@@ -1,7 +1,7 @@
 # Browser UI tests
 
-This is an on-demand Playwright suite; it is intentionally not part of the default
-pytest or CI run. It starts a private standalone dev server on port `8119`, drives
+This Playwright suite runs in CI as the `ui` job of the Tests workflow, separately
+from pytest. It starts a private standalone dev server on port `8119`, drives
 the launcher and a complete five-player game, and writes mobile screenshots to
 `screenshots/automated/`.
 
