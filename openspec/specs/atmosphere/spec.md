@@ -63,10 +63,16 @@ Atmosphere SHALL speak the vote-start line, the tie or result line on vote resol
 
 ### Requirement: TTS mode behaviour
 
-Atmosphere SHALL support `browser` TTS by delegating to `server.narrate` (which awaits the real `tts_done`), and HA TTS by calling the `tts.speak` service on the configured engine/speaker and sleeping for the configured per-phase delay so the game does not race ahead of audio; with no speaker configured in HA mode it SHALL skip speaking.
+Atmosphere SHALL support `browser` TTS by delegating to `server.narrate` (which awaits the real `tts_done`), and HA output by calling `tts.speak` or `media_player.play_media` on the configured speaker; with no speaker configured in HA mode it SHALL skip speaking.
 
-#### Scenario: HA mode paces on estimated delay
-- **WHEN** a line is spoken in HA mode
+In HA mode Atmosphere SHALL wait for the speaker itself: it SHALL wait up to `SPEAKER_START_TIMEOUT` for the speaker to enter `playing`, then until it leaves `playing` (at most `SPEAKER_MAX_LINE`), then pause `SPEAKER_GAP` before the next line. It SHALL fall back to the per-phase delay (or the recorded clip length) when the speaker has no state, is already playing, or has never been seen playing; a speaker that misses its first line SHALL be logged once and use fixed delays until the speaker setting changes.
+
+#### Scenario: HA mode waits for the speaker
+- **WHEN** a line is spoken in HA mode and the speaker goes from `idle` to `playing`
+- **THEN** Atmosphere SHALL not return until the speaker leaves `playing`
+
+#### Scenario: Speaker without state
+- **WHEN** a line is spoken in HA mode on a speaker with no state
 - **THEN** Atmosphere SHALL await the phase delay mapped to that event's `delay_key`
 
 ### Requirement: Dynamic config updates

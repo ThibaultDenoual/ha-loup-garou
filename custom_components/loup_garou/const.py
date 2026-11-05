@@ -106,6 +106,13 @@ STATIC_AUDIO_SECONDS: dict[str, dict[str, float]] = {
 # Extra wait after a clip on an HA speaker, which takes a moment to start.
 STATIC_AUDIO_MARGIN = 1.0
 
+# Narration on a Home Assistant speaker waits for the speaker itself: it starts
+# playing, then leaves the "playing" state. TTS_PHASE_DELAYS (and the clip
+# lengths) only apply to speakers that don't report their state.
+SPEAKER_START_TIMEOUT = 10.0  # TTS generation can take several seconds
+SPEAKER_MAX_LINE = 60.0       # a speaker stuck in "playing" can't hold the game
+SPEAKER_GAP = 0.4             # breath between two lines
+
 
 # ── Game events (used by engine.on() / engine._emit()) ───────────────────────
 class GameEvent(StrEnum):

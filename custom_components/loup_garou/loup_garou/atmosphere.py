@@ -7,11 +7,13 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers.event import async_track_state_change_event
 
 from ..const import (
     GameEvent, LIGHT_SCENES, ROLE_SCENE, STATIC_AUDIO_MAP, STATIC_AUDIO_MARGIN,
     STATIC_AUDIO_SECONDS, TTS_PHASE_DELAYS,
+    SPEAKER_GAP, SPEAKER_MAX_LINE, SPEAKER_START_TIMEOUT,
     CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
 )
 
@@ -22,6 +24,8 @@ if TYPE_CHECKING:
     from ..game_engine import GameEngine
 
 _LOGGER = logging.getLogger(__name__)
+
+_PLAYING = "playing"
 
 # Roles whose French article is "une" (feminine)
 _FEMININE_ROLES = {"seer", "witch", "little_girl"}
@@ -53,6 +57,9 @@ class Atmosphere:
         self._audio_output = audio_output
         self._server = server
         self._intro_task: asyncio.Task | None = None
+        # None until the speaker has played a line; False once it failed to
+        # report "playing" before ever doing so, which means fixed delays.
+        self._speaker_reports_state: bool | None = None
 
     @property
     def language(self) -> str:
@@ -62,7 +69,10 @@ class Atmosphere:
         """Apply saved settings; pass the new locale when the language changed."""
         self._audio_source = cfg.get(CONF_AUDIO_SOURCE, self._audio_source)
         self._audio_output = cfg.get(CONF_AUDIO_OUTPUT, self._audio_output)
-        self._speaker      = cfg.get(CONF_SPEAKER,      self._speaker)
+        speaker = cfg.get(CONF_SPEAKER, self._speaker)
+        if speaker != self._speaker:
+            self._speaker_reports_state = None
+        self._speaker      = speaker
         self._lights       = cfg.get(CONF_LIGHTS,       self._lights)
         self._language     = cfg.get(CONF_LANGUAGE,     self._language)
         self._tts_engine   = cfg.get(CONF_TTS_ENGINE,   self._tts_engine)
@@ -344,21 +354,18 @@ class Atmosphere:
     async def _speak_tts_ha(self, text: str, delay_key: str) -> None:
         if not self._speaker:
             return
-        try:
-            await self._hass.services.async_call(
-                "tts",
-                "speak",
-                {
-                    "entity_id": self._tts_engine,
-                    "media_player_entity_id": self._speaker,
-                    "message": text,
-                    "language": self._language,
-                },
-                blocking=False,
-            )
-        except Exception:
-            _LOGGER.exception("Failed to speak via TTS: %s", text)
-        await asyncio.sleep(TTS_PHASE_DELAYS.get(delay_key, 2.5))
+        await self._play_and_wait(
+            "tts",
+            "speak",
+            {
+                "entity_id": self._tts_engine,
+                "media_player_entity_id": self._speaker,
+                "message": text,
+                "language": self._language,
+            },
+            fallback=TTS_PHASE_DELAYS.get(delay_key, 2.5),
+            what=text,
+        )
 
     async def _play_static_ha(
         self, audio_url: str, delay_key: str, audio_seconds: float | None = None
@@ -379,17 +386,82 @@ class Atmosphere:
             _LOGGER.warning("static+ha: no HA base URL configured; cannot play %s", audio_url)
             await asyncio.sleep(wait)
             return
+        await self._play_and_wait(
+            "media_player",
+            "play_media",
+            {
+                "entity_id": self._speaker,
+                "media_content_id": f"{base_url}{audio_url}",
+                "media_content_type": "music",
+            },
+            fallback=wait,
+            what=audio_url,
+        )
+
+    def _speaker_state(self) -> str | None:
+        state = self._hass.states.get(self._speaker)
+        value = getattr(state, "state", None)
+        return value if isinstance(value, str) else None
+
+    async def _play_and_wait(
+        self, domain: str, service: str, data: dict, *, fallback: float, what: str
+    ) -> None:
+        """Send one line to the speaker, then wait until it has been played.
+
+        The speaker is watched while it goes to "playing" and back. A speaker
+        that is already playing, has no state, or never reported "playing"
+        before gets the fixed `fallback` wait instead.
+        """
+        watch = (
+            self._speaker_reports_state is not False
+            and self._speaker_state() not in (None, _PLAYING)
+        )
+        started, finished = asyncio.Event(), asyncio.Event()
+
+        @callback
+        def _on_change(event: Event) -> None:
+            new_state = getattr(event.data.get("new_state"), "state", None)
+            if new_state == _PLAYING:
+                started.set()
+            elif started.is_set():
+                finished.set()
+
+        # Subscribe before the call, so a fast speaker can't be missed.
+        unsub = (
+            async_track_state_change_event(self._hass, [self._speaker], _on_change)
+            if watch else None
+        )
         try:
-            await self._hass.services.async_call(
-                "media_player",
-                "play_media",
-                {
-                    "entity_id": self._speaker,
-                    "media_content_id": f"{base_url}{audio_url}",
-                    "media_content_type": "music",
-                },
-                blocking=False,
-            )
-        except Exception:
-            _LOGGER.exception("Failed to play static audio on HA: %s", audio_url)
-        await asyncio.sleep(wait)
+            try:
+                await self._hass.services.async_call(domain, service, data, blocking=False)
+            except Exception:
+                _LOGGER.exception("Failed to call %s.%s for %s", domain, service, what)
+                await asyncio.sleep(fallback)
+                return
+            if not watch:
+                await asyncio.sleep(fallback)
+                return
+            try:
+                await asyncio.wait_for(started.wait(), SPEAKER_START_TIMEOUT)
+            except TimeoutError:
+                if self._speaker_reports_state is None:
+                    self._speaker_reports_state = False
+                    _LOGGER.warning(
+                        "%s did not start playing within %.0f s (%s). Check that it "
+                        "can play this audio; narration now uses fixed delays.",
+                        self._speaker, SPEAKER_START_TIMEOUT, what,
+                    )
+                else:
+                    _LOGGER.warning("%s did not play %s", self._speaker, what)
+                return
+            self._speaker_reports_state = True
+            try:
+                await asyncio.wait_for(finished.wait(), SPEAKER_MAX_LINE)
+            except TimeoutError:
+                _LOGGER.warning(
+                    "%s still playing after %.0f s; moving on", self._speaker, SPEAKER_MAX_LINE
+                )
+            await asyncio.sleep(SPEAKER_GAP)
+        finally:
+            if unsub is not None:
+                unsub()
