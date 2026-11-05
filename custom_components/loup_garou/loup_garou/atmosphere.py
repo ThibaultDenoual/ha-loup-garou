@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from ..const import (
     GameEvent, LIGHT_SCENES, ROLE_SCENE, STATIC_AUDIO_MAP, STATIC_AUDIO_MARGIN,
@@ -26,6 +27,18 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 _PLAYING = "playing"
+_FEATURE_MEDIA_ANNOUNCE = 1048576  # MediaPlayerEntityFeature.MEDIA_ANNOUNCE
+
+
+class SpeakerResult:
+    """What happened to a line sent to a Home Assistant speaker."""
+
+    PLAYED = "played"            # the speaker went to "playing" and back
+    SENT = "sent"                # sent, but the speaker can't tell us if it played
+    NOT_STARTED = "not_started"  # sent, and the speaker never started playing
+    REFUSED = "refused"          # Home Assistant refused the service call
+    NO_URL = "no_url"            # Home Assistant has no address to give the speaker
+    NO_SPEAKER = "no_speaker"    # no speaker chosen
 
 # Roles whose French article is "une" (feminine)
 _FEMININE_ROLES = {"seer", "witch", "little_girl"}
@@ -333,28 +346,34 @@ class Atmosphere:
             delay_key=delay_key, audio_seconds=audio_seconds,
         )
 
-    async def speak(self, msg: NarrationMessage) -> None:
+    async def speak(self, msg: NarrationMessage) -> str | None:
         """Route a narration message to the configured output (browser or HA).
 
         audio_output determines the playback channel:
           "browser" — delegates to server.narrate(); browser plays and sends tts_done
           "ha"      — plays directly on a HA media_player entity
+
+        On a HA speaker it returns a SpeakerResult value; in the browser, None.
         """
         if not msg.text:
-            return
+            return None
         if self._audio_output == "browser":
             if self._server is not None:
                 await self._server.narrate(msg)
-            return
+            return None
         if msg.audio_url:
-            await self._play_static_ha(msg.audio_url, msg.delay_key, msg.audio_seconds)
-        else:
-            await self._speak_tts_ha(msg.text, msg.delay_key)
+            return await self._play_static_ha(msg.audio_url, msg.delay_key, msg.audio_seconds)
+        return await self._speak_tts_ha(msg.text, msg.delay_key)
 
-    async def _speak_tts_ha(self, text: str, delay_key: str) -> None:
+    async def test_speaker(self) -> str | None:
+        """Play the night-fall line for "Test the narration", watching the speaker afresh."""
+        self._speaker_reports_state = None
+        return await self.speak(self._narrate("phase.night.start", delay_key="night_start"))
+
+    async def _speak_tts_ha(self, text: str, delay_key: str) -> str:
         if not self._speaker:
-            return
-        await self._play_and_wait(
+            return SpeakerResult.NO_SPEAKER
+        return await self._play_and_wait(
             "tts",
             "speak",
             {
@@ -369,34 +388,59 @@ class Atmosphere:
 
     async def _play_static_ha(
         self, audio_url: str, delay_key: str, audio_seconds: float | None = None
-    ) -> None:
+    ) -> str:
         if not self._speaker:
-            return
+            return SpeakerResult.NO_SPEAKER
         # Wait out the whole clip: a speaker given the next play_media while
         # still playing (or loading) cuts or drops one of the two.
         wait = TTS_PHASE_DELAYS.get(delay_key, 2.5)
         if audio_seconds:
             wait = max(wait, audio_seconds + STATIC_AUDIO_MARGIN)
-        base_url = (
-            getattr(self._hass.config, "internal_url", None)
-            or getattr(self._hass.config, "external_url", None)
-            or ""
-        ).rstrip("/")
+        base_url = self._base_url()
         if not base_url:
-            _LOGGER.warning("static+ha: no HA base URL configured; cannot play %s", audio_url)
+            _LOGGER.warning(
+                "Home Assistant has no URL the speaker can reach, so %s can't play. "
+                "Set one in Settings > System > Network.", audio_url,
+            )
             await asyncio.sleep(wait)
-            return
-        await self._play_and_wait(
-            "media_player",
-            "play_media",
-            {
-                "entity_id": self._speaker,
-                "media_content_id": f"{base_url}{audio_url}",
-                "media_content_type": "music",
-            },
-            fallback=wait,
-            what=audio_url,
+            return SpeakerResult.NO_URL
+        data = {
+            "entity_id": self._speaker,
+            "media_content_id": f"{base_url}{audio_url}",
+            "media_content_type": "music",
+        }
+        # Narration is an announcement, as tts.speak sends it. Some speakers
+        # (ESPHome with only an announcement pipeline) play nothing otherwise.
+        if self._speaker_supports_announce():
+            data["announce"] = True
+        return await self._play_and_wait(
+            "media_player", "play_media", data, fallback=wait, what=audio_url,
         )
+
+    def _base_url(self) -> str:
+        """The address a speaker on the network can fetch Home Assistant's files from.
+
+        get_url() follows the Network settings and falls back to the local IP,
+        so it works without an internal URL set by hand.
+        """
+        try:
+            url = get_url(self._hass, allow_cloud=False)
+        except NoURLAvailableError:
+            url = None
+        except Exception:  # noqa: BLE001 — never let URL lookup stop the game
+            _LOGGER.debug("get_url failed", exc_info=True)
+            url = None
+        if not isinstance(url, str):
+            url = (
+                getattr(self._hass.config, "internal_url", None)
+                or getattr(self._hass.config, "external_url", None)
+            )
+        return url.rstrip("/") if isinstance(url, str) else ""
+
+    def _speaker_supports_announce(self) -> bool:
+        state = self._hass.states.get(self._speaker)
+        features = getattr(state, "attributes", {}).get("supported_features", 0)
+        return isinstance(features, int) and bool(features & _FEATURE_MEDIA_ANNOUNCE)
 
     def _speaker_state(self) -> str | None:
         state = self._hass.states.get(self._speaker)
@@ -405,7 +449,7 @@ class Atmosphere:
 
     async def _play_and_wait(
         self, domain: str, service: str, data: dict, *, fallback: float, what: str
-    ) -> None:
+    ) -> str:
         """Send one line to the speaker, then wait until it has been played.
 
         The speaker is watched while it goes to "playing" and back. A speaker
@@ -432,15 +476,30 @@ class Atmosphere:
             if watch else None
         )
         try:
+            # Blocking, so a refused call (unknown TTS engine, speaker
+            # unavailable) is logged here instead of lost in the background.
             try:
-                await self._hass.services.async_call(domain, service, data, blocking=False)
+                # Shielded: giving up on the wait must not cancel the playback.
+                await asyncio.wait_for(
+                    asyncio.shield(
+                        self._hass.services.async_call(domain, service, data, blocking=True)
+                    ),
+                    SPEAKER_START_TIMEOUT,
+                )
+            except TimeoutError:
+                _LOGGER.warning(
+                    "%s.%s took over %.0f s for %s", domain, service, SPEAKER_START_TIMEOUT, what
+                )
             except Exception:
-                _LOGGER.exception("Failed to call %s.%s for %s", domain, service, what)
+                _LOGGER.exception(
+                    "Home Assistant refused %s.%s on %s for %s",
+                    domain, service, self._speaker, what,
+                )
                 await asyncio.sleep(fallback)
-                return
+                return SpeakerResult.REFUSED
             if not watch:
                 await asyncio.sleep(fallback)
-                return
+                return SpeakerResult.SENT
             try:
                 await asyncio.wait_for(started.wait(), SPEAKER_START_TIMEOUT)
             except TimeoutError:
@@ -453,7 +512,7 @@ class Atmosphere:
                     )
                 else:
                     _LOGGER.warning("%s did not play %s", self._speaker, what)
-                return
+                return SpeakerResult.NOT_STARTED
             self._speaker_reports_state = True
             try:
                 await asyncio.wait_for(finished.wait(), SPEAKER_MAX_LINE)
@@ -462,6 +521,7 @@ class Atmosphere:
                     "%s still playing after %.0f s; moving on", self._speaker, SPEAKER_MAX_LINE
                 )
             await asyncio.sleep(SPEAKER_GAP)
+            return SpeakerResult.PLAYED
         finally:
             if unsub is not None:
                 unsub()

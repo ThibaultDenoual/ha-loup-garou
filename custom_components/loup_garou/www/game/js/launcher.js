@@ -1,4 +1,4 @@
-import { ref, setLanguage, storedLanguage, translate } from './i18n.js';
+import { has, ref, setLanguage, storedLanguage, translate } from './i18n.js';
 import { h, $ } from './dom.js';
 import { connect, send } from './ws.js';
 import * as tts from './tts.js';
@@ -301,11 +301,16 @@ function handleMessage(msg) {
     case 'demo_rejected': setDemoRunning(false, `demo.rejected.${msg.data.reason}`, 'error'); break;
     // "Test the narration" and demos speak through this page in browser mode.
     case 'narrate': tts.speak(msg.data.text, msg.data.lang, msg.data.audio_url ?? null, msg.data.audio_seconds ?? null); break;
-    case 'test_audio_done':
+    case 'test_audio_done': {
       $('btn-test-audio').disabled = false;
-      feedback('test-audio-feedback', 'launcher.config.test_audio_done', 'ok');
-      setTimeout(() => feedback('test-audio-feedback', null), 3000);
+      // On a Home Assistant speaker, the server says what the speaker did.
+      const key = `launcher.config.test_audio_result.${msg.result}`;
+      const ok = !msg.result || msg.result === 'played' || msg.result === 'sent';
+      feedback('test-audio-feedback', msg.result && has(key) ? key : 'launcher.config.test_audio_done', ok ? 'ok' : 'error');
+      // A problem stays on screen until the next test.
+      if (ok) setTimeout(() => feedback('test-audio-feedback', null), 6000);
       break;
+    }
   }
 }
 
