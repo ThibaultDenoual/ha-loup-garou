@@ -140,11 +140,11 @@ All 12 roles are included and fully playable. You pick which roles to include wh
 | 🏹 **Hunter** | Village | On death | When eliminated, takes one player with them |
 | 🧓 **Elder** | Village | — | Survives the first wolf attack; the second is fatal |
 | 🐐 **Scapegoat** | Village | — | Dies instead of no-one when the vote is tied |
-| 👧 **Little Girl** | Village | — | Can peek during the wolf phase — risky! |
+| 👧 **Little Girl** | Village | — | Can peek during the wolves' turn, at the table — don't get caught! |
 | 🧙 **Witch** | Village | Save + poison | Two one-use potions: heal tonight's victim or poison anyone |
 | 💘 **Cupid** | Village | Night 1 only | Links two lovers; if one dies, so does the other |
 | 🐺👑 **Alpha Wolf** | Wolves | Convert | Once per game, converts a villager into a werewolf |
-| 🤫 **Minion** | Wolves | — | Knows the wolves' identity; wins if wolves win |
+| 🤫 **Minion** | Wolves | — | Wins if the wolves win; unknown to them, tries to find them without being caught |
 | ⭐ **Sheriff** | Village | — | Elected; their vote counts double |
 
 ### Win conditions

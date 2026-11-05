@@ -53,7 +53,7 @@
   "role.scapegoat.team": "Village",
 
   "role.little_girl.name": "Little Girl",
-  "role.little_girl.description": "At night, you can try to spy on the wolves. Be careful not to get caught!",
+  "role.little_girl.description": "While the werewolves are awake, you may open your eyes a little to spy on them. Don't get caught!",
   "role.little_girl.team": "Village",
 
   "role.witch.name": "Witch",
@@ -81,7 +81,7 @@
   "role.alpha_wolf.action_prompt": "Designate a villager to convert (or skip).",
 
   "role.minion.name": "Minion",
-  "role.minion.description": "You know the identity of the werewolves. You win if the wolves win.",
+  "role.minion.description": "You are on the werewolves' side, with no powers, and they don't know who you are. You win if the wolves win. Try to find the wolves' identity without being caught.",
   "role.minion.team": "Wolves",
 
   "role.sheriff.name": "Sheriff",

@@ -53,7 +53,7 @@
   "role.scapegoat.team": "Village",
 
   "role.little_girl.name": "Petite Fille",
-  "role.little_girl.description": "La nuit, vous pouvez essayer d'espionner les loups. Attention à ne pas vous faire attraper !",
+  "role.little_girl.description": "Pendant le tour des loups-garous, vous pouvez entrouvrir les yeux pour les espionner. Ne vous faites pas prendre !",
   "role.little_girl.team": "Village",
 
   "role.witch.name": "Sorcière",
@@ -81,7 +81,7 @@
   "role.alpha_wolf.action_prompt": "Désignez un villageois à convertir (ou passez).",
 
   "role.minion.name": "Sbire",
-  "role.minion.description": "Vous connaissez l'identité des loups-garous. Vous gagnez si les loups gagnent.",
+  "role.minion.description": "Vous êtes du côté des loups-garous, sans pouvoir, et ils ne savent pas qui vous êtes. Vous gagnez si les loups gagnent. Essayez de découvrir l'identité des loups sans vous faire prendre.",
   "role.minion.team": "Loups",
 
   "role.sheriff.name": "Shérif",
