@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Loup Garou",
+        "description": "No settings needed here. After adding the integration, open Loup Garou in the sidebar to choose the speaker, lights and language."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Loup Garou is already set up. Only one instance is allowed."
+    }
+  }
+}
