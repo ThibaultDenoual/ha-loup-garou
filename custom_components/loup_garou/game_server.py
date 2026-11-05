@@ -14,6 +14,7 @@ from .const import Phase
 from .demo import DEMOS, DemoRunner, list_demos
 from .game_engine import AnswerResult, GameEngine
 from .narration import NarrationMessage
+from .setup_rules import InvalidSetup, check_players
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -241,6 +242,8 @@ class LoupGarouServer:
     async def _report_error(self, ws: web.WebSocketResponse, cmd, exc: Exception) -> None:
         if isinstance(exc, GameInProgress):
             error = {"type": "error", "code": "game_in_progress", "msg": "A game is in progress."}
+        elif isinstance(exc, InvalidSetup):
+            error = {"type": "error", "code": "invalid_setup", "reason": exc.reason, "msg": str(exc)}
         elif isinstance(exc, (KeyError, TypeError, ValueError)):
             _LOGGER.info("Rejected invalid command %s: %s", cmd, exc)
             if isinstance(exc, KeyError):
@@ -265,7 +268,8 @@ class LoupGarouServer:
             raise ValueError("demo already running")
         if self._engine.get_public_state()["phase"] != Phase.SETUP:
             raise GameInProgress
-        await self._engine.start_game(data["players"], data["roles"])
+        players = check_players(data["players"])
+        await self._engine.start_game(players, data["roles"])
         self._game_task = asyncio.create_task(self._run_game())
 
     async def _run_game(self) -> None:

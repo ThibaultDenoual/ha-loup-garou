@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import aiohttp
+import pytest
 from aiohttp.test_utils import TestServer
 
 from loup_garou.const import GameEvent
@@ -102,7 +103,7 @@ async def test_start_game_opens_a_reveal_for_each_player_in_turn():
     async def _test(connect, engine, server):
         ws = await connect()
         await ws.send_json({"cmd": "start_game", "data": {
-            "players": ["Alice", "Bob"], "roles": ["werewolf", "villager"]}})
+            "players": ["Alice", "Bob", "Carol"], "roles": ["werewolf", "villager", "villager"]}})
         first = await wait_prompt(ws, "reveal")
         assert (first["actor"], first["info"]["role_id"], first["info"]["done"]) == ("p0", "werewolf", 1)
         await answer(ws, first)
@@ -115,7 +116,7 @@ async def test_every_client_receives_the_snapshots():
     async def _test(connect, engine, server):
         ws1, ws2 = await connect(), await connect()
         await ws1.send_json({"cmd": "start_game", "data": {
-            "players": ["A", "B"], "roles": ["werewolf", "villager"]}})
+            "players": ["A", "B", "C"], "roles": ["werewolf", "villager", "villager"]}})
         assert (await wait_prompt(ws1, "reveal"))["id"] == (await wait_prompt(ws2, "reveal"))["id"]
     await play(_test)
 
@@ -123,9 +124,38 @@ async def test_every_client_receives_the_snapshots():
 async def test_mismatched_start_is_a_bad_request_and_stays_in_setup():
     async def _test(connect, engine, server):
         ws = await connect()
-        await ws.send_json({"cmd": "start_game", "data": {"players": ["A"], "roles": []}})
+        await ws.send_json({"cmd": "start_game", "data": {
+            "players": ["A", "B", "C"], "roles": ["werewolf", "villager"]}})
         assert await error_code(ws) == "bad_request"
         assert engine.get_public_state()["phase"] == "setup"
+    await play(_test)
+
+
+@pytest.mark.parametrize("players, reason", [
+    (["A", "B"], "need_players"),
+    (["A", " ", "C"], "empty_name"),
+    (["A", "B", "C" * 21], "long_name"),
+    (["A", "B", "{name}"], "bad_chars"),
+    (["Alice", "Bob", "alice "], "duplicate"),
+])
+async def test_start_game_checks_the_names_like_the_setup_screen(players, reason):
+    async def _test(connect, engine, server):
+        ws = await connect()
+        roles = ["werewolf"] + ["villager"] * (len(players) - 1)
+        await ws.send_json({"cmd": "start_game", "data": {"players": players, "roles": roles}})
+        error = (await drain(ws, until_type="error"))[-1]
+        assert (error["code"], error["reason"]) == ("invalid_setup", reason)
+        assert engine.get_public_state()["phase"] == "setup"
+    await play(_test)
+
+
+async def test_start_game_trims_the_names():
+    async def _test(connect, engine, server):
+        ws = await connect()
+        await ws.send_json({"cmd": "start_game", "data": {
+            "players": [" Alice", "Bob ", "Carol"], "roles": ["werewolf", "villager", "villager"]}})
+        await wait_prompt(ws, "reveal")
+        assert [p["name"] for p in engine.get_public_state()["players"]] == ["Alice", "Bob", "Carol"]
     await play(_test)
 
 
@@ -146,7 +176,7 @@ async def test_double_tap_is_ignored():
     async def _test(connect, engine, server):
         ws = await connect()
         await ws.send_json({"cmd": "start_game", "data": {
-            "players": ["A", "B"], "roles": ["werewolf", "villager"]}})
+            "players": ["A", "B", "C"], "roles": ["werewolf", "villager", "villager"]}})
         first = await wait_prompt(ws, "reveal")
         await answer(ws, first)
         await answer(ws, first)

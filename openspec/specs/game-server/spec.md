@@ -53,6 +53,14 @@ Dispatch SHALL map `KeyError` to `bad_request` with "Missing required field: <na
 - **WHEN** an engine call raises `RuntimeError("/private/path/secret")`
 - **THEN** the client SHALL receive only the sanitized internal error message
 
+### Requirement: Player names checked on start
+
+`start_game` SHALL apply the setup screen's rules to the player names before dealing: at least 3 players, no empty name, at most 20 characters, no `{` or `}`, and no two names that differ only by case. Names SHALL be trimmed first. A broken rule SHALL return `{"type": "error", "code": "invalid_setup", "reason": <reason>}`, where the reason (`need_players`, `empty_name`, `long_name`, `bad_chars`, `duplicate`) names the `ui.setup.hint.<reason>` key the browser shows, and the game SHALL stay in setup.
+
+#### Scenario: Duplicate names from a scripted client
+- **WHEN** a client sends `start_game` with players `Alice`, `Bob` and `alice `
+- **THEN** the server SHALL reply with `invalid_setup` and reason `duplicate`, and no game SHALL start
+
 ### Requirement: Engine event broadcasting
 
 `wire_events()` SHALL subscribe to engine lifecycle events (`game_started`, `phase_changed`, `night_resolved`, `day_started`, `vote_started`, `vote_resolved`, `game_over`) and broadcast full public state, and SHALL broadcast `player_eliminated`, `night_role_wake`, and `night_role_sleep` as typed events to every connected client.
