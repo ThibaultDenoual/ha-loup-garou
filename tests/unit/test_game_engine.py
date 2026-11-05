@@ -173,6 +173,28 @@ async def test_vote_emits_vote_resolved():
     assert events[0]["eliminated"] == carol_id
 
 
+async def test_day_after_vote_says_it_follows_a_vote():
+    engine = make_engine(Villager, Werewolf)
+    await engine.start_game(
+        ["Alice", "Bob", "Carol", "Dave"], ["villager", "villager", "villager", "werewolf"]
+    )
+    ids = {p.name: p.id for p in engine._state.players.values()}
+
+    days = []
+    async def capture(d): days.append(d)
+    engine.on(GameEvent.DAY_STARTED, capture)
+
+    await engine.begin_vote()
+    await engine.resolve_vote({ids["Alice"]: ids["Bob"], ids["Carol"]: ids["Bob"]})
+    await engine.begin_vote()
+    await engine.resolve_vote({ids["Alice"]: ids["Carol"], ids["Carol"]: ids["Alice"]})
+
+    assert days == [
+        {"eliminated": [ids["Bob"]], "after": "vote"},
+        {"eliminated": [], "after": "vote"},
+    ]
+
+
 # ── Witch integration ─────────────────────────────────────────────────────────
 
 async def test_witch_save_prevents_wolf_kill():

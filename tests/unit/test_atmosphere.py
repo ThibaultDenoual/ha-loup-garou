@@ -394,6 +394,33 @@ async def test_on_day_started_with_death_narrates_prelude_then_per_victim():
     assert server.narrate.await_count == 3
 
 
+async def test_on_day_started_after_night_sets_day_lights():
+    server = MagicMock()
+    server.narrate = AsyncMock()
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock) as lights:
+        with patch(_SLEEP, new_callable=AsyncMock):
+            await atm._on_day_started({"eliminated": [], "after": "night"})
+        await asyncio.sleep(0)  # the lights run as a task
+    lights.assert_awaited_once_with("day")
+
+
+@pytest.mark.parametrize("eliminated", [[], ["p0"]])
+async def test_on_day_started_after_vote_keeps_lights_and_stays_silent(eliminated):
+    """#47: the day the engine starts after a vote is not a new dawn."""
+    server = MagicMock()
+    server.narrate = AsyncMock()
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
+    atm._current_scene = "death"
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock) as lights:
+        with patch(_SLEEP, new_callable=AsyncMock):
+            await atm._on_day_started({"eliminated": eliminated, "after": "vote"})
+        await asyncio.sleep(0)
+    lights.assert_not_awaited()
+    server.narrate.assert_not_awaited()
+    assert atm._current_scene == "death"
+
+
 async def test_on_vote_started_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()

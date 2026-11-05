@@ -219,12 +219,12 @@ async def test_the_day_after_a_vote_opens_no_debate():
     with patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_vote_resolved({"eliminated": None, "tie": True})
         server.narrate.reset_mock()
-        await atm._on_day_started({"eliminated": []})
+        await atm._on_day_started({"eliminated": [], "after": "vote"})
         # The verdict has been narrated: nothing is announced again.
         assert server.narrate.await_args_list == []
         # The next dawn debates again.
         server.narrate.reset_mock()
-        await atm._on_day_started({"eliminated": []})
+        await atm._on_day_started({"eliminated": [], "after": "night"})
     assert server.narrate.await_args_list[-1].args[0].audio_url == "/loup_garou/audio/fr/day_debate.mp3"
 
 
@@ -259,5 +259,5 @@ async def test_a_death_by_vote_is_not_announced_again_at_day_start():
     with patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_vote_resolved({"eliminated": None, "tie": False})
         server.narrate.reset_mock()
-        await atm._on_day_started({"eliminated": ["p0"]})
+        await atm._on_day_started({"eliminated": ["p0"], "after": "vote"})
     assert server.narrate.await_args_list == []

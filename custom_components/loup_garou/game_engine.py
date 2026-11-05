@@ -334,12 +334,12 @@ class GameEngine:
 
         await self._emit(GameEvent.VOTE_RESOLVED, {"eliminated": target_id, "tie": tie})
         if target_id is None:
-            await self._start_day()
+            await self._start_day(after="vote")
             return None
 
         eliminated = await self._eliminate([(target_id, cause)])
         if not await self._finish_if_won(ctx, eliminated):
-            await self._start_day(eliminated)
+            await self._start_day(eliminated, after="vote")
         return target_id
 
     async def _enter(self, phase: Phase) -> None:
@@ -347,9 +347,14 @@ class GameEngine:
         await self._publish()
         await self._emit(GameEvent.PHASE_CHANGED, {"phase": phase})
 
-    async def _start_day(self, eliminated: list[str] | None = None) -> None:
+    async def _start_day(
+        self, eliminated: list[str] | None = None, *, after: str = "night"
+    ) -> None:
+        """Enter the day. `after` says whether a night or a vote led here."""
         await self._enter(Phase.DAY)
-        await self._emit(GameEvent.DAY_STARTED, {"eliminated": eliminated or []})
+        await self._emit(
+            GameEvent.DAY_STARTED, {"eliminated": eliminated or [], "after": after}
+        )
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
