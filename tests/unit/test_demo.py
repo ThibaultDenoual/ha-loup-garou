@@ -140,6 +140,7 @@ async def test_smoke_test_day_announcement_lists_the_night_death():
     _, rec, _ = await play()
     # Only one day: the vote ends the game, so no second day is announced.
     assert [d["eliminated"] for d in rec.of(GameEvent.DAY_STARTED)] == [["p0"]]
+    assert [d["after"] for d in rec.of(GameEvent.DAY_STARTED)] == ["night"]
 
 
 async def test_smoke_test_vote_eliminates_the_wolf():

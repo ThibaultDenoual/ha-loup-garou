@@ -47,6 +47,8 @@ class ConsoleRunner:
                 pass  # Day start narration comes from on_day_started
 
         async def on_day_started(data):
+            if data.get("after") == "vote":
+                return  # The vote result was already printed.
             elim = data.get("eliminated", [])
             if not elim:
                 print(f"\n☀️  {self.t('phase.day.start_no_death')}")

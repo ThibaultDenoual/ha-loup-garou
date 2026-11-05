@@ -53,7 +53,6 @@ class Atmosphere:
         self._audio_output = audio_output
         self._server = server
         self._intro_task: asyncio.Task | None = None
-        self._after_vote = False
 
     @property
     def language(self) -> str:
@@ -168,19 +167,18 @@ class Atmosphere:
         await asyncio.sleep(1.0)
 
     async def _on_day_started(self, data: dict) -> None:
+        if data.get("after") == "vote":
+            # The engine also starts a day after each vote. The verdict and any
+            # live deaths have already been narrated, and it isn't a new dawn.
+            return
         # Gentle day brightening starts immediately while players wait in suspense
         asyncio.create_task(self._set_lights("day"))
         self._current_scene = "day"
         eliminated_ids: list[str] = data.get("eliminated", [])
-        # The engine also starts a day after each vote; only a dawn opens the debate.
-        after_vote, self._after_vote = self._after_vote, False
 
         # Dramatic pause while lights brighten — the most tense moment of the game
         await asyncio.sleep(2.5)
 
-        if after_vote:
-            # The verdict and any live deaths have already been narrated.
-            return
         if not eliminated_ids:
             await self.speak(self._narrate("phase.day.start_no_death", delay_key="day_no_death"))
         else:
@@ -215,7 +213,6 @@ class Atmosphere:
     async def _on_vote_resolved(self, data: dict) -> None:
         eliminated_id = data.get("eliminated")
         is_tie = data.get("tie", False)
-        self._after_vote = True
         await asyncio.sleep(0.5)
         if is_tie and not eliminated_id:
             await self.speak(self._narrate("phase.vote.tie", delay_key="vote_result"))
