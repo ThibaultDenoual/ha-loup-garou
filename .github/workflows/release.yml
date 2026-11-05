@@ -11,6 +11,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # v0.2.1 and v0.2.1-beta.1 both need "version": "0.2.1" in the manifest.
+      - name: Check the tag matches the manifest version
+        run: |
+          version=$(python -c "import json; print(json.load(open('custom_components/loup_garou/manifest.json'))['version'])")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "${tag%%-*}" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest version $version"
+            exit 1
+          fi
+
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
@@ -36,5 +46,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          # Tags with a suffix (v0.2.1-beta.1, v0.2.1-rc.1) are pre-releases,
+          # which HACS only offers to users who ask for beta versions.
+          prerelease: ${{ contains(github.ref_name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -200,6 +200,16 @@ pytest --cov=custom_components/loup_garou --cov-report=term-missing
 The test suite uses a real `GameEngine` with real role plugins — only external I/O (HA services, WebSocket clients) is mocked.
 `tests/integration` goes further: Home Assistant's own loader sets up the config entry, and tests go through HA's HTTP server (static files, the authenticated WebSocket view) and record real `light`/`tts` service calls.
 
+### Releasing
+
+The tests cover the engine, the server and the integration inside an in-process Home Assistant, but only a real install shows the speaker, the lights and the phone together. Every release goes through a beta first.
+
+1. Set `"version"` in `custom_components/loup_garou/manifest.json` to the new version (for example `0.2.1`) and merge it.
+2. Tag a beta on `main`: `git tag v0.2.1-beta.1 && git push origin v0.2.1-beta.1`. The Release workflow checks the tag against the manifest, runs the tests and publishes a pre-release.
+3. In HACS, open Loup Garou, then the three-dot menu → **Redownload**. Turn on beta versions, pick the beta, download it and restart Home Assistant.
+4. Play at least one round on a phone with the speaker and lights you use: role reveal, a night, a vote, and the end of the game.
+5. Fix anything that breaks and tag the next beta (`-beta.2`), or tag the release: `git tag v0.2.1 && git push origin v0.2.1`.
+
 ---
 
 ## 🤝 Contributing
