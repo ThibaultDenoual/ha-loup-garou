@@ -166,8 +166,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ],
         }
 
-    async def _test_audio() -> None:
-        await atmosphere.speak(atmosphere._narrate("phase.night.start", delay_key="night_start"))
+    async def _test_audio() -> str | None:
+        return await atmosphere.test_speaker()
 
     server.set_save_callback(_save_config)
     server.set_entities_callback(_get_entities)

@@ -84,6 +84,19 @@ async def test_get_config_returns_config():
     await play(_test)
 
 
+@pytest.mark.parametrize("result", ["played", "not_started", None])
+async def test_test_audio_reports_what_the_speaker_did(result):
+    async def _test(connect, engine, server):
+        async def _speak():
+            return result
+        server.set_test_audio_callback(_speak)
+        ws = await connect()
+        await ws.send_json({"cmd": "test_audio"})
+        done = (await drain(ws, until_type="test_audio_done"))[-1]
+        assert done["result"] == result
+    await play(_test)
+
+
 async def test_old_game_commands_are_gone():
     async def _test(connect, engine, server):
         ws = await connect()

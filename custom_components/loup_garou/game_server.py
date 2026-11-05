@@ -215,13 +215,15 @@ class LoupGarouServer:
                 case "test_audio":
                     if self._test_audio_cb:
                         async def _run_test(target_ws=ws):
+                            result = None
                             try:
-                                await self._test_audio_cb()
+                                result = await self._test_audio_cb()
                             finally:
-                                try:
-                                    await target_ws.send_json({"type": "test_audio_done"})
-                                except Exception:
-                                    pass
+                                # result says what the HA speaker did; None in the browser.
+                                with contextlib.suppress(Exception):
+                                    await target_ws.send_json(
+                                        {"type": "test_audio_done", "result": result}
+                                    )
                         asyncio.create_task(_run_test())
                 case "get_demos":
                     await ws.send_json({"type": "demo_presets", "presets": list_demos()})
