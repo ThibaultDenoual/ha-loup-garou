@@ -119,6 +119,9 @@ export function toast(key, vars, ms = 4000) {
 
 // Server errors carry a code; show its translation, never the raw English msg.
 export function toastError(msg) {
+  // The server repeats the setup screen's checks and names the same hint.
+  const hint = `ui.setup.hint.${msg.reason}`;
+  if (msg.code === 'invalid_setup' && has(hint)) return toast(hint);
   const key = `ui.error.${msg.code}`;
   toast(has(key) ? key : 'ui.error.generic');
 }

@@ -142,7 +142,7 @@ async def test_run_demo_without_preset_field_errors():
 
 async def test_run_demo_during_a_real_game_is_rejected():
     async def _test(ws, engine, srv):
-        await send(ws, "start_game", players=["Alice", "Bob"], roles=["werewolf", "villager"])
+        await send(ws, "start_game", players=["Alice", "Bob", "Carol"], roles=["werewolf", "villager", "villager"])
         await drain(ws, until_type="snapshot",
                     predicate=lambda m: m["state"]["phase"] == "role_reveal")
 
@@ -168,7 +168,7 @@ async def test_start_game_during_a_demo_is_refused():
     async def _test(ws, engine, srv):
         await send(ws, "run_demo", preset="smoke_test")
         await drain(ws, until_type="demo_started")
-        await send(ws, "start_game", players=["Alice", "Bob"], roles=["werewolf", "villager"])
+        await send(ws, "start_game", players=["Alice", "Bob", "Carol"], roles=["werewolf", "villager", "villager"])
         msgs = await drain(ws, until_type="error")
         assert "demo already running" in msgs[-1]["msg"]
 
@@ -217,10 +217,10 @@ async def test_engine_is_playable_again_after_a_stopped_demo():
         await send(ws, "stop_demo")
         await drain(ws, until_type="demo_stopped")
 
-        await send(ws, "start_game", players=["Alice", "Bob"], roles=["werewolf", "villager"])
+        await send(ws, "start_game", players=["Alice", "Bob", "Carol"], roles=["werewolf", "villager", "villager"])
         msgs = await drain(ws, until_type="snapshot",
                            predicate=lambda m: m["state"]["phase"] == "role_reveal")
-        assert [p["name"] for p in msgs[-1]["state"]["players"]] == ["Alice", "Bob"]
+        assert [p["name"] for p in msgs[-1]["state"]["players"]] == ["Alice", "Bob", "Carol"]
 
     await ws_for(_test, demo_action_delay=30, demo_step_delay=0)
 
