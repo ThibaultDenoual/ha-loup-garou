@@ -35,11 +35,15 @@ On `night_role_wake` Atmosphere SHALL set the mapped per-role scene (cupid, seer
 
 ### Requirement: Day announcement
 
-On `day_started` Atmosphere SHALL apply the `day` scene, speak the no-death line when the eliminated list is empty, and otherwise announce each eliminated player by name, article, and role.
+On `day_started` after a night (`after: "night"`) Atmosphere SHALL apply the `day` scene, speak the no-death line when the eliminated list is empty, and otherwise announce each eliminated player by name, article, and role. On `day_started` after a vote (`after: "vote"`) it SHALL leave the lights as they are and say nothing, since the verdict has already been narrated.
 
 #### Scenario: Morning after a kill
-- **WHEN** day starts with one eliminated player
+- **WHEN** day starts after a night with one eliminated player
 - **THEN** Atmosphere SHALL speak the with-death line using the player's name and role
+
+#### Scenario: Day after a vote
+- **WHEN** day starts after a vote that eliminated a player
+- **THEN** Atmosphere SHALL change no light and speak no line
 
 ### Requirement: Live elimination narration
 
