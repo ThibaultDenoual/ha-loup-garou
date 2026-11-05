@@ -1,10 +1,11 @@
 *.pyc
 pycache/
-archive/
+/archive/
 
 # Private documentation
 *.md
 !README.md
+!openspec/**/*.md
 docs/
 
 # Local screenshots and scratch output
