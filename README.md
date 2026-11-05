@@ -8,7 +8,7 @@ Lights flicker at nightfall. TTS narrates every elimination. One phone, passed a
 [![Tests](https://github.com/ThibaultDenoual/ha-loup-garou/actions/workflows/tests.yml/badge.svg)](https://github.com/ThibaultDenoual/ha-loup-garou/actions/workflows/tests.yml)
 [![Validate](https://github.com/ThibaultDenoual/ha-loup-garou/actions/workflows/validate.yml/badge.svg)](https://github.com/ThibaultDenoual/ha-loup-garou/actions/workflows/validate.yml)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-%3E%3D2024.1-blue.svg)](https://www.home-assistant.io)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-%3E%3D2024.4-blue.svg)](https://www.home-assistant.io)
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB.svg)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GitHub Release](https://img.shields.io/github/v/release/ThibaultDenoual/ha-loup-garou?sort=semver)](https://github.com/ThibaultDenoual/ha-loup-garou/releases)
@@ -25,11 +25,11 @@ Lights flicker at nightfall. TTS narrates every elimination. One phone, passed a
 
 This Home Assistant integration turns your lights and speakers into an immersive game master:
 
-- 🌑 **Lights dim to deep red** when night falls
+- 🌑 **Lights dim** when night falls and take each role's colour when it wakes
 - 🔊 **TTS narrates** every death, vote result, and game event
 - 📱 **One-phone UI** — a web app you pass between players; no app install required
 - 🎭 **12 playable roles** with full night-action logic
-- 🌍 **French & English** — language auto-follows your HA locale
+- 🌍 **French & English** — pick the language in the game settings
 - 🏠 **HA-optional** — the game engine runs standalone without Home Assistant
 
 ---
@@ -67,7 +67,7 @@ The phone UI follows the game clock: night for secret roles and night turns, day
 | **Hunter's last shot** | Drag someone along in death |
 | **Scapegoat** | Dies on vote ties so the game never stalls |
 | **Bilingual** | Full FR and EN locale files |
-| **Zero app install** | Game UI is served directly from HA at `/local/loup_garou/game/` |
+| **Zero app install** | Opens from **Loup Garou** in the Home Assistant sidebar, in the HA app or a browser |
 
 ---
 
@@ -76,9 +76,9 @@ The phone UI follows the game clock: night for secret roles and night turns, day
 ### Via HACS (recommended)
 
 1. Open **HACS** in your Home Assistant sidebar.
-2. Go to **Integrations** → click the three-dot menu → **Custom repositories**.
-3. Add `https://github.com/ThibaultDenoual/ha-loup-garou` as an **Integration**.
-4. Search for **Loup Garou** and install it.
+2. Click the three-dot menu → **Custom repositories**.
+3. Add `https://github.com/ThibaultDenoual/ha-loup-garou` with the type **Integration**.
+4. Search for **Loup Garou** and download it.
 5. Restart Home Assistant.
 
 ### Manual
@@ -91,31 +91,32 @@ The phone UI follows the game clock: night for secret roles and night turns, day
 
 ## ⚙️ Configuration
 
-After restarting, add the integration from **Settings → Devices & Services → Add Integration → Loup Garou**.
+No YAML needed.
 
-You will be asked to configure:
+1. Go to **Settings → Devices & Services → Add Integration** and pick **Loup Garou**. It asks no questions.
+2. Open **Loup Garou** in the Home Assistant sidebar. It works in the Home Assistant app and in a browser logged into Home Assistant.
+3. Tap **Back to the hub**, then open the **Game setup** tab. Every change is saved as soon as you make it.
 
-| Option | Description |
+| Setting | Choices |
 |---|---|
-| **Speaker** | The `media_player` entity used for TTS narration |
-| **Lights** | Light entities to control during day/night atmosphere |
-| **Language** | `fr` (French) or `en` (English) |
+| **Language** | French (default) or English |
+| **Voice** | Text-to-speech, or the recorded voice |
+| **Play narration on** | This device's browser (default), or a Home Assistant speaker |
+| **Speaker** and **Text-to-speech engine** | Used when narration plays on a Home Assistant speaker |
+| **Ambient lights** | The lights that follow the night and each role's turn |
 
-Once configured, open the game UI on any device connected to your local network:
+Lights and a speaker are optional: by default the phone itself narrates the game. Use **Test the narration** to check your choice before the players arrive.
 
-```
-http://<your-ha-ip>:8123/local/loup_garou/game/
-```
+> **Tip:** Set the phone's screen to stay on. It gets passed between players — no accounts, no QR codes.
 
-> **Tip:** Bookmark this URL and set your screen to stay on. The phone gets passed between players — no accounts, no QR codes.
+> **Note:** A game lives in memory. Restarting Home Assistant in the middle of a game ends it, and you start a new one.
 
 ### 🧪 Demo mode
 
 > **Beta** — available since `v0.2.0-beta.1`. Reports and feedback welcome.
 
 Before inviting people over, check that your lights and voice actually work. The
-launcher (`http://<your-ha-ip>:8123/loup_garou/game/launcher.html`) can play a
-scripted game on its own — no players needed, no setup.
+hub can play a scripted game on its own — no players needed, no setup.
 
 | Scenario | What it shows you |
 |---|---|

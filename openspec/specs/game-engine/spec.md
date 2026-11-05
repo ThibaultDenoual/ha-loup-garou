@@ -26,7 +26,11 @@ The engine SHALL keep a single `GameState` holding players (id, name, role, aliv
 
 ### Requirement: Event publication
 
-The engine SHALL expose `on(event, handler)` and emit `GameEvent` signals (`game_started`, `game_over`, `phase_changed`, `player_eliminated`, `night_role_wake`, `night_role_sleep`, `night_resolved`, `day_started`, `vote_started`, `vote_resolved`).
+The engine SHALL expose `on(event, handler)` and emit `GameEvent` signals (`game_started`, `game_over`, `phase_changed`, `player_eliminated`, `night_role_wake`, `night_role_sleep`, `night_resolved`, `day_started`, `vote_started`, `vote_resolved`). `day_started` SHALL carry the eliminated player ids and `after`, set to `night` when a night led to the day and `vote` when a vote did.
+
+#### Scenario: Day after a vote
+- **WHEN** a vote eliminates a player and the game goes on
+- **THEN** the engine SHALL emit `day_started` with that player in `eliminated` and `after` set to `vote`
 
 #### Scenario: Handler failure is isolated
 - **WHEN** one event handler raises
