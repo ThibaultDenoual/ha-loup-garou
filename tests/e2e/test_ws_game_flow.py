@@ -1,6 +1,8 @@
 """The JSON protocol the browser depends on: prompts, answers and snapshots."""
 from __future__ import annotations
 
+import asyncio
+
 import aiohttp
 import pytest
 from aiohttp.test_utils import TestServer
@@ -81,6 +83,23 @@ async def test_get_config_returns_config():
         ws = await connect()
         await ws.send_json({"cmd": "get_config"})
         assert "config" in (await drain(ws, until_type="config"))[-1]
+    await play(_test)
+
+
+async def test_narration_waits_for_the_clip_length_when_the_browser_is_silent(monkeypatch):
+    from loup_garou import game_server
+
+    monkeypatch.setattr(game_server, "NARRATION_MARGIN", 0.1)
+
+    async def _test(connect, engine, server):
+        ws = await connect()
+        loop = asyncio.get_running_loop()
+        start = loop.time()
+        # The client never answers tts_done: the server gives up after the clip plus the margin.
+        await server.narrate(NarrationMessage(text="x", lang="fr", audio_url="/a.mp3", audio_seconds=0.4))
+        assert 0.45 <= loop.time() - start < 1.5
+        narrate = (await drain(ws, until_type="narrate"))[-1]
+        assert narrate["data"]["audio_seconds"] == 0.4
     await play(_test)
 
 

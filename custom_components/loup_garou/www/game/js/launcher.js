@@ -300,7 +300,7 @@ function handleMessage(msg) {
     case 'demo_error': setDemoRunning(false, 'demo.failed', 'error'); break;
     case 'demo_rejected': setDemoRunning(false, `demo.rejected.${msg.data.reason}`, 'error'); break;
     // "Test the narration" and demos speak through this page in browser mode.
-    case 'narrate': tts.speak(msg.data.text, msg.data.lang, msg.data.audio_url ?? null); break;
+    case 'narrate': tts.speak(msg.data.text, msg.data.lang, msg.data.audio_url ?? null, msg.data.audio_seconds ?? null); break;
     case 'test_audio_done':
       $('btn-test-audio').disabled = false;
       feedback('test-audio-feedback', 'launcher.config.test_audio_done', 'ok');
