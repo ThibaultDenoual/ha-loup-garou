@@ -23,6 +23,10 @@ AUTH_TIMEOUT = 10.0
 
 INTERNAL_ERROR = "An internal error occurred. Check the server logs."
 
+# How much longer than a line's expected length to wait for the browser's
+# tts_done: a clip can start late, and the phone waits a bit on a stalled clip.
+NARRATION_MARGIN = 6.0
+
 
 class GameInProgress(Exception):
     """start_game arrived outside the setup phase."""
@@ -157,19 +161,21 @@ class LoupGarouServer:
     async def narrate(self, msg: NarrationMessage) -> None:
         """Broadcast a narration request and wait for the browser to confirm playback.
 
-        Blocks until any connected client sends tts_done, or until the 10-second
-        timeout fires so a disconnected client never stalls the game.
+        Blocks until any connected client sends tts_done, or until the line's
+        expected length plus NARRATION_MARGIN, so a disconnected client never
+        stalls the game and a long clip is never cut short.
         When msg.audio_url is set the browser plays a pre-recorded MP3 instead of
         synthesising speech, falling back to Web Speech API on error.
         """
         if not self._clients:
             return
         self._tts_future = asyncio.get_running_loop().create_future()
+        timeout = msg.expected_seconds() + NARRATION_MARGIN
         try:
             await self.broadcast({"type": "narrate", "data": msg.to_payload()})
-            await asyncio.wait_for(self._tts_future, timeout=10.0)
+            await asyncio.wait_for(self._tts_future, timeout=timeout)
         except asyncio.TimeoutError:
-            _LOGGER.warning("Browser TTS timed out after 10 s for: %.60s", msg.text)
+            _LOGGER.warning("Browser narration timed out after %.0f s for: %.60s", timeout, msg.text)
         except asyncio.CancelledError:
             # Expected when a demo is stopped mid-narration — the caller unwinds.
             _LOGGER.debug("Narration cancelled: %.60s", msg.text)

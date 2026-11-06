@@ -95,11 +95,19 @@ Static copy SHALL resolve through locale JSON loaded for `en`/`fr` (falling back
 
 ### Requirement: Browser narration handshake
 
-In browser TTS mode the UI SHALL speak `narrate` messages with the Web Speech API and send `tts_done` after playback; when speech synthesis is unavailable or errors it SHALL send `tts_done` immediately so the game never stalls.
+The UI SHALL play a `narrate` message's recorded clip when it has one, otherwise speak its text with the Web Speech API, and send `tts_done` once the line is over.
 
-#### Scenario: No speech synthesis
-- **WHEN** `window.speechSynthesis` is absent
-- **THEN** the client SHALL acknowledge the narration instantly
+Every clip SHALL play through one shared audio element, which the first tap on the page unlocks, so lines that start without a tap still play on phones that only allow sound from a tap (the Android Companion App's WebView).
+
+When neither the clip nor speech can play, the UI SHALL wait for the line's length (`audio_seconds`, or an estimate from the text) before sending `tts_done`, so the game keeps its pace in silence. A clip or utterance that never ends SHALL be given up a few seconds after its expected length.
+
+#### Scenario: Line after the first tap
+- **WHEN** the page has been tapped once and a `narrate` message arrives later with no tap
+- **THEN** its clip SHALL play
+
+#### Scenario: Nothing can play
+- **WHEN** a clip is refused and `window.speechSynthesis` is absent
+- **THEN** the client SHALL send `tts_done` after about `audio_seconds`, not at once
 
 ### Requirement: Reduced motion and atmosphere budget
 

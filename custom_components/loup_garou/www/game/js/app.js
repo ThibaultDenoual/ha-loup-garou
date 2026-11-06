@@ -55,7 +55,7 @@ function currentView() {
 function handleMessage(msg) {
   switch (msg.type) {
     case 'snapshot':  onSnapshot(msg.state); break;
-    case 'narrate':   tts.speak(msg.data.text, msg.data.lang, msg.data.audio_url ?? null); break;
+    case 'narrate':   tts.speak(msg.data.text, msg.data.lang, msg.data.audio_url ?? null, msg.data.audio_seconds ?? null); break;
     case 'config':    onConfig(msg.config || {}); break;
     case 'error':     ui.toastError(msg); break;
   }

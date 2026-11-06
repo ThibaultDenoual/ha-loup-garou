@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# Rough speaking rate, as in www/game/js/tts.js.
+CHARS_PER_SECOND = 14
+
 
 @dataclass
 class NarrationMessage:
@@ -16,4 +19,12 @@ class NarrationMessage:
         payload = {"text": self.text, "lang": self.lang}
         if self.audio_url:
             payload["audio_url"] = self.audio_url
+        if self.audio_seconds:
+            payload["audio_seconds"] = self.audio_seconds
         return payload
+
+    def expected_seconds(self) -> float:
+        """How long the line should last: the clip, or an estimate from the text."""
+        if self.audio_seconds:
+            return self.audio_seconds
+        return max(1.5, len(self.text) / CHARS_PER_SECOND)

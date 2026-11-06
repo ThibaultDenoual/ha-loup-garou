@@ -26,7 +26,7 @@ from aiohttp import web
 
 from loup_garou.game_engine import GameEngine
 from loup_garou.game_server import LoupGarouServer
-from loup_garou.const import STATIC_AUDIO_MAP
+from loup_garou.const import STATIC_AUDIO_MAP, STATIC_AUDIO_SECONDS
 from loup_garou.narration import NarrationMessage
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
@@ -52,11 +52,14 @@ def build_app(port: int, language: str = "fr") -> web.Application:
         locale_path = ROOT / "custom_components" / "loup_garou" / "locales" / f"{lang}.json"
         locale = _json.loads(locale_path.read_text())
         text = locale.get(locale_key, "Test audio")
-        audio_url = None
+        audio_url = audio_seconds = None
         if audio_source == "static" and locale_key in STATIC_AUDIO_MAP:
             stem = STATIC_AUDIO_MAP[locale_key]
             audio_url = f"/loup_garou/audio/{lang}/{stem}.mp3"
-        await server.narrate(NarrationMessage(text=text, lang=lang, audio_url=audio_url))
+            audio_seconds = STATIC_AUDIO_SECONDS.get(lang, {}).get(stem)
+        await server.narrate(NarrationMessage(
+            text=text, lang=lang, audio_url=audio_url, audio_seconds=audio_seconds,
+        ))
 
     server.set_test_audio_callback(_test_audio)
 

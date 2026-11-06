@@ -79,7 +79,7 @@ For each `night_role_wake` broadcast the server SHALL resolve `pending_kills` en
 
 ### Requirement: Browser TTS handshake
 
-In browser TTS mode the server SHALL broadcast `{"type": "narrate", "data": {"text", "lang"}}`, block until a client sends `tts_done`, and release after a 10-second timeout so narration can never stall the game; with no connected clients it SHALL skip narration instantly.
+In browser TTS mode the server SHALL broadcast `{"type": "narrate", "data": {"text", "lang", "audio_url"?, "audio_seconds"?}}`, block until a client sends `tts_done`, and release after the line's expected length (the clip's `audio_seconds`, or an estimate from the text) plus `NARRATION_MARGIN`, so narration can never stall the game nor cut a long clip short; with no connected clients it SHALL skip narration instantly.
 
 #### Scenario: No clients connected
 - **WHEN** `narrate` is called with an empty client set
