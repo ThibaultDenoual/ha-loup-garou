@@ -4,17 +4,19 @@
  * long as the line would have lasted, so the game keeps its pace in silence.
  * Every line ends with tts_done, which lets the server move on.
  *
- * Phones (the Android Companion App's WebView in particular) only let a sound
- * start from a tap, and they count that per audio element. So every clip
- * plays through one element, unlocked by the first tap on the page and then
- * reused, which lets later lines start on their own.
+ * Phones only let sound start shortly after a tap: the Android Companion App's
+ * WebView refuses an <audio> play() a few seconds after the last tap, even on
+ * an element that already played. So clips play through the Web Audio API:
+ * a tap starts one AudioContext, and once running it plays every later clip
+ * without asking again. Each tap also resumes it, in case the phone suspended
+ * it (screen lock, app in the background).
  */
 
 let _send;
-const _player = new Audio();
-_player.preload = 'auto';
-let _unlocked = false;
-let _current = null;   // { finish } for the line in progress
+let _context = null;
+const _buffers = new Map();   // url → Promise<AudioBuffer>
+const _fallbackPlayer = new Audio();
+let _current = null;          // the line in progress
 
 // Rough speaking rate, used when a line has no known length.
 const CHARS_PER_SECOND = 14;
@@ -30,34 +32,37 @@ export function init(send) {
   }
 }
 
-// A short silent WAV: 8 kHz, 8-bit mono, 50 ms of the mid value 128.
-function _silence() {
-  const samples = 400;
-  const bytes = new Uint8Array(44 + samples);
-  const view = new DataView(bytes.buffer);
-  const text = (offset, s) => [...s].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
-  text(0, 'RIFF'); view.setUint32(4, 36 + samples, true); text(8, 'WAVE');
-  text(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true); view.setUint32(24, 8000, true); view.setUint32(28, 8000, true);
-  view.setUint16(32, 1, true); view.setUint16(34, 8, true);
-  text(36, 'data'); view.setUint32(40, samples, true);
-  bytes.fill(128, 44);
-  return `data:audio/wav;base64,${btoa(String.fromCharCode(...bytes))}`;
-}
-
-// Inside a tap: play silence on the shared element so the phone unlocks it.
-function _unlock() {
-  if (_unlocked || _current) return;
-  _player.src = _silence();
-  const attempt = _player.play();
-  if (attempt) {
-    attempt.then(() => { _unlocked = true; _report('unlocked'); }).catch(() => {});
+function _audioContext() {
+  if (!_context) {
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context) return null;
+    _context = new Context();
+    const report = () => { if (_context.state === 'running') _report('unlocked'); };
+    _context.addEventListener('statechange', report);
+    if (_context.state === 'running') queueMicrotask(report);
   }
+  return _context;
 }
 
-// Lets tests (and curious developers) follow what the narration did.
+// Inside a tap: start (or resume) the AudioContext, with a silent buffer so
+// every WebView counts it as sound started by the user.
+function _unlock(event) {
+  const context = _audioContext();
+  if (!context || context.state === 'running') return;
+  const silence = context.createBufferSource();
+  silence.buffer = context.createBuffer(1, 1, 22050);
+  silence.connect(context.destination);
+  silence.start(0);
+  context.resume().catch(error => _report('resume-refused', { on: event?.type, error: String(error) }));
+}
+
+// Lets tests follow what the narration did, and sends it to the server's
+// debug log: phones give no other way to see why a line stayed silent.
 function _report(status, detail = {}) {
   document.dispatchEvent(new CustomEvent('narration', { detail: { status, ...detail } }));
+  try {
+    _send?.('narration_log', { status, audio: _context ? _context.state : 'none', ...detail });
+  } catch { /* the socket may be closed */ }
 }
 
 function _estimateMs(text, seconds) {
@@ -87,18 +92,74 @@ function _speech(text, lang, ms, finish) {
   speechSynthesis.speak(utt);
 }
 
-function _clip(url, text, lang, ms, finish) {
+function _decode(url) {
+  if (!_buffers.has(url)) {
+    const loading = fetch(url)
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.arrayBuffer();
+      })
+      .then(data => _context.decodeAudioData(data));
+    loading.catch(() => _buffers.delete(url));  // try again next time
+    _buffers.set(url, loading);
+  }
+  return _buffers.get(url);
+}
+
+// Through the running AudioContext: no tap needed. Returns false if it can't.
+async function _webAudio(url, line, finish) {
+  const context = _audioContext();
+  if (!context || context.state !== 'running') {
+    _report('webaudio-not-running', { url });
+    return false;
+  }
+  let buffer;
+  try {
+    buffer = await _decode(url);
+  } catch (error) {
+    _report('decode-failed', { url, error: String(error) });
+    return false;
+  }
+  if (line.over) return true;
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(context.destination);
+  source.onended = finish;
+  line.stop = () => {
+    source.onended = null;
+    try { source.stop(); } catch { /* already over */ }
+  };
+  source.start();
+  _report('played', { url, via: 'webaudio' });
+  return true;
+}
+
+// Before any tap, a plain <audio> element is the only chance (desktop browsers
+// allow it); a refusal falls back to speech, then to silence.
+function _element(url, text, lang, ms, line, finish) {
   const fallback = () => {
     _report('blocked', { url });
     _speech(text, lang, ms, finish);
   };
-  _player.onended = finish;
-  _player.onerror = fallback;
-  _player.src = url;
+  _fallbackPlayer.onended = finish;
+  _fallbackPlayer.onerror = fallback;
+  _fallbackPlayer.src = url;
+  line.stop = () => {
+    _fallbackPlayer.onended = _fallbackPlayer.onerror = null;
+    _fallbackPlayer.pause();
+  };
+  const attempt = _fallbackPlayer.play();
+  if (attempt) {
+    attempt.then(() => _report('played', { url, via: 'element' }))
+      .catch(error => { _report('element-refused', { url, error: String(error) }); fallback(); });
+  }
+}
+
+async function _clip(url, text, lang, ms, line, finish) {
   // A clip that stalls (network, decoder) still ends the line.
   _wait(ms + STALL_MARGIN_MS, finish);
-  const attempt = _player.play();
-  if (attempt) attempt.then(() => _report('played', { url })).catch(fallback);
+  if (await _webAudio(url, line, finish)) return;
+  if (!line.over) _element(url, text, lang, ms, line, finish);
 }
 
 /**
@@ -108,29 +169,30 @@ function _clip(url, text, lang, ms, finish) {
 export function speak(text, lang = 'fr', audioUrl = null, seconds = null) {
   if (_current) _current.cancel();
   return new Promise(resolve => {
-    let over = false;
     const line = {
+      over: false,
+      stop: () => {},
       finish() {
-        if (over) return;
-        over = true;
-        _player.onended = _player.onerror = null;
+        if (line.over) return;
+        line.over = true;
+        line.stop();
         if (_current === line) _current = null;
         _send('tts_done');
         resolve();
       },
       cancel() {
-        if (over) return;
-        over = true;
-        _player.onended = _player.onerror = null;
-        _player.pause();
+        if (line.over) return;
+        line.over = true;
+        line.stop();
         if (window.speechSynthesis) speechSynthesis.cancel();
         resolve();
       },
     };
     _current = line;
+    _report('line', { url: audioUrl, text: (text || '').slice(0, 40) });
     const ms = _estimateMs(text, seconds);
     const finish = () => line.finish();
-    if (audioUrl) _clip(audioUrl, text, lang, ms, finish);
+    if (audioUrl) _clip(audioUrl, text, lang, ms, line, finish);
     else _speech(text, lang, ms, finish);
   });
 }

@@ -43,7 +43,7 @@ The integration SHALL register a Home Assistant HTTP view at `/loup_garou/ws` wi
 
 ### Requirement: Game UI and locale hosting
 
-The integration SHALL register static paths serving the browser game at `/{DOMAIN}/game` and the locale JSON files at `/{DOMAIN}/locales`.
+The integration SHALL serve the browser game at `/{DOMAIN}/game` with `Cache-Control: no-cache` (refusing paths outside the game folder), and register static paths for the locale JSON files at `/{DOMAIN}/locales` and the clips at `/{DOMAIN}/audio`. The config sent to pages SHALL carry `build`, a fingerprint of the game's web files.
 
 #### Scenario: Launcher load
 - **WHEN** a browser requests `/loup_garou/game/launcher.html`

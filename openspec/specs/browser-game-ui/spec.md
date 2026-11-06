@@ -99,16 +99,24 @@ Static copy SHALL resolve through locale JSON loaded for `en`/`fr` (falling back
 - **WHEN** the server config says `language: "en"`
 - **THEN** the game UI SHALL render English strings
 
+### Requirement: Reload after an update
+
+Pages SHALL remember the `build` in the first config they receive and reload themselves when a later config, after a reconnect, carries a different one, so a page kept open across a Home Assistant restart never runs an older game.
+
+#### Scenario: Update while the app is open
+- **WHEN** Home Assistant restarts with new game files and the open page reconnects
+- **THEN** the page SHALL reload
+
 ### Requirement: Browser narration handshake
 
 The UI SHALL play a `narrate` message's recorded clip when it has one, otherwise speak its text with the Web Speech API, and send `tts_done` once the line is over.
 
-Every clip SHALL play through one shared audio element, which the first tap on the page unlocks, so lines that start without a tap still play on phones that only allow sound from a tap (the Android Companion App's WebView).
+Clips SHALL play through the Web Audio API: a tap starts (or resumes) one `AudioContext`, which then plays every later clip without a tap, so lines that start long after the last tap still play on phones that only allow sound shortly after one (the Android Companion App's WebView). Before any tap, a plain audio element is tried.
 
 When neither the clip nor speech can play, the UI SHALL wait for the line's length (`audio_seconds`, or an estimate from the text) before sending `tts_done`, so the game keeps its pace in silence. A clip or utterance that never ends SHALL be given up a few seconds after its expected length.
 
 #### Scenario: Line after the first tap
-- **WHEN** the page has been tapped once and a `narrate` message arrives later with no tap
+- **WHEN** the page has been tapped once and a `narrate` message arrives seconds later with no tap
 - **THEN** its clip SHALL play
 
 #### Scenario: Nothing can play

@@ -80,3 +80,27 @@ async def test_websocket_round_trip(hass: HomeAssistant, setup_entry, game_ws) -
         msg = await ws.receive_json(timeout=2)
         assert msg["type"] == "snapshot"
         assert msg["state"]["phase"] == "setup"
+
+
+async def test_game_files_must_be_checked_before_reuse(
+    hass: HomeAssistant, setup_entry, hass_client_no_auth
+) -> None:
+    # A browser may reuse a file without caching headers for hours (#77).
+    client = await hass_client_no_auth()
+    page = await client.get("/loup_garou/game/js/tts.js")
+    assert page.status == 200
+    assert page.headers["Cache-Control"] == "no-cache"
+    for path in ("/loup_garou/game/../manifest.json", "/loup_garou/game/%2e%2e/manifest.json",
+                 "/loup_garou/game/js", "/loup_garou/game/nope.js"):
+        assert (await client.get(path)).status == 404, path
+
+
+async def test_the_config_carries_the_build(hass: HomeAssistant, setup_entry, game_ws) -> None:
+    from custom_components.loup_garou.const import BUILD
+
+    async with game_ws() as ws:
+        await ws.send_json({"cmd": "get_config"})
+        msg = await ws.receive_json(timeout=2)
+        while msg.get("type") != "config":
+            msg = await ws.receive_json(timeout=2)
+    assert msg["config"]["build"] == BUILD

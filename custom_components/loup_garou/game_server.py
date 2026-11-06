@@ -208,6 +208,9 @@ class LoupGarouServer:
                     await ws.send_json(self._snapshot_message())
                 case "get_config":
                     await ws.send_json({"type": "config", "config": self._config})
+                case "narration_log":
+                    # What the phone's narration player did (tts.js), for debugging.
+                    _LOGGER.debug("Phone narration: %s", data)
                 case "tts_done":
                     if self._tts_future and not self._tts_future.done():
                         self._tts_future.set_result(None)

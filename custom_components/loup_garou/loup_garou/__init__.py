@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from ..const import (
     DOMAIN, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
     CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT,
-    DEFAULT_TTS_ENGINE, DEFAULT_AUDIO_SOURCE, DEFAULT_AUDIO_OUTPUT, VERSION,
+    DEFAULT_TTS_ENGINE, DEFAULT_AUDIO_SOURCE, DEFAULT_AUDIO_OUTPUT, VERSION, BUILD,
 )
 from ..game_engine import GameEngine
 from ..game_server import LoupGarouServer
@@ -106,6 +106,7 @@ def server_config(conf: dict) -> dict:
         "lights":       conf[CONF_LIGHTS],
         "tts_engine":   conf[CONF_TTS_ENGINE],
         "version":      VERSION,
+        "build":        BUILD,
     }
 
 
@@ -182,6 +183,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if not hass.data.get(_ROUTES_REGISTERED):
         hass.http.register_view(_make_websocket_view(hass))
+        hass.http.register_view(_make_game_files_view())
         await _register_static_paths(hass)
         hass.data[_ROUTES_REGISTERED] = True
 
@@ -231,6 +233,34 @@ def _make_websocket_view(hass: HomeAssistant):
     return _WebSocketView()
 
 
+def _make_game_files_view():
+    from pathlib import Path
+
+    from aiohttp import web
+    from homeassistant.components.http import HomeAssistantView
+
+    root = (Path(__file__).parent.parent / "www" / "game").resolve()
+
+    class _GameFilesView(HomeAssistantView):
+        """The game's pages and scripts, which the browser must check before reuse.
+
+        Without a caching header, browsers may reuse a file for hours; with
+        no-cache they ask first and get a cheap 304 when nothing changed.
+        """
+
+        url = f"/{DOMAIN}/game/{{path:.+}}"
+        name = f"{DOMAIN}_game"
+        requires_auth = False  # the panel iframe loads it without a token
+
+        async def get(self, request, path: str):
+            file = (root / path).resolve()
+            if not file.is_relative_to(root) or not file.is_file():
+                return web.Response(status=404)
+            return web.FileResponse(file, headers={"Cache-Control": "no-cache"})
+
+    return _GameFilesView()
+
+
 async def _register_static_paths(hass: HomeAssistant) -> None:
     from pathlib import Path
     from homeassistant.components.http import StaticPathConfig
@@ -239,7 +269,6 @@ async def _register_static_paths(hass: HomeAssistant) -> None:
     locales_root = Path(__file__).parent.parent / "locales"
 
     await hass.http.async_register_static_paths([
-        StaticPathConfig(f"/{DOMAIN}/game",    str(www_root / "game"),  False),
         StaticPathConfig(f"/{DOMAIN}/locales", str(locales_root),       False),
         StaticPathConfig(f"/{DOMAIN}/audio",   str(www_root / "audio"), True),
     ])
