@@ -46,19 +46,23 @@ function _audioContext() {
 
 // Inside a tap: start (or resume) the AudioContext, with a silent buffer so
 // every WebView counts it as sound started by the user.
-function _unlock() {
+function _unlock(event) {
   const context = _audioContext();
   if (!context || context.state === 'running') return;
   const silence = context.createBufferSource();
   silence.buffer = context.createBuffer(1, 1, 22050);
   silence.connect(context.destination);
   silence.start(0);
-  context.resume().catch(() => {});
+  context.resume().catch(error => _report('resume-refused', { on: event?.type, error: String(error) }));
 }
 
-// Lets tests (and curious developers) follow what the narration did.
+// Lets tests follow what the narration did, and sends it to the server's
+// debug log: phones give no other way to see why a line stayed silent.
 function _report(status, detail = {}) {
   document.dispatchEvent(new CustomEvent('narration', { detail: { status, ...detail } }));
+  try {
+    _send?.('narration_log', { status, audio: _context ? _context.state : 'none', ...detail });
+  } catch { /* the socket may be closed */ }
 }
 
 function _estimateMs(text, seconds) {
@@ -105,11 +109,15 @@ function _decode(url) {
 // Through the running AudioContext: no tap needed. Returns false if it can't.
 async function _webAudio(url, line, finish) {
   const context = _audioContext();
-  if (!context || context.state !== 'running') return false;
+  if (!context || context.state !== 'running') {
+    _report('webaudio-not-running', { url });
+    return false;
+  }
   let buffer;
   try {
     buffer = await _decode(url);
-  } catch {
+  } catch (error) {
+    _report('decode-failed', { url, error: String(error) });
     return false;
   }
   if (line.over) return true;
@@ -141,7 +149,10 @@ function _element(url, text, lang, ms, line, finish) {
     _fallbackPlayer.pause();
   };
   const attempt = _fallbackPlayer.play();
-  if (attempt) attempt.then(() => _report('played', { url, via: 'element' })).catch(fallback);
+  if (attempt) {
+    attempt.then(() => _report('played', { url, via: 'element' }))
+      .catch(error => { _report('element-refused', { url, error: String(error) }); fallback(); });
+  }
 }
 
 async function _clip(url, text, lang, ms, line, finish) {
@@ -178,6 +189,7 @@ export function speak(text, lang = 'fr', audioUrl = null, seconds = null) {
       },
     };
     _current = line;
+    _report('line', { url: audioUrl, text: (text || '').slice(0, 40) });
     const ms = _estimateMs(text, seconds);
     const finish = () => line.finish();
     if (audioUrl) _clip(audioUrl, text, lang, ms, line, finish);

@@ -8,11 +8,14 @@ import { test, expect } from '@playwright/test';
 //
 // Note: page.evaluate() counts as user activation in Playwright, so these
 // tests never call it; the narration reports reach them as console messages.
+const OUTCOMES = new Set(['unlocked', 'played', 'blocked', 'silent', 'speech']);
+
 async function phoneWebView(page) {
   const statuses = [];
   page.on('console', m => {
     const [tag, status] = m.text().split(' ');
-    if (tag === 'narration:') statuses.push(status);
+    // The outcomes; the player's other reports only feed the server's debug log.
+    if (tag === 'narration:' && OUTCOMES.has(status)) statuses.push(status);
   });
   await page.addInitScript(() => {
     // Only real input counts (Playwright's own page scripts can look like a
