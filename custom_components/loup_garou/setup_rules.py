@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 
+from .public_roles import MAX_PLAYERS
+
 MIN_PLAYERS = 3
 MAX_NAME = 20
 _BAD_CHARS = re.compile(r"[{}]")
@@ -28,6 +30,8 @@ def check_players(names: list) -> list[str]:
     names = [n.strip() for n in names]
     if len(names) < MIN_PLAYERS:
         raise InvalidSetup("need_players")
+    if len(names) > MAX_PLAYERS:
+        raise InvalidSetup("too_many")
     if any(not n for n in names):
         raise InvalidSetup("empty_name")
     if any(len(n) > MAX_NAME for n in names):

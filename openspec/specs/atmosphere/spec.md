@@ -45,6 +45,18 @@ On `day_started` after a night (`after: "night"`) Atmosphere SHALL apply the `da
 - **WHEN** day starts after a vote that eliminated a player
 - **THEN** Atmosphere SHALL change no light and speak no line
 
+### Requirement: Players called by public role
+
+Before each player's reveal, Atmosphere SHALL narrate `part.step_forward` + the player's `public.<id>.spoken` ("Step forward… the Baker") as one joined clip, after the intro has finished, and the reveal prompt SHALL open once it has played.
+
+### Requirement: Deaths announced by public role
+
+Night deaths, the vote result, the Hunter's target, a lover's grief and the scapegoat SHALL be announced without the player's name, from recorded parts: a lead-in (`part.victim`, `part.vote`, `part.hunter`, `part.grief`, `part.scapegoat`), the player's `public.<id>.spoken`, `part.was`, and `role.<id>.spoken`. With recorded voice the parts SHALL be one URL, `/loup_garou/voice/<lang>/<stem>+…mp3`, whose length is the sum of the parts. A player without a public role SHALL get the older line with their name.
+
+#### Scenario: Night death
+- **WHEN** the Baker, a Seer, died in the night
+- **THEN** the narration SHALL be "The victim is…" + "the Baker" + "They were…" + "a Seer" as one joined clip
+
 ### Requirement: Live elimination narration
 
 On `player_eliminated` Atmosphere SHALL narrate and flash the `death` scene only for causes that happen live (`hunter_shot`, `lover_grief`, `scapegoat`); wolf kills and vote eliminations SHALL be deferred to day/vote announcements. A live death SHALL set the `death` scene, narrate, then hold for `DEATH_BEAT` seconds before returning, so the next step (game over included) waits for it.

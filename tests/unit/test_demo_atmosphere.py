@@ -130,7 +130,8 @@ async def test_demo_narrates_every_phase_and_role():
         "Voyante",           # role.seer.wake
         "Loups-garous",      # role.werewolf.wake
         "L'aube se lève",    # phase.day.prelude_death
-        "Alice",             # night death announcement
+        "La victime est…",   # night death, by public role (#78)
+        "C'était… un Villageois",
         "rassemblez-vous sur la place",  # phase.day.debate
         "Assez parlé",       # phase.vote.start
     ):

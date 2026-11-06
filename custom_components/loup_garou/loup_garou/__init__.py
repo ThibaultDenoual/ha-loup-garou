@@ -184,6 +184,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not hass.data.get(_ROUTES_REGISTERED):
         hass.http.register_view(_make_websocket_view(hass))
         hass.http.register_view(_make_game_files_view())
+        hass.http.register_view(_make_voice_view(hass))
         await _register_static_paths(hass)
         hass.data[_ROUTES_REGISTERED] = True
 
@@ -259,6 +260,36 @@ def _make_game_files_view():
             return web.FileResponse(file, headers={"Cache-Control": "no-cache"})
 
     return _GameFilesView()
+
+
+def _make_voice_view(hass: HomeAssistant):
+    from pathlib import Path
+
+    from aiohttp import web
+    from homeassistant.components.http import HomeAssistantView
+
+    from .. import voice
+
+    audio_root = Path(__file__).parent.parent / "www" / "audio"
+
+    class _VoiceView(HomeAssistantView):
+        """Joined narration clips, as public as the clips themselves."""
+
+        url = voice.URL_PREFIX + "/{lang}/{name}"
+        name = f"{DOMAIN}_voice"
+        requires_auth = False  # a speaker on the network fetches it, like /audio
+
+        async def get(self, request, lang: str, name: str):
+            stems = voice.parse(lang, name)
+            if stems is None:
+                return web.Response(status=404)
+            body = await hass.async_add_executor_job(voice.join, audio_root, lang, tuple(stems))
+            return web.Response(
+                body=body, content_type="audio/mpeg",
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+
+    return _VoiceView()
 
 
 async def _register_static_paths(hass: HomeAssistant) -> None:

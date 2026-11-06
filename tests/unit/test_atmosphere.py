@@ -116,7 +116,7 @@ def test_tts_phase_delays_has_all_keys():
         "night_start", "role_wake", "role_sleep",
         "day_no_death", "day_prelude", "day_with_death", "day_debate",
         "vote_start", "vote_result",
-        "elimination_live", "game_over", "game_over_reveal", "intro",
+        "elimination_live", "game_over", "game_over_reveal", "intro", "reveal_turn",
     }
     assert set(TTS_PHASE_DELAYS.keys()) == expected
 

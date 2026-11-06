@@ -36,6 +36,14 @@ The engine SHALL expose `on(event, handler)` and emit `GameEvent` signals (`game
 - **WHEN** one event handler raises
 - **THEN** the engine SHALL log the error and continue invoking the remaining handlers
 
+### Requirement: Public roles
+
+`start_game` SHALL give every player a distinct public role (a village trade from `public_roles.TRADES`, then `<trade>_apprentice` past ten players, for trades in play), dealt at random; it is public and SHALL appear in snapshots for living players, unlike the secret role. A game SHALL hold at most `public_roles.MAX_PLAYERS` (20) players.
+
+#### Scenario: Twelve players
+- **WHEN** a game starts with twelve players
+- **THEN** ten players SHALL get the ten trades and two SHALL get apprentices of trades in play
+
 ### Requirement: Public state exposure
 
 The engine SHALL provide `get_public_state()` returning phase, night number, winner, and serialized players, and `get_role_public_state(role_id)` delegating to that role's public data without exposing engine internals.

@@ -4,6 +4,8 @@ import { ROLE_ORDER, roleNameRef } from '../roles.js';
 import { avatar, sprite } from '../sprites.js';
 
 const MIN_PLAYERS = 3;
+// One public role each: ten trades, then their apprentices (public_roles.py).
+const MAX_PLAYERS = 20;
 const MAX_NAME = 20;
 
 let _send;
@@ -96,6 +98,7 @@ function _bump(rid, delta) {
 function _problem() {
   const names = _names.map(n => n.trim());
   if (names.length < MIN_PLAYERS) return ['ui.setup.hint.need_players'];
+  if (names.length > MAX_PLAYERS) return ['ui.setup.hint.too_many'];
   if (names.some(n => !n)) return ['ui.setup.hint.empty_name'];
   if (names.some(n => n.length > MAX_NAME)) return ['ui.setup.hint.long_name'];
   if (names.some(n => /[{}]/.test(n))) return ['ui.setup.hint.bad_chars'];

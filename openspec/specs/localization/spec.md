@@ -18,7 +18,7 @@ The integration SHALL ship `locales/fr.json` and `locales/en.json`, served over 
 
 ### Requirement: Key namespaces
 
-Locale bundles SHALL organize copy under `phase.*` (narration lines), `role.<id>.name|description|team` plus optional `wake`, `sleep`, `action_prompt`, and role-specific lines, `elimination.<cause>`, `article.male|female`, `ui.*` (game screens), `launcher.*` (hub screens), and `team.*` labels.
+Locale bundles SHALL organize copy under `phase.*` (narration lines), `role.<id>.name|description|team` plus optional `wake`, `sleep`, `action_prompt`, and role-specific lines, `elimination.<cause>`, `article.male|female`, `ui.*` (game screens), `launcher.*` (hub screens), `team.*` labels, `public.<id>.name|spoken` (public roles), `role.<id>.spoken` (the secret role with its article), and `part.*` (lead-ins of lines joined from parts).
 
 #### Scenario: Witch prompts
 - **WHEN** the witch wakes

@@ -49,6 +49,10 @@ The integration SHALL serve the browser game at `/{DOMAIN}/game` with `Cache-Con
 - **WHEN** a browser requests `/loup_garou/game/launcher.html`
 - **THEN** the file SHALL be served from the integration's `www` directory
 
+### Requirement: Joined narration clips
+
+Setup SHALL register `/loup_garou/voice/{lang}/{name}`, without auth like `/loup_garou/audio`, serving the named recorded clips joined into one MP3 (`voice.py`). It SHALL accept only `en`/`fr`, one to six stems of known clips and a `.mp3` name, and answer 404 otherwise.
+
 ### Requirement: Sidebar panel
 
 Setup SHALL register a built-in `iframe` panel with sidebar title "Loup Garou", icon `mdi:weather-night`, frontend path `loup_garou`, pointing at `/loup_garou/game/index.html`, and available to non-admin users.

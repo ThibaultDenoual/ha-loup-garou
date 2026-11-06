@@ -28,6 +28,7 @@ from loup_garou.game_engine import GameEngine
 from loup_garou.game_server import LoupGarouServer
 from loup_garou.const import BUILD, STATIC_AUDIO_MAP, STATIC_AUDIO_SECONDS
 from loup_garou.narration import NarrationMessage
+from loup_garou import voice
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 _LOGGER = logging.getLogger("devserver")
@@ -81,6 +82,17 @@ def build_app(port: int, language: str = "fr") -> web.Application:
     app.router.add_static("/loup_garou/game",    www_root / "game",   show_index=True)
     app.router.add_static("/loup_garou/locales", locale_root,         show_index=True)
     app.router.add_static("/loup_garou/audio",   www_root / "audio",  show_index=True)
+
+    # Joined narration clips (lines that name a player), as in Home Assistant.
+    async def _voice(request: web.Request) -> web.Response:
+        lang, name = request.match_info["lang"], request.match_info["name"]
+        stems = voice.parse(lang, name)
+        if stems is None:
+            raise web.HTTPNotFound()
+        body = voice.join(www_root / "audio", lang, tuple(stems))
+        return web.Response(body=body, content_type="audio/mpeg")
+
+    app.router.add_get(voice.URL_PREFIX + "/{lang}/{name}", _voice)
 
     # Redirect / → game index
     async def _root(request: web.Request) -> web.Response:

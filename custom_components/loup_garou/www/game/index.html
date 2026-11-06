@@ -74,7 +74,11 @@
 <!-- Role reveal ─────────────────────────────────────────────────────────── -->
 <section id="view-reveal" class="view" hidden>
   <div class="handoff stack">
-    <p class="dim" data-i18n="ui.reveal.pass_to"></p>
+    <!-- With a public role, the screen calls the player like the narrator:
+         "Step forward… the Baker", with their portrait and name. -->
+    <p id="reveal-call" class="dim" data-i18n="ui.reveal.pass_to"></p>
+    <span id="reveal-portrait" class="portrait" hidden></span>
+    <h1 id="reveal-public" class="public-title" hidden></h1>
     <h1 id="reveal-player-label"></h1>
     <p id="reveal-progress" class="dim small"></p>
   </div>

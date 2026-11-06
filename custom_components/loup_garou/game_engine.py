@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Callable, Coroutine
 
 from .const import GameEvent, Phase
+from . import public_roles
 from .prompts import IllegalAnswer, Prompt, pick
 from .roles.base import BaseRole, EliminateDecision, RoleContext
 from .roles.loader import load_roles
@@ -41,9 +43,14 @@ class Player:
     name: str
     role_id: str
     alive: bool = True
+    # The trade the village knows them by (public_roles.py); not a secret.
+    public_role: str = ""
 
     def to_dict(self) -> dict:
-        return {"id": self.id, "name": self.name, "role_id": self.role_id, "alive": self.alive}
+        return {
+            "id": self.id, "name": self.name, "role_id": self.role_id,
+            "alive": self.alive, "public_role": self.public_role,
+        }
 
 
 def _empty_news(source: str = "night") -> dict:
@@ -68,7 +75,10 @@ _Handler = Callable[..., Coroutine[Any, Any, None]]
 
 
 class GameEngine:
-    def __init__(self, roles: dict[str, BaseRole] | None = None) -> None:
+    def __init__(
+        self, roles: dict[str, BaseRole] | None = None, *, rng: random.Random | None = None,
+    ) -> None:
+        self._rng = rng or random.Random()
         self._state = GameState()
         self._roles: dict[str, BaseRole] = roles if roles is not None else load_roles()
         self._listeners: dict[str, list[_Handler]] = {}
@@ -118,7 +128,9 @@ class GameEngine:
         game_over = self._state.phase == Phase.GAME_OVER
         players = []
         for p in self._state.players.values():
-            entry: dict = {"id": p.id, "name": p.name, "alive": p.alive}
+            entry: dict = {
+                "id": p.id, "name": p.name, "alive": p.alive, "public_role": p.public_role,
+            }
             if game_over or not p.alive:
                 entry["role_id"] = p.role_id
             if self._state.player_flags.get(p.id, {}).get("sheriff"):
@@ -210,9 +222,12 @@ class GameEngine:
         self._prompt = None
         self._prompt_future = None
         self._state = GameState()
-        for i, (name, role_id) in enumerate(zip(player_names, role_ids)):
+        trades = public_roles.deal(len(player_names), self._rng)
+        for i, (name, role_id, trade) in enumerate(zip(player_names, role_ids, trades)):
             pid = f"p{i}"
-            self._state.players[pid] = Player(id=pid, name=name, role_id=role_id)
+            self._state.players[pid] = Player(
+                id=pid, name=name, role_id=role_id, public_role=trade,
+            )
 
         ctx = self._make_ctx()
         for role in self._active_roles():
@@ -236,6 +251,8 @@ class GameEngine:
     async def play_reveal(self) -> None:
         players = list(self._state.players.values())
         for done, player in enumerate(players, start=1):
+            # Handlers call the player to the phone here: the prompt opens once they finish.
+            await self._emit(GameEvent.REVEAL_TURN, {"player_id": player.id})
             await self.ask(
                 PROMPT_REVEAL,
                 actor=player.id,

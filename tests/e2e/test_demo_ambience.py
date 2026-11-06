@@ -121,7 +121,9 @@ async def test_demo_narration_reaches_the_browser():
     assert "la nuit enveloppe le village" in joined
     assert "Voyante" in joined
     assert "Loups-garous" in joined
-    assert "Alice" in joined
+    # Deaths are announced by public role, not by name (#78).
+    assert "La victime est…" in joined
+    assert "Alice" not in joined
     assert any("gagné" in text for text in browser.spoken)
 
 

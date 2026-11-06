@@ -26,6 +26,10 @@ To regenerate them all, e.g. after changing a narrated line:
     pip install edge-tts
     python scripts/generate_audio.py
 
+To record only new lines, leaving the existing clips untouched:
+
+    python scripts/generate_audio.py --missing
+
 then update STATIC_AUDIO_SECONDS in const.py: tests/unit/test_static_audio.py
 prints the clip lengths it expects.
 
@@ -167,6 +171,7 @@ async def generate_for_lang(
     volume: str,
     gtts_slow: bool,
     gtts_tld: str,
+    missing_only: bool = False,
 ) -> None:
     locale_path = LOCALE_DIR / f"{lang}.json"
     if not locale_path.exists():
@@ -189,13 +194,15 @@ async def generate_for_lang(
             print(f"  SKIP  {locale_key!r} — key missing in {lang}.json")
             continue
         out_path = out_dir / f"{stem}.mp3"
+        if missing_only and out_path.exists():
+            continue
         print(f"  {stem}.mp3")
         if engine == "edge":
             await _generate_edge(text, voice, rate, pitch, volume, out_path)
         else:
             _generate_gtts(text, lang, gtts_slow, gtts_tld, out_path)
 
-    print(f"\n  {len(STATIC_AUDIO_MAP)} files written.")
+    print("\n  Done.")
 
 
 async def generate_samples(lang: str, out_dir: Path) -> None:
@@ -284,6 +291,8 @@ def main() -> None:
                       help="List available edge-tts voices for --lang and exit.")
 
     # Engine
+    p.add_argument("--missing", action="store_true",
+                   help="only record clips that don't exist yet (new lines)")
     p.add_argument("--engine", choices=["edge", "gtts"], default="edge",
                    help="TTS engine to use (default: edge)")
 
@@ -343,6 +352,7 @@ def main() -> None:
             volume=args.volume,
             gtts_slow=args.gtts_slow,
             gtts_tld=args.gtts_tld,
+            missing_only=args.missing,
         ))
 
 

@@ -55,7 +55,7 @@ Dispatch SHALL map `KeyError` to `bad_request` with "Missing required field: <na
 
 ### Requirement: Player names checked on start
 
-`start_game` SHALL apply the setup screen's rules to the player names before dealing: at least 3 players, no empty name, at most 20 characters, no `{` or `}`, and no two names that differ only by case. Names SHALL be trimmed first. A broken rule SHALL return `{"type": "error", "code": "invalid_setup", "reason": <reason>}`, where the reason (`need_players`, `empty_name`, `long_name`, `bad_chars`, `duplicate`) names the `ui.setup.hint.<reason>` key the browser shows, and the game SHALL stay in setup.
+`start_game` SHALL apply the setup screen's rules to the player names before dealing: at least 3 and at most 20 players, no empty name, at most 20 characters, no `{` or `}`, and no two names that differ only by case. Names SHALL be trimmed first. A broken rule SHALL return `{"type": "error", "code": "invalid_setup", "reason": <reason>}`, where the reason (`need_players`, `too_many`, `empty_name`, `long_name`, `bad_chars`, `duplicate`) names the `ui.setup.hint.<reason>` key the browser shows, and the game SHALL stay in setup.
 
 #### Scenario: Duplicate names from a scripted client
 - **WHEN** a client sends `start_game` with players `Alice`, `Bob` and `alice `
