@@ -47,7 +47,13 @@ On `day_started` after a night (`after: "night"`) Atmosphere SHALL apply the `da
 
 ### Requirement: Live elimination narration
 
-On `player_eliminated` Atmosphere SHALL narrate and flash the `death` scene only for causes that happen live (`hunter_shot`, `lover_grief`, `scapegoat`); wolf kills and vote eliminations SHALL be deferred to day/vote announcements.
+On `player_eliminated` Atmosphere SHALL narrate and flash the `death` scene only for causes that happen live (`hunter_shot`, `lover_grief`, `scapegoat`); wolf kills and vote eliminations SHALL be deferred to day/vote announcements. A live death SHALL set the `death` scene, narrate, then hold for `DEATH_BEAT` seconds before returning, so the next step (game over included) waits for it.
+
+When the Hunter wakes to shoot, Atmosphere SHALL set the `death` scene and play the recorded `role.hunter.wake` line before the Hunter's choice opens.
+
+#### Scenario: Hunter shoots the last wolf
+- **WHEN** the Hunter's shot eliminates the last wolf
+- **THEN** the death scene and the shot line SHALL play, and game over SHALL start only after `DEATH_BEAT`
 
 #### Scenario: Wolf kill not double-announced
 - **WHEN** a player is eliminated with cause `wolf_kill`

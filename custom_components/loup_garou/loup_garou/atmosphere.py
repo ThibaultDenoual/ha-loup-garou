@@ -14,7 +14,7 @@ from homeassistant.helpers.network import NoURLAvailableError, get_url
 from ..const import (
     GameEvent, LIGHT_SCENES, ROLE_SCENE, STATIC_AUDIO_MAP, STATIC_AUDIO_MARGIN,
     STATIC_AUDIO_SECONDS, TTS_PHASE_DELAYS,
-    SPEAKER_GAP, SPEAKER_MAX_LINE, SPEAKER_START_TIMEOUT,
+    SPEAKER_GAP, SPEAKER_MAX_LINE, SPEAKER_START_TIMEOUT, DEATH_BEAT,
     CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
 )
 
@@ -261,19 +261,19 @@ class Atmosphere:
         # Hunter shots are handled by _on_hunter_shot via HUNTER_SHOT event.
         if cause == "lover_grief":
             name = data.get("name", "?")
-            await self.speak(self._narrate("elimination.lover_grief", delay_key="elimination_live", name=name))
-            asyncio.create_task(self._set_lights("death"))
+            await self._live_death(self._narrate(
+                "elimination.lover_grief", delay_key="elimination_live", name=name,
+            ))
         elif cause == "scapegoat":
             name = data.get("name", "?")
             role_id = data.get("role", "?")
             role_name = self.t(f"role.{role_id}.name") or role_id
             article = self._article(role_id)
-            await self.speak(self._narrate(
+            await self._live_death(self._narrate(
                 "elimination.scapegoat",
                 delay_key="elimination_live",
                 name=name, article=article, role=role_name,
             ))
-            asyncio.create_task(self._set_lights("death"))
 
     async def _on_hunter_shot(self, data: dict) -> None:
         """Fired by the Hunter role before its target enters the elimination queue.
@@ -285,12 +285,22 @@ class Atmosphere:
         """
         hunter_name = data.get("hunter_name", "?")
         target_name = data.get("target_name", "?")
-        await self.speak(self._narrate(
+        await self._live_death(self._narrate(
             "elimination.hunter_shot",
             delay_key="elimination_live",
             name=hunter_name, target=target_name,
         ))
+
+    async def _live_death(self, msg: NarrationMessage) -> None:
+        """A death in front of everyone: red light, the line, then a beat.
+
+        The engine waits for this handler, so the beat also holds back the
+        next step, game over included, and the death has time to sink in.
+        """
         asyncio.create_task(self._set_lights("death"))
+        self._current_scene = "death"
+        await self.speak(msg)
+        await asyncio.sleep(DEATH_BEAT)
 
     async def _on_game_over(self, data: dict) -> None:
         winner = data.get("winner")

@@ -41,6 +41,7 @@
   "role.hunter.name": "Hunter",
   "role.hunter.description": "If you are eliminated, you may take another player with you into death.",
   "role.hunter.team": "Village",
+  "role.hunter.wake": "Hunter… you are hit, but one bullet remains. Raise your rifle, and choose who falls with you.",
   "role.hunter.death_prompt": "You are dead! Designate a player to take with you.",
   "role.hunter.shoot_confirm": "Shoot",
 
