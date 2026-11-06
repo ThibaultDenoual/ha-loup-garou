@@ -69,6 +69,7 @@ STATIC_AUDIO_SECONDS: dict[str, dict[str, float]] = {
         "role_alpha_wolf_wake":   7.0,
         "role_cupid_sleep":       2.0,
         "role_cupid_wake":        7.2,
+        "role_hunter_wake":       7.2,
         "role_seer_sleep":        2.2,
         "role_seer_wake":         6.6,
         "role_werewolf_sleep":    4.0,
@@ -92,6 +93,7 @@ STATIC_AUDIO_SECONDS: dict[str, dict[str, float]] = {
         "role_alpha_wolf_wake":   6.9,
         "role_cupid_sleep":       2.4,
         "role_cupid_wake":        7.3,
+        "role_hunter_wake":       8.4,
         "role_seer_sleep":        2.6,
         "role_seer_wake":         6.6,
         "role_werewolf_sleep":    3.5,
@@ -112,6 +114,10 @@ STATIC_AUDIO_MARGIN = 1.0
 SPEAKER_START_TIMEOUT = 10.0  # TTS generation can take several seconds
 SPEAKER_MAX_LINE = 60.0       # a speaker stuck in "playing" can't hold the game
 SPEAKER_GAP = 0.4             # breath between two lines
+
+# How long a live death (the Hunter's shot, a lover's grief, the scapegoat)
+# holds the death scene before the game moves on, game over included.
+DEATH_BEAT = 3.0
 
 
 # ── Game events (used by engine.on() / engine._emit()) ───────────────────────
@@ -229,6 +235,7 @@ STATIC_AUDIO_MAP: dict[str, str] = {
     "role.cupid.sleep":            "role_cupid_sleep",
     "role.alpha_wolf.wake":        "role_alpha_wolf_wake",
     "role.alpha_wolf.sleep":       "role_alpha_wolf_sleep",
+    "role.hunter.wake":            "role_hunter_wake",
 }
 
 # Role id → light scene key for that role's night turn
@@ -238,4 +245,5 @@ ROLE_SCENE: dict[str, str] = {
     "werewolf":   "wolf_wake",
     "alpha_wolf": "wolf_wake",
     "witch":      "witch_wake",
+    "hunter":     "death",
 }

@@ -477,7 +477,8 @@ async def test_on_hunter_shot_narrates_with_both_names():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_hunter_shot({
             "hunter_name": "Alice",
             "target_name": "Bob",
@@ -506,9 +507,47 @@ async def test_on_player_eliminated_lover_grief_narrates():
     server = MagicMock()
     server.narrate = AsyncMock()
     atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
-    with patch.object(atm, "_set_lights", new_callable=AsyncMock):
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock), \
+         patch(_SLEEP, new_callable=AsyncMock):
         await atm._on_player_eliminated({"cause": "lover_grief", "name": "Bob"})
     server.narrate.assert_awaited_once()
+
+
+@pytest.mark.parametrize("handler, data", [
+    ("_on_hunter_shot", {"hunter_name": "Alice", "target_name": "Bob"}),
+    ("_on_player_eliminated", {"cause": "lover_grief", "name": "Bob"}),
+    ("_on_player_eliminated", {"cause": "scapegoat", "name": "Bob", "role": "scapegoat"}),
+])
+async def test_a_live_death_holds_the_death_scene_before_moving_on(handler, data):
+    """#79: the death sinks in before the game goes on, game over included."""
+    from loup_garou.const import DEATH_BEAT
+
+    server = MagicMock()
+    server.narrate = AsyncMock()
+    atm, _, _ = make_atmosphere(audio_source="tts", audio_output="browser", server=server)
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock) as lights:
+        with patch(_SLEEP, new_callable=AsyncMock) as sleep:
+            await getattr(atm, handler)(data)
+        await asyncio.sleep(0)  # the lights run as a task
+    lights.assert_awaited_once_with("death")
+    server.narrate.assert_awaited_once()
+    assert sleep.await_args_list[-1].args == (DEATH_BEAT,)
+
+
+async def test_the_hunter_wakes_to_a_recorded_line_and_the_death_scene():
+    """#79: the Hunter's choice is announced, in red."""
+    server = MagicMock()
+    server.narrate = AsyncMock()
+    atm, _, _ = make_atmosphere(audio_source="static", audio_output="browser", server=server)
+    atm._locale["role.hunter.wake"] = "Hunter… you are hit."
+    with patch.object(atm, "_set_lights", new_callable=AsyncMock) as lights:
+        with patch(_SLEEP, new_callable=AsyncMock):
+            await atm._on_role_wake({"role": "hunter", "player_id": "p0"})
+        await asyncio.sleep(0)
+    lights.assert_awaited_once_with("death")
+    msg = server.narrate.await_args.args[0]
+    assert msg.audio_url.endswith("/role_hunter_wake.mp3")
+    assert msg.audio_seconds
 
 
 async def test_on_player_eliminated_wolf_kill_is_silent():

@@ -41,6 +41,7 @@
   "role.hunter.name": "Chasseur",
   "role.hunter.description": "Si vous êtes éliminé, vous pouvez emmener un autre joueur avec vous dans la mort.",
   "role.hunter.team": "Village",
+  "role.hunter.wake": "Chasseur… tu es touché, mais il te reste une dernière balle. Épaule ton fusil, et choisis qui tombera avec toi.",
   "role.hunter.death_prompt": "Vous êtes mort ! Désignez un joueur à emporter avec vous.",
   "role.hunter.shoot_confirm": "Tirer",
 

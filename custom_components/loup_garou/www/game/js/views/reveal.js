@@ -13,7 +13,7 @@ let _prompt = null;
 export function init(answer, getState) {
   _answer = answer;
   _getState = getState;
-  $('reveal-emblem').replaceChildren(sprite('full_moon', 3));
+  $('reveal-emblem').replaceChildren(..._scalable(sprite('full_moon', 3)));
 
   const card = $('reveal-card');
   card.addEventListener('click', _flip);
@@ -36,6 +36,17 @@ function _setFaces(flipped) {
   $('btn-reveal-seen').hidden = !flipped;
 }
 
+// Size each sprite in --sprite-unit steps (one sprite pixel), so the CSS can
+// shrink the medallion on short screens and keep the pixels square.
+function _scalable(...sprites) {
+  for (const svg of sprites) {
+    const [, , w, h] = svg.getAttribute('viewBox').split(' ').map(Number);
+    svg.style.width = `calc(var(--sprite-unit) * ${w})`;
+    svg.style.height = `calc(var(--sprite-unit) * ${h})`;
+  }
+  return sprites;
+}
+
 export function render(prompt) {
   _prompt = prompt;
   if (!prompt) return;
@@ -48,7 +59,7 @@ export function render(prompt) {
 
   // The card is face-down here, so loading the next role cannot leak it.
   $('reveal-card').querySelector('.card-back').dataset.team = teamOf(roleId);
-  $('reveal-sprite').replaceChildren(sprite('full_moon', 4), sprite(roleId, 4));
+  $('reveal-sprite').replaceChildren(..._scalable(sprite('full_moon', 4), sprite(roleId, 4)));
   translate($('reveal-role-name'), `role.${roleId}.name`);
   translate($('reveal-team'), `role.${roleId}.team`);
   translate($('reveal-role-desc'), `role.${roleId}.description`);
