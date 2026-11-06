@@ -104,3 +104,15 @@ async def test_the_config_carries_the_build(hass: HomeAssistant, setup_entry, ga
         while msg.get("type") != "config":
             msg = await ws.receive_json(timeout=2)
     assert msg["config"]["build"] == BUILD
+
+
+async def test_joined_narration_is_served_without_auth(
+    hass: HomeAssistant, setup_entry, hass_client_no_auth
+) -> None:
+    # A speaker on the network fetches it, like the single clips (#78).
+    client = await hass_client_no_auth()
+    ok = await client.get("/loup_garou/voice/fr/part_victim+public_baker+part_was+spoken_seer.mp3")
+    assert ok.status == 200
+    assert ok.headers["Content-Type"] == "audio/mpeg"
+    assert len(await ok.read()) > 10_000
+    assert (await client.get("/loup_garou/voice/fr/part_victim+secrets.mp3")).status == 404

@@ -143,6 +143,10 @@ export function playerCard(player, { selectable = false, showRole = false } = {}
     h('span', { class: 'avatar' }, player.alive ? avatar(player.name, 3) : sprite('skull', 3)),
     h('span', { class: 'who' },
       h('span', { class: 'player-name', text: player.sheriff ? `⭐ ${player.name}` : player.name }),
+      // The trade the narrator calls them by (#78): public, unlike the role.
+      player.public_role
+        ? h('span', { class: 'player-public', i18n: `public.${player.public_role}.name` })
+        : null,
       roleLine,
       player.alive ? null : h('span', { class: 'sr-only', i18n: 'ui.player.dead' })),
   );

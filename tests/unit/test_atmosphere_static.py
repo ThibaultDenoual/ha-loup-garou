@@ -261,3 +261,57 @@ async def test_a_death_by_vote_is_not_announced_again_at_day_start():
         server.narrate.reset_mock()
         await atm._on_day_started({"eliminated": ["p0"], "after": "vote"})
     assert server.narrate.await_args_list == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Deaths are announced by public role, from recorded parts (#78)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _with_public_roles(atm, **publics):
+    atm._engine.get_public_state.return_value = {"players": [
+        {"id": pid, "name": pid.upper(), "role_id": role, "alive": False, "public_role": public}
+        for pid, (role, public) in publics.items()
+    ]}
+
+
+async def test_a_night_death_is_one_joined_clip_without_the_name():
+    atm, server = make_atmosphere("static")
+    _with_public_roles(atm, p0=("seer", "baker"))
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_day_started({"eliminated": ["p0"], "after": "night"})
+    msg = server.narrate.await_args_list[1].args[0]  # after the dawn prelude
+    assert msg.audio_url == "/loup_garou/voice/fr/part_victim+public_baker+part_was+spoken_seer.mp3"
+    lengths = STATIC_AUDIO_SECONDS["fr"]
+    assert msg.audio_seconds == round(sum(lengths[s] for s in (
+        "part_victim", "public_baker", "part_was", "spoken_seer")), 1)
+    # Parts in order, each closed by a full stop (this file's locale is a stub).
+    assert msg.text == ("text for part.victim. text for public.baker.spoken. "
+                        "text for part.was. text for role.seer.spoken.")
+    assert "P0" not in msg.text
+
+
+async def test_the_vote_result_names_the_public_role():
+    atm, server = make_atmosphere("static")
+    _with_public_roles(atm, p1=("werewolf", "miller_apprentice"))
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_vote_resolved({"eliminated": "p1", "tie": False})
+    msg = server.narrate.await_args.args[0]
+    assert msg.audio_url.endswith("/part_vote+public_miller_apprentice+part_was+spoken_werewolf.mp3")
+
+
+async def test_the_hunter_shot_names_the_target_by_public_role():
+    atm, server = make_atmosphere("static")
+    _with_public_roles(atm, p2=("alpha_wolf", "potter"))
+    with patch(_SLEEP, new_callable=AsyncMock), patch.object(atm, "_set_lights", new_callable=AsyncMock):
+        await atm._on_hunter_shot({"hunter_name": "H", "target_id": "p2", "target_name": "P2"})
+    msg = server.narrate.await_args.args[0]
+    assert msg.audio_url.endswith("/part_hunter+public_potter+part_was+spoken_alpha_wolf.mp3")
+
+
+async def test_without_public_roles_the_named_line_is_kept():
+    atm, server = make_atmosphere("static")
+    _with_public_roles(atm, p0=("seer", ""))
+    with patch(_SLEEP, new_callable=AsyncMock):
+        await atm._on_vote_resolved({"eliminated": "p0", "tie": False})
+    msg = server.narrate.await_args.args[0]
+    assert "P0" in msg.text and msg.audio_url is None

@@ -1,4 +1,4 @@
-import { translate } from '../i18n.js';
+import { ref, translate } from '../i18n.js';
 import { $ } from '../dom.js';
 import { teamOf } from '../roles.js';
 import { sprite } from '../sprites.js';
@@ -55,6 +55,12 @@ export function render(prompt) {
   // The narrator sets the scene once, while the first player takes the phone.
   $('reveal-intro').hidden = done !== 1;
   $('reveal-player-label').textContent = player ? player.name : '?';
+  // The narrator announces deaths by this trade, so each player learns theirs.
+  const publicRole = player && player.public_role;
+  $('reveal-public').hidden = !publicRole;
+  if (publicRole) {
+    translate($('reveal-public'), 'ui.reveal.public_role', { public: ref(`public.${publicRole}.spoken`) });
+  }
   translate($('reveal-progress'), 'ui.reveal.progress', { done, total });
 
   // The card is face-down here, so loading the next role cannot leak it.

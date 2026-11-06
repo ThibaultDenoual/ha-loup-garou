@@ -18,6 +18,7 @@ from ..const import (
     CONF_AUDIO_SOURCE, CONF_AUDIO_OUTPUT, CONF_SPEAKER, CONF_LIGHTS, CONF_LANGUAGE, CONF_TTS_ENGINE,
 )
 
+from .. import voice
 from ..narration import NarrationMessage
 
 if TYPE_CHECKING:
@@ -217,15 +218,9 @@ class Atmosphere:
         await asyncio.sleep(0.8)
 
         for i, pid in enumerate(eliminated_ids):
-            p = players_by_id.get(pid, {})
-            name = p.get("name", "?")
-            role_id = p.get("role_id", "?")
-            role_name = self.t(f"role.{role_id}.name") or role_id
-            article = self._article(role_id)
-            await self.speak(self._narrate(
-                "phase.day.start_with_death",
-                delay_key="day_with_death",
-                name=name, article=article, role=role_name,
+            await self.speak(self._death_line(
+                "part.victim", players_by_id.get(pid, {}),
+                fallback="phase.day.start_with_death", delay_key="day_with_death",
             ))
             if i < len(eliminated_ids) - 1:
                 await asyncio.sleep(0.5)
@@ -241,17 +236,9 @@ class Atmosphere:
             await self.speak(self._narrate("phase.vote.tie", delay_key="vote_result"))
             return
         if eliminated_id:
-            pub = self._engine.get_public_state()
-            players_by_id = {p["id"]: p for p in pub["players"]}
-            p = players_by_id.get(eliminated_id, {})
-            name = p.get("name", "?")
-            role_id = p.get("role_id", "?")
-            role_name = self.t(f"role.{role_id}.name") or role_id
-            article = self._article(role_id)
-            await self.speak(self._narrate(
-                "phase.vote.result",
-                delay_key="vote_result",
-                name=name, article=article, role=role_name,
+            await self.speak(self._death_line(
+                "part.vote", self._player(eliminated_id),
+                fallback="phase.vote.result", delay_key="vote_result",
             ))
 
     async def _on_player_eliminated(self, data: dict) -> None:
@@ -260,19 +247,14 @@ class Atmosphere:
         # Lover grief and scapegoat happen live — speak them immediately.
         # Hunter shots are handled by _on_hunter_shot via HUNTER_SHOT event.
         if cause == "lover_grief":
-            name = data.get("name", "?")
-            await self._live_death(self._narrate(
-                "elimination.lover_grief", delay_key="elimination_live", name=name,
+            await self._live_death(self._death_line(
+                "part.grief", self._player(data.get("player_id"), data),
+                fallback="elimination.lover_grief", delay_key="elimination_live",
             ))
         elif cause == "scapegoat":
-            name = data.get("name", "?")
-            role_id = data.get("role", "?")
-            role_name = self.t(f"role.{role_id}.name") or role_id
-            article = self._article(role_id)
-            await self._live_death(self._narrate(
-                "elimination.scapegoat",
-                delay_key="elimination_live",
-                name=name, article=article, role=role_name,
+            await self._live_death(self._death_line(
+                "part.scapegoat", self._player(data.get("player_id"), data),
+                fallback="elimination.scapegoat", delay_key="elimination_live",
             ))
 
     async def _on_hunter_shot(self, data: dict) -> None:
@@ -283,13 +265,19 @@ class Atmosphere:
         rather than using the generic PLAYER_ELIMINATED payload (which only
         carries the target's own name, and arrives with the original cause).
         """
-        hunter_name = data.get("hunter_name", "?")
-        target_name = data.get("target_name", "?")
-        await self._live_death(self._narrate(
-            "elimination.hunter_shot",
-            delay_key="elimination_live",
-            name=hunter_name, target=target_name,
-        ))
+        target = self._player(data.get("target_id"), {
+            "name": data.get("target_name", "?"), "role_id": data.get("target_role", "?"),
+        })
+        if target.get("public_role"):
+            msg = self._death_line(
+                "part.hunter", target, fallback="", delay_key="elimination_live",
+            )
+        else:
+            msg = self._narrate(
+                "elimination.hunter_shot", delay_key="elimination_live",
+                name=data.get("hunter_name", "?"), target=data.get("target_name", "?"),
+            )
+        await self._live_death(msg)
 
     async def _live_death(self, msg: NarrationMessage) -> None:
         """A death in front of everyone: red light, the line, then a beat.
@@ -335,6 +323,53 @@ class Atmosphere:
                 )
             except Exception:
                 _LOGGER.exception("Failed to set light scene %s on %s", scene_key, entity_id)
+
+    def _player(self, player_id: str | None, fallback: dict | None = None) -> dict:
+        """A player as the engine's full state has them, roles included."""
+        for p in self._engine.get_public_state()["players"]:
+            if p["id"] == player_id:
+                return p
+        fallback = dict(fallback or {})
+        fallback.setdefault("role_id", fallback.get("role", "?"))
+        return fallback
+
+    def _death_line(
+        self, lead: str, player: dict, *, fallback: str, delay_key: str,
+    ) -> NarrationMessage:
+        """Announce a death by the player's public role, from recorded parts:
+        "The victim is…" + "the Baker" + "They were…" + "a Seer".
+
+        Without a public role, the older line with the player's name is used.
+        """
+        role_id = player.get("role_id", "?")
+        public = player.get("public_role")
+        if public:
+            return self._narrate_parts(
+                [lead, f"public.{public}.spoken", "part.was", f"role.{role_id}.spoken"],
+                delay_key=delay_key,
+            )
+        return self._narrate(
+            fallback, delay_key=delay_key, name=player.get("name", "?"),
+            article=self._article(role_id), role=self.t(f"role.{role_id}.name") or role_id,
+        )
+
+    def _narrate_parts(self, keys: list[str], *, delay_key: str) -> NarrationMessage:
+        """One line from several recorded parts, played as a single joined clip."""
+        parts = [part for part in (self.t(k) for k in keys) if part]
+        # Parts that don't end a phrase themselves ("the Baker") get a full stop.
+        text = " ".join(p if p[-1] in ".…!?:" else p + "." for p in parts)
+        audio_url: str | None = None
+        audio_seconds: float | None = None
+        if self._audio_source == "static" and all(k in STATIC_AUDIO_MAP for k in keys):
+            stems = [STATIC_AUDIO_MAP[k] for k in keys]
+            lengths = STATIC_AUDIO_SECONDS.get(self._language, {})
+            audio_url = voice.url(self._language, stems)
+            if all(stem in lengths for stem in stems):
+                audio_seconds = round(sum(lengths[stem] for stem in stems), 1)
+        return NarrationMessage(
+            text=text, lang=self._language, audio_url=audio_url,
+            delay_key=delay_key, audio_seconds=audio_seconds,
+        )
 
     def _narrate(self, key: str, *, delay_key: str, **params) -> NarrationMessage:
         """Build a NarrationMessage from a locale key, resolving text and static
