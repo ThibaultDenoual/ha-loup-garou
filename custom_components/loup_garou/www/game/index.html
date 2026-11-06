@@ -73,7 +73,6 @@
 
 <!-- Role reveal ─────────────────────────────────────────────────────────── -->
 <section id="view-reveal" class="view" hidden>
-  <p id="reveal-intro" class="lede intro" data-i18n="phase.role_reveal.start" hidden></p>
   <div class="handoff stack">
     <p class="dim" data-i18n="ui.reveal.pass_to"></p>
     <h1 id="reveal-player-label"></h1>
@@ -83,6 +82,8 @@
   <div class="reveal-stage">
     <div id="reveal-card" class="reveal-card" role="button" tabindex="0" aria-pressed="false">
       <div class="card-face card-front">
+        <!-- The narrator sets the scene on the first card, which is otherwise empty. -->
+        <p id="reveal-intro" class="intro" data-i18n="phase.role_reveal.start" hidden></p>
         <span id="reveal-emblem"></span>
         <span class="reveal-tap" data-i18n="ui.reveal.tap_to_reveal"></span>
       </div>

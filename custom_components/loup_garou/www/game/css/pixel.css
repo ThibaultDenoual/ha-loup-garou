@@ -212,6 +212,11 @@ main {
   pointer-events: none;
 }
 .dock > .sprite { width: 100%; height: 80px; }
+/* Short phones keep a thinner skyline, so the content gets the height. */
+@media (max-height: 720px) {
+  :root { --dock-h: 144px; }
+  .dock > .sprite { height: 48px; }
+}
 /* The keyboard would lift the bottom bar over the field being typed in. */
 body.typing .dock { display: none; }
 .dock-actions {
@@ -413,15 +418,38 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 /* ── Reveal ───────────────────────────────────────────────────────────────── */
 
 .intro { text-align: center; font-style: italic; color: var(--ink-dim); margin: 0 auto; }
-.handoff { text-align: center; align-items: center; gap: 4px; }
-.handoff h1 { font-size: 3rem; overflow-wrap: anywhere; }
+.handoff { text-align: center; align-items: center; gap: 0; }
+.handoff h1 { font-size: clamp(2.25rem, 7dvh, 3rem); line-height: 1.15; overflow-wrap: anywhere; }
 
-.reveal-stage { perspective: 1200px; }
+/* The reveal fits one screen, since the phone is passed around: the page stops
+   scrolling and the card takes whatever height is left between the name and
+   the dock. Everything on the card scales with the card's height.
+   Landscape phones are too short for that, so they keep a scrolling page. */
+@media (min-height: 500px) {
+  body:has(#view-reveal:not([hidden])) {
+    display: flex; flex-direction: column;
+    height: 100dvh; overflow: hidden;
+  }
+  body:has(#view-reveal:not([hidden])) main {
+    display: flex; flex-direction: column;
+    flex: 1; min-height: 0; width: 100%;
+    /* --dock-h leaves room for scrolling; here the card stops 12px above the
+       skyline, with the button shown. */
+    padding-top: 12px; padding-bottom: calc(var(--dock-h) - 16px);
+  }
+  #view-reveal { flex: 1; min-height: 0; }
+  .reveal-stage { flex: 1; min-height: 0; }
+  .reveal-card { flex: 1; min-height: 0; container-type: size; }
+}
+@media (max-height: 499.98px) {
+  .reveal-card { min-height: 360px; container-type: inline-size; }
+}
+#view-reveal { gap: 12px; }
+.reveal-stage { perspective: 1200px; display: flex; flex-direction: column; }
 .reveal-card {
   position: relative;
   /* Both faces share one grid cell, so the card grows to the taller one. */
   display: grid;
-  min-height: 360px;
   cursor: pointer;
   transform-style: preserve-3d;
   transition: transform 600ms steps(8);
@@ -429,8 +457,8 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 .reveal-card.flipped { transform: rotateY(180deg); cursor: default; }
 .card-face {
   grid-area: 1 / 1;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-  padding: 28px 24px;
+  display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 16px;
+  padding: clamp(16px, 6cqh, 28px) 20px;
   text-align: center;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -456,13 +484,22 @@ button.player-card[aria-pressed="true"] .player-role { color: inherit; }
 .card-back { background: var(--surface); transform: rotateY(180deg); }
 .card-back[data-team="wolves"] { --frame: var(--wolf); }
 .card-back[data-team="village"] { --frame: var(--village); }
-.card-back { gap: 14px; }
+.card-back { gap: clamp(6px, 3cqh, 14px); }
+.card-front { gap: clamp(8px, 4cqh, 16px); --sprite-unit: clamp(2px, round(down, 0.9cqh, 1px), 3px); }
+.card-front .intro { font-size: clamp(0.875rem, 4.4cqh, 1.0625rem); line-height: 1.45; }
+/* A last resort below 360×640: scroll inside the card, never the page. */
+.card-face { overflow-y: auto; scrollbar-width: none; }
 /* Each role stands in front of a full moon. */
-.medallion { display: grid; place-items: end center; width: 120px; height: 136px; }
+.medallion {
+  /* One sprite pixel: 4px on a roomy card, down to 2px on a short one. */
+  --sprite-unit: clamp(2px, round(down, 1.15cqh, 1px), 4px);
+  display: grid; place-items: end center;
+  width: calc(var(--sprite-unit) * 30); height: calc(var(--sprite-unit) * 34);
+}
 .medallion > .sprite { grid-area: 1 / 1; }
 .medallion > .sprite:first-child { align-self: start; }
-.reveal-role-name { font: 400 3.25rem/1 var(--font-display); text-shadow: 0 2px 0 var(--line); }
-.reveal-role-desc { color: var(--ink-dim); }
+.reveal-role-name { font: 400 clamp(2rem, 9cqh, 3.25rem)/1 var(--font-display); text-shadow: 0 2px 0 var(--line); }
+.reveal-role-desc { color: var(--ink-dim); font-size: clamp(0.875rem, 4.2cqh, 1rem); line-height: 1.45; }
 .card-back[data-team="wolves"] .badge { background: var(--wolf); color: #fff; }
 .card-back[data-team="village"] .badge { background: var(--village); color: #10301a; }
 

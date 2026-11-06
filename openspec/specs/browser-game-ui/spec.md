@@ -57,6 +57,12 @@ Reveal SHALL prompt "pass the phone to <name>", flip a card on tap/Enter/Space, 
 - **WHEN** a player presses "hide role and pass"
 - **THEN** the card SHALL flip face-down before the next player's role is loaded
 
+On screens at least 500px tall the reveal SHALL fit one screen without page scrolling: the card SHALL take the height left between the handoff and the dock, and its medallion, role name and text SHALL scale with the card. The narrator's intro SHALL appear on the first player's face-down card. Shorter (landscape) screens SHALL keep a scrolling page.
+
+#### Scenario: Long role text on a small phone
+- **WHEN** the French Minion is revealed on a 360×640 screen
+- **THEN** the page SHALL not scroll and the whole description SHALL be visible on the card
+
 ### Requirement: Night action screens
 
 For each waking role the UI SHALL render the localized prompt and target grid: wolves/alpha/seer single-select with confirm disabled until a pick, cupid exactly-two-lovers selection, witch save/poison toggles driven by server-enriched victim and potion data, seer result screen with acknowledgement, and hunter last-shot screen; player cards SHALL be keyboard-operable and announce selection state.
