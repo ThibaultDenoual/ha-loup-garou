@@ -1,6 +1,6 @@
 import { has, translate, translateAttr } from './i18n.js';
 import { h, $ } from './dom.js';
-import { avatar, paintSky, sprite, skyline } from './sprites.js';
+import { avatar, paintSky, sprite, skyline, tradeAvatar } from './sprites.js';
 import { teamOf } from './roles.js';
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -140,7 +140,9 @@ export function playerCard(player, { selectable = false, showRole = false } = {}
     'aria-pressed': selectable ? 'false' : null,
     data: { playerId: player.id },
   },
-    h('span', { class: 'avatar' }, player.alive ? avatar(player.name, 3) : sprite('skull', 3)),
+    h('span', { class: 'avatar' }, !player.alive ? sprite('skull', 3)
+      : player.public_role ? tradeAvatar(player.public_role, player.name, 3)
+      : avatar(player.name, 3)),
     h('span', { class: 'who' },
       h('span', { class: 'player-name', text: player.sheriff ? `⭐ ${player.name}` : player.name }),
       // The trade the narrator calls them by (#78): public, unlike the role.

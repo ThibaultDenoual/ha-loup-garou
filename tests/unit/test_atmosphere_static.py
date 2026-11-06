@@ -315,3 +315,38 @@ async def test_without_public_roles_the_named_line_is_kept():
         await atm._on_vote_resolved({"eliminated": "p0", "tie": False})
     msg = server.narrate.await_args.args[0]
     assert "P0" in msg.text and msg.audio_url is None
+
+
+async def test_each_reveal_calls_the_player_by_trade_after_the_intro():
+    atm, server = make_atmosphere("static")
+    _with_public_roles(atm, p0=("seer", "fisher"))
+    order = []
+    async def intro():
+        await asyncio.sleep(0)
+        order.append("intro")
+    atm._intro_task = asyncio.create_task(intro())
+    server.narrate.side_effect = lambda msg: order.append(msg.audio_url)
+    await atm._on_reveal_turn({"player_id": "p0"})
+    assert order == ["intro", "/loup_garou/voice/fr/part_step_forward+public_fisher.mp3"]
+
+
+async def test_the_engine_calls_each_player_before_their_reveal():
+    from loup_garou.const import GameEvent
+    from loup_garou.game_engine import GameEngine
+
+    engine = GameEngine()
+    seen = []
+    async def on_turn(data):
+        seen.append(("turn", data["player_id"], engine.prompt))
+    engine.on(GameEvent.REVEAL_TURN, on_turn)
+    await engine.start_game(["A", "B", "C"], ["werewolf", "villager", "seer"])
+    task = asyncio.create_task(engine.play_reveal())
+    for pid in ("p0", "p1", "p2"):
+        for _ in range(50):
+            if engine.prompt and engine.prompt.actor == pid:
+                break
+            await asyncio.sleep(0)
+        assert seen[-1][:2] == ("turn", pid)
+        assert seen[-1][2] is None or seen[-1][2].actor != pid  # called before the prompt opened
+        await engine.answer(engine.prompt.id, {})
+    await task

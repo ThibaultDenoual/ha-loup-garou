@@ -126,6 +126,7 @@ class Atmosphere:
     def wire_events(self) -> None:
         e = self._engine
         e.on(GameEvent.GAME_STARTED, self._on_game_started)
+        e.on(GameEvent.REVEAL_TURN, self._on_reveal_turn)
         e.on(GameEvent.PHASE_CHANGED, self._on_phase_changed)
         e.on(GameEvent.NIGHT_ROLE_WAKE, self._on_role_wake)
         e.on(GameEvent.NIGHT_ROLE_SLEEP, self._on_role_sleep)
@@ -145,6 +146,19 @@ class Atmosphere:
         self._intro_task = asyncio.create_task(
             self.speak(self._narrate("phase.role_reveal.start", delay_key="intro"))
         )
+
+    async def _on_reveal_turn(self, data: dict) -> None:
+        """Call the next player to the phone by their trade: "Step forward… the Baker".
+
+        Hearing it once per player is how everyone learns their public role.
+        """
+        if self._intro_task and not self._intro_task.done():
+            await asyncio.shield(self._intro_task)
+        public = self._player(data.get("player_id")).get("public_role")
+        if public:
+            await self.speak(self._narrate_parts(
+                ["part.step_forward", f"public.{public}.spoken"], delay_key="reveal_turn",
+            ))
 
     def shutdown(self) -> None:
         """Stop narration still running in the background (entry unload)."""

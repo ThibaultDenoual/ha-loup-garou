@@ -326,12 +326,12 @@
   "role.alpha_wolf.spoken": "un Loup Alpha",
   "role.minion.spoken": "un Sbire",
   "role.sheriff.spoken": "un Shérif",
+  "part.step_forward": "Que s'avance…",
   "part.victim": "La victime est…",
   "part.vote": "Le village a tranché. Il bannit…",
   "part.hunter": "Le Chasseur tire une dernière fois… et abat…",
   "part.grief": "Le cœur brisé, un amoureux suit l'être aimé dans la mort…",
   "part.scapegoat": "Le village n'arrive pas à trancher… alors le bouc émissaire paie le prix…",
   "part.was": "C'était…",
-  "ui.setup.hint.too_many": "Un village compte 20 joueurs au plus.",
-  "ui.reveal.public_role": "Au village, vous êtes {public}."
+  "ui.setup.hint.too_many": "Un village compte 20 joueurs au plus."
 }

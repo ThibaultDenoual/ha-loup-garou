@@ -1,7 +1,7 @@
-import { ref, translate } from '../i18n.js';
+import { translate } from '../i18n.js';
 import { $ } from '../dom.js';
 import { teamOf } from '../roles.js';
-import { sprite } from '../sprites.js';
+import { sprite, tradeAvatar } from '../sprites.js';
 
 // Matches the .reveal-card transition in pixel.css, plus a frame of margin.
 const FLIP_MS = 650;
@@ -55,11 +55,15 @@ export function render(prompt) {
   // The narrator sets the scene once, while the first player takes the phone.
   $('reveal-intro').hidden = done !== 1;
   $('reveal-player-label').textContent = player ? player.name : '?';
-  // The narrator announces deaths by this trade, so each player learns theirs.
+  // The narrator calls each player by trade and announces deaths by it, so the
+  // screen says it the same way: "Step forward… the Baker", portrait and name.
   const publicRole = player && player.public_role;
-  $('reveal-public').hidden = !publicRole;
+  $('reveal-portrait').hidden = $('reveal-public').hidden = !publicRole;
+  $('reveal-player-label').classList.toggle('with-public', Boolean(publicRole));
+  translate($('reveal-call'), publicRole ? 'part.step_forward' : 'ui.reveal.pass_to');
   if (publicRole) {
-    translate($('reveal-public'), 'ui.reveal.public_role', { public: ref(`public.${publicRole}.spoken`) });
+    $('reveal-portrait').replaceChildren(..._scalable(tradeAvatar(publicRole, player.name, 3)));
+    translate($('reveal-public'), `public.${publicRole}.spoken`);
   }
   translate($('reveal-progress'), 'ui.reveal.progress', { done, total });
 

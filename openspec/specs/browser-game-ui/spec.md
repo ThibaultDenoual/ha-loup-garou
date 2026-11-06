@@ -57,7 +57,7 @@ Reveal SHALL prompt "pass the phone to <name>", flip a card on tap/Enter/Space, 
 - **WHEN** a player presses "hide role and pass"
 - **THEN** the card SHALL flip face-down before the next player's role is loaded
 
-The handoff SHALL tell the player their public role ("In the village, you are the Baker."), and every player card SHALL show the public role under the name.
+With public roles, the reveal handoff SHALL call the player like the narrator ("Step forward… the Baker") with the trade's portrait, the trade and the player's name. Every player card SHALL show the trade's portrait and the trade under the name; each trade has its own portrait (headwear and outfit), with hair and skin following the player's name, and apprentices in lighter colours.
 
 On screens at least 500px tall the reveal SHALL fit one screen without page scrolling: the card SHALL take the height left between the handoff and the dock, and its medallion, role name and text SHALL scale with the card. The narrator's intro SHALL appear on the first player's face-down card. Shorter (landscape) screens SHALL keep a scrolling page.
 

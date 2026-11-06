@@ -326,12 +326,12 @@
   "role.alpha_wolf.spoken": "an Alpha Wolf",
   "role.minion.spoken": "a Minion",
   "role.sheriff.spoken": "a Sheriff",
+  "part.step_forward": "Step forward…",
   "part.victim": "The victim is…",
   "part.vote": "The village has decided. It banishes…",
   "part.hunter": "The Hunter fires one last shot… and takes down…",
   "part.grief": "Heartbroken, a lover follows their beloved into death…",
   "part.scapegoat": "The village cannot decide… so the scapegoat pays the price…",
   "part.was": "They were…",
-  "ui.setup.hint.too_many": "A village holds 20 players at most.",
-  "ui.reveal.public_role": "In the village, you are {public}."
+  "ui.setup.hint.too_many": "A village holds 20 players at most."
 }

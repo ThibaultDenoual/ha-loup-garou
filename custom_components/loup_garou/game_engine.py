@@ -251,6 +251,8 @@ class GameEngine:
     async def play_reveal(self) -> None:
         players = list(self._state.players.values())
         for done, player in enumerate(players, start=1):
+            # Handlers call the player to the phone here: the prompt opens once they finish.
+            await self._emit(GameEvent.REVEAL_TURN, {"player_id": player.id})
             await self.ask(
                 PROMPT_REVEAL,
                 actor=player.id,

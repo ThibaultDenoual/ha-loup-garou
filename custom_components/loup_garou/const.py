@@ -74,6 +74,7 @@ TTS_PHASE_DELAYS: dict[str, float] = {
     "game_over":           5.0,
     "game_over_reveal":    4.0,
     "intro":               9.0,
+    "reveal_turn":         3.0,
 }
 
 # Length in seconds of each recorded clip, rounded up to 0.1 s.
@@ -93,6 +94,7 @@ STATIC_AUDIO_SECONDS: dict[str, dict[str, float]] = {
         "part_hunter":             4.0,
         "part_scapegoat":          5.3,
         "part_victim":             1.8,
+        "part_step_forward":       1.9,
         "part_vote":               3.3,
         "part_was":                1.9,
         "public_baker":            1.9,
@@ -155,6 +157,7 @@ STATIC_AUDIO_SECONDS: dict[str, dict[str, float]] = {
         "part_hunter":             3.6,
         "part_scapegoat":          5.0,
         "part_victim":             1.9,
+        "part_step_forward":       1.9,
         "part_vote":               3.5,
         "part_was":                1.9,
         "public_baker":            1.9,
@@ -223,6 +226,7 @@ DEATH_BEAT = 3.0
 # ── Game events (used by engine.on() / engine._emit()) ───────────────────────
 class GameEvent(StrEnum):
     GAME_STARTED       = "game_started"
+    REVEAL_TURN        = "reveal_turn"
     GAME_OVER          = "game_over"
     PHASE_CHANGED      = "phase_changed"
     PLAYER_ELIMINATED  = "player_eliminated"
@@ -341,7 +345,7 @@ STATIC_AUDIO_MAP: dict[str, str] = {
 # Lines that name a player are joined from these parts at /loup_garou/voice
 # (see voice.py): a lead-in, the public role, "They were…", the secret role.
 NARRATION_PARTS: tuple[str, ...] = (
-    "part.victim", "part.vote", "part.hunter", "part.grief", "part.scapegoat", "part.was",
+    "part.step_forward", "part.victim", "part.vote", "part.hunter", "part.grief", "part.scapegoat", "part.was",
 )
 SPOKEN_ROLES: tuple[str, ...] = (
     "villager", "werewolf", "seer", "hunter", "elder", "scapegoat",

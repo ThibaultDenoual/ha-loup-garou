@@ -420,6 +420,82 @@ export function avatar(name, scale = 3) {
   });
 }
 
+// ── Village trades ───────────────────────────────────────────────────────────
+// Each public role (public_roles.py) has its own portrait: the headwear and
+// outfit say the trade, while hair and skin still follow the player's name.
+// Letters x/z are the trade's own colours; c/d its outfit.
+
+const FOREHEAD = ['jhhjsss', 'jhtssss'];
+const BEARD = ['jtsksss', 'jtsksss', '.tsssss', '.tsqsss', '..thhhh', '...hhhh', '..dhhhh', '.dccccc'];
+// Six rows of headwear, the forehead, then the face; outlined like the roles.
+const TRADES = {
+  baker: {        // tall pleated toque
+    rows: ['..lwwww', '.lwwwww', '.lwlwww', '..lwwww', '..lwlww', '.oooooo', ...FOREHEAD, ...FACE],
+    colors: { c: '#ece9fa', d: '#b7b2d8' },
+  },
+  blacksmith: {   // red bandana on a shaved head, soot on the cheek, leather apron
+    rows: ['.......', '.......', '....ddd', '..ddrrr', '.drrrrr', '.dddddd', 'tssssss', 'tssssss',
+      'jtsksss', 'jtsksss', '.tsssss', '.tseqss', '..tsssm', '...tsss', '..dcccc', '.dccccc'],
+    colors: { c: '#6b4a32', d: '#3e2a1c', e: '#5a5470' },
+  },
+  miller: {       // floury beret
+    rows: ['.......', '...llll', '.llwwww', 'lwwwwww', 'lwwwwww', '.oooooo', ...FOREHEAD, ...FACE],
+    colors: { c: '#d8d2c0', d: '#a39c88' },
+  },
+  shepherd: {     // brown felt hat with a wide brim
+    rows: ['.......', '...nnnn', '...nbbb', '..nbbbb', 'nnnnnnn', '.jhhhhh', ...FOREHEAD, ...FACE],
+    colors: { c: '#8a9a5b', d: '#5b6b38' },
+  },
+  innkeeper: {    // hair in a high bun, waistcoat over a white shirt
+    rows: ['.....jj', '....jhh', '.....jj', '..jjhhh', '.jhhhhh', '.jhhhhu', ...FOREHEAD,
+      'jtsksss', 'jtsksss', '.tsssss', '.tsqsss', '..tsssm', '...tsss', '..dcwww', '.dccwww'],
+    colors: { c: '#9e3a4a', d: '#5e1f2c' },
+  },
+  weaver: {       // patterned headscarf
+    rows: ['.......', '...zzzz', '.zxxxxx', '.xxgxxg', 'zxxxxxx', 'zxxxxxx', 'xxjssss', 'xxtssss', ...FACE],
+    colors: { x: '#2fb6b0', z: '#1d7a76', g: '#bff0ec', c: '#9466dc', d: '#5b3799' },
+  },
+  fisher: {       // yellow sou'wester, its brim down over the ears
+    rows: ['.......', '....yyy', '..ayyyy', '.ayyyyy', 'aaaaaaa', 'ayjhhhh', 'yahjsss', 'a.tssss', ...FACE],
+    colors: { c: '#2f5f8f', d: '#1c3a57' },
+  },
+  woodcutter: {   // red knitted cap with a pompom, and a beard
+    rows: ['......r', '....rrr', '..rdrdr', '.rrrrrr', '.dddddd', '.jhhhhh', ...FOREHEAD, ...BEARD],
+    colors: { c: '#3e5a7a', d: '#243a52' },
+  },
+  herbalist: {    // pointed green hood
+    rows: ['......x', '.....xx', '....zxx', '...zxxx', '..zxxxx', '.zxxjhh', 'zxhjsss', 'zxtssss',
+      'zxsksss', 'zxsksss', '.tsssss', '.tsqsss', '..tsssm', '...tsss', '..dcccc', '.dccccc'],
+    colors: { x: '#3f8f5a', z: '#2a5f3c', c: '#7a5a3a', d: '#4e3824' },
+  },
+  potter: {       // terracotta headscarf, clay on the cheek
+    rows: ['.......', '.......', '...zzzz', '..zxxxx', '.zxxxxx', '.jhhhhh', ...FOREHEAD,
+      'jtsksss', 'jtsksss', '.tsssss', '.tszsss', '..tsssm', '...tsss', '..dcccc', '.dccccc'],
+    colors: { x: '#d9703a', z: '#9a4520', c: '#b07a45', d: '#7a4a2a' },
+  },
+};
+for (const trade of Object.values(TRADES)) trade.rows = outlined(mirror(trade.rows));
+
+// The trade's portrait for a public role; apprentices wear their master's
+// outfit in lighter colours. Unknown roles fall back to the name's face.
+export function tradeAvatar(publicRole, name, scale = 3) {
+  const apprentice = publicRole.endsWith('_apprentice');
+  const trade = TRADES[apprentice ? publicRole.slice(0, -'_apprentice'.length) : publicRole];
+  if (!trade) return avatar(name, scale);
+  const n = hash(name || '?');
+  const hair = HAIR[(n >>> 4) % HAIR.length];
+  const skin = SKIN[(n >>> 8) % SKIN.length];
+  const colors = { ...trade.colors };
+  if (apprentice) {
+    for (const key of Object.keys(colors)) colors[key] = mix(colors[key], '#ffffff', 0.35);
+  }
+  return draw(trade.rows, scale, {
+    h: hair, j: mix(hair, COLORS.k, 0.45), u: mix(hair, '#ffffff', 0.35),
+    s: skin, t: mix(skin, '#6b2f3a', 0.3), q: mix(skin, COLORS.r, 0.35), m: '#7a3b3b',
+    ...colors,
+  });
+}
+
 // ── Scenery ──────────────────────────────────────────────────────────────────
 
 function seeded(seed) {

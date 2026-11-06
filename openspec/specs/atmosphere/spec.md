@@ -45,6 +45,10 @@ On `day_started` after a night (`after: "night"`) Atmosphere SHALL apply the `da
 - **WHEN** day starts after a vote that eliminated a player
 - **THEN** Atmosphere SHALL change no light and speak no line
 
+### Requirement: Players called by public role
+
+Before each player's reveal, Atmosphere SHALL narrate `part.step_forward` + the player's `public.<id>.spoken` ("Step forward… the Baker") as one joined clip, after the intro has finished, and the reveal prompt SHALL open once it has played.
+
 ### Requirement: Deaths announced by public role
 
 Night deaths, the vote result, the Hunter's target, a lover's grief and the scapegoat SHALL be announced without the player's name, from recorded parts: a lead-in (`part.victim`, `part.vote`, `part.hunter`, `part.grief`, `part.scapegoat`), the player's `public.<id>.spoken`, `part.was`, and `role.<id>.spoken`. With recorded voice the parts SHALL be one URL, `/loup_garou/voice/<lang>/<stem>+…mp3`, whose length is the sum of the parts. A player without a public role SHALL get the older line with their name.
