@@ -67,9 +67,17 @@ Atmosphere SHALL support `browser` TTS by delegating to `server.narrate` (which 
 
 In HA mode Atmosphere SHALL wait for the speaker itself: it SHALL wait up to `SPEAKER_START_TIMEOUT` for the speaker to enter `playing`, then until it leaves `playing` (at most `SPEAKER_MAX_LINE`), then pause `SPEAKER_GAP` before the next line. It SHALL fall back to the per-phase delay (or the recorded clip length) when the speaker has no state, is already playing, or has never been seen playing; a speaker that misses its first line SHALL be logged once and use fixed delays until the speaker setting changes.
 
+Recorded clips SHALL be sent as absolute URLs built from `get_url` (the Network settings, falling back to the local address), and as announcements when the speaker supports `MEDIA_ANNOUNCE`, as `tts.speak` does. Service calls SHALL be blocking so a refused call is logged with the speaker and the line.
+
+"Test the narration" SHALL watch the speaker afresh and report one result to the browser: `played`, `sent` (the speaker has no state), `not_started`, `refused`, `no_url` or `no_speaker`.
+
 #### Scenario: HA mode waits for the speaker
 - **WHEN** a line is spoken in HA mode and the speaker goes from `idle` to `playing`
 - **THEN** Atmosphere SHALL not return until the speaker leaves `playing`
+
+#### Scenario: Speaker that never plays the test line
+- **WHEN** "Test the narration" runs and the speaker never enters `playing`
+- **THEN** the browser SHALL receive `test_audio_done` with result `not_started`
 
 #### Scenario: Speaker without state
 - **WHEN** a line is spoken in HA mode on a speaker with no state

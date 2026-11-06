@@ -100,6 +100,16 @@ async def test_narration_waits_for_the_clip_length_when_the_browser_is_silent(mo
         assert 0.45 <= loop.time() - start < 1.5
         narrate = (await drain(ws, until_type="narrate"))[-1]
         assert narrate["data"]["audio_seconds"] == 0.4
+@pytest.mark.parametrize("result", ["played", "not_started", None])
+async def test_test_audio_reports_what_the_speaker_did(result):
+    async def _test(connect, engine, server):
+        async def _speak():
+            return result
+        server.set_test_audio_callback(_speak)
+        ws = await connect()
+        await ws.send_json({"cmd": "test_audio"})
+        done = (await drain(ws, until_type="test_audio_done"))[-1]
+        assert done["result"] == result
     await play(_test)
 
 
