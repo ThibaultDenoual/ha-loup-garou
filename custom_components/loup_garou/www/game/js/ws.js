@@ -10,6 +10,10 @@ let _reconnectAttempts = 0;
 const MAX_RECONNECT_DELAY = 30000;
 // Set when HA refused a page that had no token to offer: retrying cannot help.
 let _authBlocked = false;
+// The server's build when this page loaded. The Companion App keeps the page
+// open across Home Assistant restarts, so after an update the page would keep
+// running the old game: a different build on reconnect reloads it.
+let _build = null;
 
 export function connect({ onMessage, onReady, onStatus }) {
   _handlers = { onMessage, onReady, onStatus };
@@ -55,6 +59,13 @@ function _doConnect() {
     if (msg.type === 'auth_invalid') {
       _authBlocked = !sentToken;
       return;
+    }
+    if (msg.type === 'config' && msg.config && msg.config.build) {
+      if (_build === null) _build = msg.config.build;
+      else if (msg.config.build !== _build) {
+        location.reload();
+        return;
+      }
     }
     if (_handlers.onMessage) _handlers.onMessage(msg);
   };

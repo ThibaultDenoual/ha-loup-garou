@@ -26,7 +26,7 @@ from aiohttp import web
 
 from loup_garou.game_engine import GameEngine
 from loup_garou.game_server import LoupGarouServer
-from loup_garou.const import STATIC_AUDIO_MAP, STATIC_AUDIO_SECONDS
+from loup_garou.const import BUILD, STATIC_AUDIO_MAP, STATIC_AUDIO_SECONDS
 from loup_garou.narration import NarrationMessage
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
@@ -42,6 +42,7 @@ def build_app(port: int, language: str = "fr") -> web.Application:
         "speaker":      "",
         "lights":       [],
         "tts_engine":   "tts.cloud_say",
+        "build":        BUILD,
     })
     server.wire_events()
 

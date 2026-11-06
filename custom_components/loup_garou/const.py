@@ -17,6 +17,28 @@ def _read_version() -> str:
 
 VERSION: str = _read_version()
 
+
+def _read_build() -> str:
+    """A fingerprint of the game's web files: it changes with any update.
+
+    Pages compare it on every reconnect and reload when it changed, so a page
+    the Companion App kept open never keeps running an older game.
+    """
+    import hashlib
+
+    digest = hashlib.sha1(VERSION.encode())
+    root = _Path(__file__).parent / "www" / "game"
+    try:
+        for path in sorted(p for p in root.rglob("*") if p.is_file()):
+            digest.update(str(path.relative_to(root)).encode())
+            digest.update(path.read_bytes())
+    except OSError:
+        return VERSION
+    return digest.hexdigest()[:12]
+
+
+BUILD: str = _read_build()
+
 DOMAIN = "loup_garou"
 
 # ── Configuration keys ────────────────────────────────────────────────────────
